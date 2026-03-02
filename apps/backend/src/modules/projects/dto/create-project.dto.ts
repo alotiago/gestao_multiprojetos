@@ -37,6 +37,11 @@ export class CreateProjectDto {
   @IsNotEmpty({ message: 'Unidade é obrigatória' })
   unitId!: string;
 
+  @ApiProperty({ example: 'contrato123', description: 'ID do contrato obrigatório' })
+  @IsString()
+  @IsNotEmpty({ message: 'Contrato é obrigatório' })
+  contratoId!: string;
+
   @ApiPropertyOptional({ enum: ProjectStatus, default: ProjectStatus.ATIVO })
   @IsOptional()
   @IsEnum(ProjectStatus, { message: 'Status deve ser um valor válido' })

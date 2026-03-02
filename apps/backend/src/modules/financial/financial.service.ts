@@ -925,7 +925,7 @@ export class FinancialService {
         where: { id: data.linhaContratualId },
         include: {
           objetoContratual: {
-            select: { id: true, projectId: true, numero: true, descricao: true },
+            select: { id: true, contratoId: true, nome: true, descricao: true },
           },
         },
       });
@@ -938,9 +938,10 @@ export class FinancialService {
 
       // Auto-preencher campos a partir da linha contratual (US1)
       const objetoContratualId = data.objetoContratualId || linha.objetoContratualId;
-      const projectId = data.projectId || linha.objetoContratual.projectId;
+      const projectId = data.projectId;
+      if (!projectId) throw new NotFoundException('Projeto não encontrado para esta linha contratual');
       const tipoReceita = data.tipoReceita || linha.descricaoItem;
-      const descricao = data.descricao || `${linha.descricaoItem} (${linha.objetoContratual.numero})`;
+      const descricao = data.descricao || `${linha.descricaoItem} (${linha.objetoContratual.nome})`;
 
       // Verificar duplicata: mesma linha no mesmo mês/ano
       const existing = await this.prisma.receitaMensal.findFirst({
@@ -998,10 +999,14 @@ export class FinancialService {
           tipoReceita,
           descricao,
           unidade: linha.unidade,
+          quantidadePlanejada: new Decimal(quantidade),
+          valorUnitarioPlanejado: new Decimal(valorUnitario),
+          valorPlanejado: new Decimal(valorTotal),
           quantidade: new Decimal(quantidade),
           valorUnitario: new Decimal(valorUnitario),
-          valorPrevisto: new Decimal(valorTotal), // US2: cálculo automático
+          valorPrevisto: new Decimal(valorTotal),
           valorRealizado: data.valorRealizado ? new Decimal(data.valorRealizado) : new Decimal(0),
+          ativo: true,
         },
         include: this.receitaInclude,
       });
@@ -1064,8 +1069,10 @@ export class FinancialService {
         descricao: data.descricao,
         mes: data.mes,
         ano: data.ano,
+        valorPlanejado: new Decimal(data.valorPrevisto),
         valorPrevisto: new Decimal(data.valorPrevisto),
         valorRealizado: data.valorRealizado ? new Decimal(data.valorRealizado) : new Decimal(0),
+        ativo: true,
       },
       include: this.receitaInclude,
     });

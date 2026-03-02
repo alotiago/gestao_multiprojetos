@@ -9,100 +9,100 @@ export declare class FinancialService {
     private readonly prisma;
     constructor(prisma: PrismaService);
     findDespesas(filters: FilterDespesaDto): Promise<{
-        mes: number;
-        ano: number;
+        tipo: string;
+        createdAt: Date;
         id: string;
         descricao: string;
-        createdAt: Date;
         updatedAt: Date;
-        tipo: string;
+        mes: number;
+        ano: number;
         projectId: string;
         valor: Decimal;
     }[]>;
     findDespesaById(id: string): Promise<{
-        mes: number;
-        ano: number;
+        tipo: string;
+        createdAt: Date;
         id: string;
         descricao: string;
-        createdAt: Date;
         updatedAt: Date;
-        tipo: string;
+        mes: number;
+        ano: number;
         projectId: string;
         valor: Decimal;
     }>;
     createDespesa(dto: CreateDespesaDto): Promise<{
-        mes: number;
-        ano: number;
+        tipo: string;
+        createdAt: Date;
         id: string;
         descricao: string;
-        createdAt: Date;
         updatedAt: Date;
-        tipo: string;
+        mes: number;
+        ano: number;
         projectId: string;
         valor: Decimal;
     }>;
     updateDespesa(id: string, dto: UpdateDespesaDto): Promise<{
-        mes: number;
-        ano: number;
+        tipo: string;
+        createdAt: Date;
         id: string;
         descricao: string;
-        createdAt: Date;
         updatedAt: Date;
-        tipo: string;
+        mes: number;
+        ano: number;
         projectId: string;
         valor: Decimal;
     }>;
     deleteDespesa(id: string): Promise<{
-        mes: number;
-        ano: number;
+        tipo: string;
+        createdAt: Date;
         id: string;
         descricao: string;
-        createdAt: Date;
         updatedAt: Date;
-        tipo: string;
+        mes: number;
+        ano: number;
         projectId: string;
         valor: Decimal;
     }>;
     findImpostos(projectId: string, ano?: number): Promise<{
+        tipo: string;
+        createdAt: Date;
+        id: string;
+        updatedAt: Date;
         mes: number;
         ano: number;
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tipo: string;
         projectId: string;
         valor: Decimal;
         aliquota: Decimal;
     }[]>;
     createImposto(dto: CreateImpostoDto): Promise<{
+        tipo: string;
+        createdAt: Date;
+        id: string;
+        updatedAt: Date;
         mes: number;
         ano: number;
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tipo: string;
         projectId: string;
         valor: Decimal;
         aliquota: Decimal;
     }>;
     updateImposto(id: string, dto: UpdateImpostoDto): Promise<{
+        tipo: string;
+        createdAt: Date;
+        id: string;
+        updatedAt: Date;
         mes: number;
         ano: number;
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tipo: string;
         projectId: string;
         valor: Decimal;
         aliquota: Decimal;
     }>;
     deleteImposto(id: string): Promise<{
+        tipo: string;
+        createdAt: Date;
+        id: string;
+        updatedAt: Date;
         mes: number;
         ano: number;
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tipo: string;
         projectId: string;
         valor: Decimal;
         aliquota: Decimal;
@@ -137,45 +137,45 @@ export declare class FinancialService {
     }>;
     findCustosMensais(projectId: string, ano?: number): Promise<({
         colaborador: {
+            nome: string;
             id: string;
             matricula: string;
-            nome: string;
             cargo: string;
         };
     } & {
+        createdAt: Date;
+        id: string;
+        updatedAt: Date;
         mes: number;
         ano: number;
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
         projectId: string;
         colaboradorId: string;
         custoFixo: Decimal;
         custoVariavel: Decimal;
     })[]>;
     upsertCustoMensal(dto: CreateCustoMensalDto): Promise<{
+        createdAt: Date;
+        id: string;
+        updatedAt: Date;
         mes: number;
         ano: number;
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
         projectId: string;
         colaboradorId: string;
         custoFixo: Decimal;
         custoVariavel: Decimal;
     }>;
     findIndices(tipo?: string, ano?: number): Promise<{
-        id: string;
-        createdAt: Date;
         tipo: string;
+        createdAt: Date;
+        id: string;
         valor: Decimal;
         mesReferencia: number;
         anoReferencia: number;
     }[]>;
     createIndice(dto: CreateIndiceFinanceiroDto): Promise<{
-        id: string;
-        createdAt: Date;
         tipo: string;
+        createdAt: Date;
+        id: string;
         valor: Decimal;
         mesReferencia: number;
         anoReferencia: number;
@@ -214,62 +214,62 @@ export declare class FinancialService {
     }>;
     private validateProject;
     findProvisoes(filters: FilterProvisaoDto): Promise<{
-        mes: number;
-        ano: number;
+        tipo: string;
+        createdAt: Date;
         id: string;
         descricao: string | null;
-        createdAt: Date;
         ativo: boolean;
         updatedAt: Date;
-        tipo: string;
+        mes: number;
+        ano: number;
         projectId: string;
         valor: Decimal;
     }[]>;
     findProvisaoById(id: string): Promise<{
-        mes: number;
-        ano: number;
+        tipo: string;
+        createdAt: Date;
         id: string;
         descricao: string | null;
-        createdAt: Date;
         ativo: boolean;
         updatedAt: Date;
-        tipo: string;
+        mes: number;
+        ano: number;
         projectId: string;
         valor: Decimal;
     }>;
     createProvisao(dto: CreateProvisaoDto): Promise<{
-        mes: number;
-        ano: number;
+        tipo: string;
+        createdAt: Date;
         id: string;
         descricao: string | null;
-        createdAt: Date;
         ativo: boolean;
         updatedAt: Date;
-        tipo: string;
+        mes: number;
+        ano: number;
         projectId: string;
         valor: Decimal;
     }>;
     updateProvisao(id: string, dto: UpdateProvisaoDto): Promise<{
-        mes: number;
-        ano: number;
+        tipo: string;
+        createdAt: Date;
         id: string;
         descricao: string | null;
-        createdAt: Date;
         ativo: boolean;
         updatedAt: Date;
-        tipo: string;
+        mes: number;
+        ano: number;
         projectId: string;
         valor: Decimal;
     }>;
     deleteProvisao(id: string): Promise<{
-        mes: number;
-        ano: number;
+        tipo: string;
+        createdAt: Date;
         id: string;
         descricao: string | null;
-        createdAt: Date;
         ativo: boolean;
         updatedAt: Date;
-        tipo: string;
+        mes: number;
+        ano: number;
         projectId: string;
         valor: Decimal;
     }>;
@@ -337,40 +337,45 @@ export declare class FinancialService {
     findAllReceitas(page?: number, limit?: number, ano?: number): Promise<{
         data: ({
             project: {
-                id: string;
-                nome: string;
                 codigo: string;
+                nome: string;
+                id: string;
             };
             objetoContratual: {
                 id: string;
                 descricao: string;
-                numero: string;
+                numero: never;
             } | null;
             linhaContratual: {
                 id: string;
-                descricaoItem: string;
                 unidade: string;
-                quantidadeAnualEstimada: Decimal;
                 valorUnitario: Decimal;
+                descricaoItem: string;
+                quantidadeAnualEstimada: Decimal;
                 valorTotalAnual: Decimal;
             } | null;
         } & {
-            mes: number;
-            ano: number;
+            createdAt: Date;
             id: string;
             descricao: string | null;
-            createdAt: Date;
             ativo: boolean;
             updatedAt: Date;
+            mes: number;
+            ano: number;
             projectId: string;
             objetoContratualId: string | null;
-            unidade: string | null;
-            valorUnitario: Decimal | null;
             linhaContratualId: string | null;
             tipoReceita: string;
-            quantidade: Decimal | null;
-            valorPrevisto: Decimal;
+            unidade: string | null;
+            quantidadePlanejada: Decimal | null;
+            valorUnitarioPlanejado: Decimal | null;
+            valorPlanejado: Decimal;
+            quantidadeRealizada: Decimal | null;
+            valorUnitarioRealizado: Decimal | null;
             valorRealizado: Decimal;
+            quantidade: Decimal | null;
+            valorUnitario: Decimal | null;
+            valorPrevisto: Decimal;
         })[];
         total: number;
         page: number;
@@ -378,40 +383,45 @@ export declare class FinancialService {
     }>;
     findReceitasById(projectId: string, ano?: number): Promise<({
         project: {
-            id: string;
-            nome: string;
             codigo: string;
+            nome: string;
+            id: string;
         };
         objetoContratual: {
             id: string;
             descricao: string;
-            numero: string;
+            numero: never;
         } | null;
         linhaContratual: {
             id: string;
-            descricaoItem: string;
             unidade: string;
-            quantidadeAnualEstimada: Decimal;
             valorUnitario: Decimal;
+            descricaoItem: string;
+            quantidadeAnualEstimada: Decimal;
             valorTotalAnual: Decimal;
         } | null;
     } & {
-        mes: number;
-        ano: number;
+        createdAt: Date;
         id: string;
         descricao: string | null;
-        createdAt: Date;
         ativo: boolean;
         updatedAt: Date;
+        mes: number;
+        ano: number;
         projectId: string;
         objetoContratualId: string | null;
-        unidade: string | null;
-        valorUnitario: Decimal | null;
         linhaContratualId: string | null;
         tipoReceita: string;
-        quantidade: Decimal | null;
-        valorPrevisto: Decimal;
+        unidade: string | null;
+        quantidadePlanejada: Decimal | null;
+        valorUnitarioPlanejado: Decimal | null;
+        valorPlanejado: Decimal;
+        quantidadeRealizada: Decimal | null;
+        valorUnitarioRealizado: Decimal | null;
         valorRealizado: Decimal;
+        quantidade: Decimal | null;
+        valorUnitario: Decimal | null;
+        valorPrevisto: Decimal;
     })[]>;
     /**
      * Buscar receitas agregadas por Objeto Contratual
@@ -421,40 +431,45 @@ export declare class FinancialService {
         objetoContratualId: string;
         receitas: ({
             project: {
-                id: string;
-                nome: string;
                 codigo: string;
+                nome: string;
+                id: string;
             };
             objetoContratual: {
                 id: string;
                 descricao: string;
-                numero: string;
+                numero: never;
             } | null;
             linhaContratual: {
                 id: string;
-                descricaoItem: string;
                 unidade: string;
-                quantidadeAnualEstimada: Decimal;
                 valorUnitario: Decimal;
+                descricaoItem: string;
+                quantidadeAnualEstimada: Decimal;
                 valorTotalAnual: Decimal;
             } | null;
         } & {
-            mes: number;
-            ano: number;
+            createdAt: Date;
             id: string;
             descricao: string | null;
-            createdAt: Date;
             ativo: boolean;
             updatedAt: Date;
+            mes: number;
+            ano: number;
             projectId: string;
             objetoContratualId: string | null;
-            unidade: string | null;
-            valorUnitario: Decimal | null;
             linhaContratualId: string | null;
             tipoReceita: string;
-            quantidade: Decimal | null;
-            valorPrevisto: Decimal;
+            unidade: string | null;
+            quantidadePlanejada: Decimal | null;
+            valorUnitarioPlanejado: Decimal | null;
+            valorPlanejado: Decimal;
+            quantidadeRealizada: Decimal | null;
+            valorUnitarioRealizado: Decimal | null;
             valorRealizado: Decimal;
+            quantidade: Decimal | null;
+            valorUnitario: Decimal | null;
+            valorPrevisto: Decimal;
         })[];
         totais: {
             totalPrevisto: number;
@@ -475,40 +490,45 @@ export declare class FinancialService {
      */
     createReceita(data: any): Promise<{
         project: {
-            id: string;
-            nome: string;
             codigo: string;
+            nome: string;
+            id: string;
         };
         objetoContratual: {
             id: string;
             descricao: string;
-            numero: string;
+            numero: never;
         } | null;
         linhaContratual: {
             id: string;
-            descricaoItem: string;
             unidade: string;
-            quantidadeAnualEstimada: Decimal;
             valorUnitario: Decimal;
+            descricaoItem: string;
+            quantidadeAnualEstimada: Decimal;
             valorTotalAnual: Decimal;
         } | null;
     } & {
-        mes: number;
-        ano: number;
+        createdAt: Date;
         id: string;
         descricao: string | null;
-        createdAt: Date;
         ativo: boolean;
         updatedAt: Date;
+        mes: number;
+        ano: number;
         projectId: string;
         objetoContratualId: string | null;
-        unidade: string | null;
-        valorUnitario: Decimal | null;
         linhaContratualId: string | null;
         tipoReceita: string;
-        quantidade: Decimal | null;
-        valorPrevisto: Decimal;
+        unidade: string | null;
+        quantidadePlanejada: Decimal | null;
+        valorUnitarioPlanejado: Decimal | null;
+        valorPlanejado: Decimal;
+        quantidadeRealizada: Decimal | null;
+        valorUnitarioRealizado: Decimal | null;
         valorRealizado: Decimal;
+        quantidade: Decimal | null;
+        valorUnitario: Decimal | null;
+        valorPrevisto: Decimal;
     }>;
     /**
      * Atualizar receita — US4: Atualização Dinâmica
@@ -516,58 +536,68 @@ export declare class FinancialService {
      */
     updateReceita(id: string, data: any): Promise<{
         project: {
-            id: string;
-            nome: string;
             codigo: string;
+            nome: string;
+            id: string;
         };
         objetoContratual: {
             id: string;
             descricao: string;
-            numero: string;
+            numero: never;
         } | null;
         linhaContratual: {
             id: string;
-            descricaoItem: string;
             unidade: string;
-            quantidadeAnualEstimada: Decimal;
             valorUnitario: Decimal;
+            descricaoItem: string;
+            quantidadeAnualEstimada: Decimal;
             valorTotalAnual: Decimal;
         } | null;
     } & {
-        mes: number;
-        ano: number;
+        createdAt: Date;
         id: string;
         descricao: string | null;
-        createdAt: Date;
         ativo: boolean;
         updatedAt: Date;
+        mes: number;
+        ano: number;
         projectId: string;
         objetoContratualId: string | null;
-        unidade: string | null;
-        valorUnitario: Decimal | null;
         linhaContratualId: string | null;
         tipoReceita: string;
-        quantidade: Decimal | null;
-        valorPrevisto: Decimal;
+        unidade: string | null;
+        quantidadePlanejada: Decimal | null;
+        valorUnitarioPlanejado: Decimal | null;
+        valorPlanejado: Decimal;
+        quantidadeRealizada: Decimal | null;
+        valorUnitarioRealizado: Decimal | null;
         valorRealizado: Decimal;
+        quantidade: Decimal | null;
+        valorUnitario: Decimal | null;
+        valorPrevisto: Decimal;
     }>;
     deleteReceita(id: string): Promise<{
-        mes: number;
-        ano: number;
+        createdAt: Date;
         id: string;
         descricao: string | null;
-        createdAt: Date;
         ativo: boolean;
         updatedAt: Date;
+        mes: number;
+        ano: number;
         projectId: string;
         objetoContratualId: string | null;
-        unidade: string | null;
-        valorUnitario: Decimal | null;
         linhaContratualId: string | null;
         tipoReceita: string;
-        quantidade: Decimal | null;
-        valorPrevisto: Decimal;
+        unidade: string | null;
+        quantidadePlanejada: Decimal | null;
+        valorUnitarioPlanejado: Decimal | null;
+        valorPlanejado: Decimal;
+        quantidadeRealizada: Decimal | null;
+        valorUnitarioRealizado: Decimal | null;
         valorRealizado: Decimal;
+        quantidade: Decimal | null;
+        valorUnitario: Decimal | null;
+        valorPrevisto: Decimal;
     }>;
 }
 //# sourceMappingURL=financial.service.d.ts.map

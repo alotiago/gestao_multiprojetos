@@ -23,69 +23,128 @@ export class ContractsController {
   constructor(private readonly contractsService: ContractsService) {}
 
   // ═══════════════════════════════════════════
-  //  OBJETOS CONTRATUAIS
+  //  CONTRATOS
   // ═══════════════════════════════════════════
 
-  @Get('objetos')
-  @ApiOperation({ summary: 'Listar objetos contratuais (paginado)' })
-  async findAllObjetos(
+  @Get()
+  @ApiOperation({ summary: 'Listar contratos (paginado) - US 1.1' })
+  async findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-    @Query('projectId') projectId?: string,
+    @Query('status') status?: string,
   ) {
-    return this.contractsService.findAllObjetos(
+    return this.contractsService.findAllContratos(
       Number(page) || 1,
       Number(limit) || 10,
-      projectId,
+      status,
     );
   }
 
-  @Get('objetos/:id')
-  @ApiOperation({ summary: 'Buscar objeto contratual por ID (com linhas)' })
-  async findObjetoById(@Param('id') id: string) {
-    return this.contractsService.findObjetoById(id);
+  @Get('disponíveis')
+  @ApiOperation({ summary: 'Contratos disponíveis para novos projetos' })
+  async findDisponíveis() {
+    return this.contractsService.findContratosDisponíveis();
   }
 
-  @Get('projetos/:projectId/objetos')
-  @ApiOperation({ summary: 'Listar objetos contratuais de um projeto' })
-  async findObjetosByProject(@Param('projectId') projectId: string) {
-    return this.contractsService.findObjetosByProject(projectId);
+  @Get(':id')
+  @ApiOperation({ summary: 'Detalhe de contrato com objetos e linhas - US 1.2' })
+  async findById(@Param('id') id: string) {
+    return this.contractsService.findContratoById(id);
   }
 
-  @Get('projetos/:projectId/resumo')
-  @ApiOperation({ summary: 'Resumo contratual do projeto (totais por objeto e linhas)' })
-  async getProjectContractSummary(@Param('projectId') projectId: string) {
-    return this.contractsService.getProjectContractSummary(projectId);
-  }
-
-  @Post('objetos')
+  @Post()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Criar objeto contratual' })
-  async createObjeto(
+  @ApiOperation({ summary: 'Criar contrato - US 1.3' })
+  async create(
     @Body()
     data: {
-      projectId: string;
-      numero: string;
+      nomeContrato: string;
+      cliente: string;
+      numeroContrato: string;
+      dataInicio: string;
+      dataFim?: string;
+      status?: string;
+      observacoes?: string;
+    },
+  ) {
+    return this.contractsService.createContrato(data as any);
+  }
+
+  @Put(':id')
+  @ApiOperation({ summary: 'Atualizar contrato - US 1.4' })
+  async update(
+    @Param('id') id: string,
+    @Body()
+    data: {
+      nomeContrato?: string;
+      cliente?: string;
+      numeroContrato?: string;
+      dataInicio?: string;
+      dataFim?: string;
+      status?: string;
+      observacoes?: string;
+    },
+  ) {
+    return this.contractsService.updateContrato(id, data as any);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Desativar contrato - soft delete' })
+  async delete(@Param('id') id: string) {
+    return this.contractsService.deleteContrato(id);
+  }
+
+  @Post(':id/clone')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Clonar contrato com estrutura completa - US 5.1' })
+  async clone(
+    @Param('id') id: string,
+    @Body() data: { novoNome: string; novoNumero: string },
+  ) {
+    return this.contractsService.cloneContrato(id, data.novoNome, data.novoNumero);
+  }
+
+  // ═══════════════════════════════════════════
+  //  OBJETOS CONTRATUAIS
+  // ═══════════════════════════════════════════
+
+  @Post(':contratoId/objetos')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Criar objeto contratual - US 2.1' })
+  async createObjeto(
+    @Param('contratoId') contratoId: string,
+    @Body()
+    data: {
+      nome: string;
       descricao: string;
       dataInicio: string;
       dataFim?: string;
+      observacoes?: string;
     },
   ) {
-    return this.contractsService.createObjeto(data);
+    return this.contractsService.createObjeto({ ...data, contratoId });
   }
 
   @Put('objetos/:id')
-  @ApiOperation({ summary: 'Atualizar objeto contratual' })
+  @ApiOperation({ summary: 'Atualizar objeto contratual - US 2.2' })
   async updateObjeto(
     @Param('id') id: string,
-    @Body() data: { descricao?: string; dataInicio?: string; dataFim?: string },
+    @Body()
+    data: {
+      nome?: string;
+      descricao?: string;
+      dataInicio?: string;
+      dataFim?: string;
+      observacoes?: string;
+    },
   ) {
     return this.contractsService.updateObjeto(id, data);
   }
 
   @Delete('objetos/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Desativar objeto contratual (soft delete)' })
+  @ApiOperation({ summary: 'Desativar objeto contratual - US 2.3' })
   async deleteObjeto(@Param('id') id: string) {
     return this.contractsService.deleteObjeto(id);
   }
@@ -94,42 +153,27 @@ export class ContractsController {
   //  LINHAS CONTRATUAIS
   // ═══════════════════════════════════════════
 
-  @Get('objetos/:objetoId/linhas')
-  @ApiOperation({ summary: 'Listar linhas contratuais de um objeto' })
-  async findLinhasByObjeto(@Param('objetoId') objetoId: string) {
-    return this.contractsService.findLinhasByObjeto(objetoId);
-  }
-
-  @Get('linhas/:id')
-  @ApiOperation({ summary: 'Buscar linha contratual por ID' })
-  async findLinhaById(@Param('id') id: string) {
-    return this.contractsService.findLinhaById(id);
-  }
-
-  @Get('projetos/:projectId/linhas')
-  @ApiOperation({ summary: 'Listar todas as linhas contratuais de um projeto' })
-  async findLinhasByProject(@Param('projectId') projectId: string) {
-    return this.contractsService.findLinhasByProject(projectId);
-  }
-
-  @Post('linhas')
+  @Post('objetos/:objetoId/linhas')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Criar linha contratual' })
+  @ApiOperation({ summary: 'Criar linha contratual - US 3.1' })
   async createLinha(
+    @Param('objetoId') objetoContratualId: string,
     @Body()
     data: {
-      objetoContratualId: string;
       descricaoItem: string;
       unidade: string;
       quantidadeAnualEstimada: number;
       valorUnitario: number;
     },
   ) {
-    return this.contractsService.createLinha(data);
+    return this.contractsService.createLinha({
+      ...data,
+      objetoContratualId,
+    });
   }
 
   @Put('linhas/:id')
-  @ApiOperation({ summary: 'Atualizar linha contratual (recalcula receitas futuras)' })
+  @ApiOperation({ summary: 'Atualizar linha contratual - US 3.2' })
   async updateLinha(
     @Param('id') id: string,
     @Body()
@@ -145,8 +189,18 @@ export class ContractsController {
 
   @Delete('linhas/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Desativar linha contratual (soft delete)' })
+  @ApiOperation({ summary: 'Desativar linha contratual - US 3.3' })
   async deleteLinha(@Param('id') id: string) {
     return this.contractsService.deleteLinha(id);
+  }
+
+  // ═══════════════════════════════════════════
+  //  HELPERS
+  // ═══════════════════════════════════════════
+
+  @Get('projetos/:projectId/resumo')
+  @ApiOperation({ summary: 'Resumo contratual do projeto' })
+  async getProjectSummary(@Param('projectId') projectId: string) {
+    return this.contractsService.getProjectContractSummary(projectId);
   }
 }

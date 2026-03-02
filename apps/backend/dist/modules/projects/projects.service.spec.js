@@ -116,6 +116,7 @@ describe('ProjectsService', () => {
             nome: 'Novo Projeto',
             cliente: 'Cliente Novo',
             unitId: 'unit-1',
+            contratoId: 'contrato-1',
             tipo: 'produto',
             dataInicio: '2026-03-01',
         };

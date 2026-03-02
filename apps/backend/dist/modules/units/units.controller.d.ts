@@ -4,36 +4,36 @@ export declare class UnitsController {
     constructor(unitsService: UnitsService);
     findAll(): Promise<{
         data: {
-            name: string;
-            id: string;
             createdAt: Date;
+            id: string;
             ativo: boolean;
             updatedAt: Date;
-            description: string | null;
             code: string;
+            name: string;
+            description: string | null;
         }[];
     }>;
     findById(id: string): Promise<{
-        name: string;
-        id: string;
         createdAt: Date;
+        id: string;
         ativo: boolean;
         updatedAt: Date;
-        description: string | null;
         code: string;
+        name: string;
+        description: string | null;
     } | null>;
     create(data: {
         code: string;
         name: string;
         description?: string;
     }): Promise<{
-        name: string;
-        id: string;
         createdAt: Date;
+        id: string;
         ativo: boolean;
         updatedAt: Date;
-        description: string | null;
         code: string;
+        name: string;
+        description: string | null;
     }>;
     update(id: string, data: {
         code?: string;
@@ -41,22 +41,22 @@ export declare class UnitsController {
         description?: string;
         ativo?: boolean;
     }): Promise<{
-        name: string;
-        id: string;
         createdAt: Date;
+        id: string;
         ativo: boolean;
         updatedAt: Date;
-        description: string | null;
         code: string;
+        name: string;
+        description: string | null;
     }>;
     delete(id: string): Promise<{
-        name: string;
-        id: string;
         createdAt: Date;
+        id: string;
         ativo: boolean;
         updatedAt: Date;
-        description: string | null;
         code: string;
+        name: string;
+        description: string | null;
     }>;
 }
 //# sourceMappingURL=units.controller.d.ts.map

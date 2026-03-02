@@ -5,15 +5,15 @@ export declare class ConfigController {
     private readonly configService;
     constructor(configService: ConfigService);
     findCalendarios(filters: FilterCalendarioDto): Promise<{
+        createdAt: Date;
+        id: string;
+        descricao: string;
+        data: Date;
         estado: string | null;
         cidade: string | null;
-        id: string;
-        data: Date;
         tipoFeriado: import(".prisma/client").$Enums.FeriadoType;
-        descricao: string;
         diaSemana: number;
         nacional: boolean;
-        createdAt: Date;
     }[]>;
     calcularHorasPrevistas(estado: string, mes: number, ano: number): Promise<{
         estado: string;
@@ -29,54 +29,54 @@ export declare class ConfigController {
         }[];
     }>;
     findCalendario(id: string): Promise<{
+        createdAt: Date;
+        id: string;
+        descricao: string;
+        data: Date;
         estado: string | null;
         cidade: string | null;
-        id: string;
-        data: Date;
         tipoFeriado: import(".prisma/client").$Enums.FeriadoType;
-        descricao: string;
         diaSemana: number;
         nacional: boolean;
-        createdAt: Date;
     }>;
     createCalendario(dto: CreateCalendarioDto): Promise<{
+        createdAt: Date;
+        id: string;
+        descricao: string;
+        data: Date;
         estado: string | null;
         cidade: string | null;
-        id: string;
-        data: Date;
         tipoFeriado: import(".prisma/client").$Enums.FeriadoType;
-        descricao: string;
         diaSemana: number;
         nacional: boolean;
-        createdAt: Date;
     }>;
     updateCalendario(id: string, dto: UpdateCalendarioDto): Promise<{
+        createdAt: Date;
+        id: string;
+        descricao: string;
+        data: Date;
         estado: string | null;
         cidade: string | null;
-        id: string;
-        data: Date;
         tipoFeriado: import(".prisma/client").$Enums.FeriadoType;
-        descricao: string;
         diaSemana: number;
         nacional: boolean;
-        createdAt: Date;
     }>;
     deleteCalendario(id: string): Promise<{
+        createdAt: Date;
+        id: string;
+        descricao: string;
+        data: Date;
         estado: string | null;
         cidade: string | null;
-        id: string;
-        data: Date;
         tipoFeriado: import(".prisma/client").$Enums.FeriadoType;
-        descricao: string;
         diaSemana: number;
         nacional: boolean;
-        createdAt: Date;
     }>;
     findSindicatos(ativo?: string): Promise<{
-        id: string;
-        descricao: string | null;
         createdAt: Date;
         nome: string;
+        id: string;
+        descricao: string | null;
         ativo: boolean;
         updatedAt: Date;
         regiao: string;
@@ -86,15 +86,15 @@ export declare class ConfigController {
     }[]>;
     findSindicato(id: string): Promise<{
         colaboradores: {
-            id: string;
             nome: string;
+            id: string;
             cargo: string;
         }[];
     } & {
-        id: string;
-        descricao: string | null;
         createdAt: Date;
         nome: string;
+        id: string;
+        descricao: string | null;
         ativo: boolean;
         updatedAt: Date;
         regiao: string;
@@ -103,10 +103,10 @@ export declare class ConfigController {
         regimeTributario: string;
     }>;
     createSindicato(dto: CreateSindicatoDto): Promise<{
-        id: string;
-        descricao: string | null;
         createdAt: Date;
         nome: string;
+        id: string;
+        descricao: string | null;
         ativo: boolean;
         updatedAt: Date;
         regiao: string;
@@ -115,10 +115,10 @@ export declare class ConfigController {
         regimeTributario: string;
     }>;
     updateSindicato(id: string, dto: UpdateSindicatoDto): Promise<{
-        id: string;
-        descricao: string | null;
         createdAt: Date;
         nome: string;
+        id: string;
+        descricao: string | null;
         ativo: boolean;
         updatedAt: Date;
         regiao: string;
@@ -127,10 +127,10 @@ export declare class ConfigController {
         regimeTributario: string;
     }>;
     deleteSindicato(id: string): Promise<{
-        id: string;
-        descricao: string | null;
         createdAt: Date;
         nome: string;
+        id: string;
+        descricao: string | null;
         ativo: boolean;
         updatedAt: Date;
         regiao: string;
@@ -156,9 +156,9 @@ export declare class ConfigController {
         custoTotal: number;
     }>;
     findIndices(tipo?: string, ano?: number): Promise<{
-        id: string;
-        createdAt: Date;
         tipo: string;
+        createdAt: Date;
+        id: string;
         valor: import("@prisma/client/runtime/library").Decimal;
         mesReferencia: number;
         anoReferencia: number;
@@ -169,9 +169,9 @@ export declare class ConfigController {
         mesReferencia: number;
         anoReferencia: number;
     }): Promise<{
-        id: string;
-        createdAt: Date;
         tipo: string;
+        createdAt: Date;
+        id: string;
         valor: import("@prisma/client/runtime/library").Decimal;
         mesReferencia: number;
         anoReferencia: number;

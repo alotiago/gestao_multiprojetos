@@ -150,12 +150,18 @@ export class ProjectsService {
     const unit = await this.prisma.unit.findUnique({ where: { id: dto.unitId } });
     if (!unit) throw new NotFoundException(`Unidade '${dto.unitId}' não encontrada`);
 
+    // Validar contrato obrigatório
+    if (!dto.contratoId) throw new BadRequestException('contratoId é obrigatório');
+    const contrato = await this.prisma.contrato.findUnique({ where: { id: dto.contratoId } });
+    if (!contrato) throw new NotFoundException(`Contrato '${dto.contratoId}' não encontrado`);
+
     return this.prisma.project.create({
       data: {
         codigo: dto.codigo.toUpperCase(),
         nome: dto.nome,
         cliente: dto.cliente,
         unitId: dto.unitId,
+        contratoId: dto.contratoId,
         status: dto.status ?? ProjectStatus.ATIVO,
         tipo: dto.tipo,
         dataInicio: new Date(dto.dataInicio),
@@ -163,7 +169,7 @@ export class ProjectsService {
         descricao: dto.descricao,
         criadoPor: userId,
       },
-      include: { unit: { select: { id: true, name: true, code: true } } },
+      include: { unit: { select: { id: true, name: true, code: true } }, contrato: { select: { id: true, nomeContrato: true } } },
     });
   }
 
@@ -244,8 +250,10 @@ export class ProjectsService {
         ano: dto.ano,
         tipoReceita: dto.tipoReceita,
         descricao: dto.descricao,
+        valorPlanejado: new Decimal(dto.valorPrevisto),
         valorPrevisto: new Decimal(dto.valorPrevisto),
         valorRealizado: new Decimal(dto.valorRealizado ?? 0),
+        ativo: true,
       },
     });
   }
@@ -557,6 +565,7 @@ export class ProjectsService {
             nome: item.nome,
             cliente: item.cliente,
             unitId: item.unitId,
+            contratoId: item.contratoId,
             status: item.status || ProjectStatus.ATIVO,
             tipo: item.tipo || 'padrão',
             dataInicio: new Date(item.dataInicio),

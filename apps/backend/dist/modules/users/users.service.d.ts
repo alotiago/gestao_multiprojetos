@@ -11,12 +11,12 @@ export declare class UsersService {
      */
     findAll(page?: number, limit?: number): Promise<{
         data: {
-            name: string;
             status: import(".prisma/client").$Enums.UserStatus;
-            id: string;
             createdAt: Date;
-            email: string;
+            id: string;
             ativo: boolean;
+            name: string;
+            email: string;
             role: import(".prisma/client").$Enums.UserRole;
             lastLogin: Date | null;
         }[];
@@ -31,12 +31,12 @@ export declare class UsersService {
      * Busca um usuário por ID
      */
     findById(id: string): Promise<{
-        name: string;
         status: import(".prisma/client").$Enums.UserStatus;
-        id: string;
         createdAt: Date;
-        email: string;
+        id: string;
         ativo: boolean;
+        name: string;
+        email: string;
         role: import(".prisma/client").$Enums.UserRole;
         lastLogin: Date | null;
     }>;
@@ -44,12 +44,12 @@ export declare class UsersService {
      * Busca um usuário por email
      */
     findByEmail(email: string): Promise<{
-        name: string;
         status: import(".prisma/client").$Enums.UserStatus;
-        id: string;
         createdAt: Date;
-        email: string;
+        id: string;
         ativo: boolean;
+        name: string;
+        email: string;
         role: import(".prisma/client").$Enums.UserRole;
         lastLogin: Date | null;
     } | null>;
@@ -57,10 +57,10 @@ export declare class UsersService {
      * Cria um novo usuário
      */
     create(createUserDto: CreateUserDto): Promise<{
-        name: string;
         status: import(".prisma/client").$Enums.UserStatus;
-        id: string;
         createdAt: Date;
+        id: string;
+        name: string;
         email: string;
         role: import(".prisma/client").$Enums.UserRole;
     }>;
@@ -68,13 +68,13 @@ export declare class UsersService {
      * Atualiza um usuário
      */
     update(id: string, updateUserDto: UpdateUserDto): Promise<{
-        name: string;
         status: import(".prisma/client").$Enums.UserStatus;
-        id: string;
         createdAt: Date;
-        email: string;
+        id: string;
         ativo: boolean;
         updatedAt: Date;
+        name: string;
+        email: string;
         role: import(".prisma/client").$Enums.UserRole;
     }>;
     /**
@@ -83,8 +83,8 @@ export declare class UsersService {
     delete(id: string): Promise<{
         message: string;
         user: {
-            name: string;
             id: string;
+            name: string;
             email: string;
         };
     }>;
@@ -92,17 +92,17 @@ export declare class UsersService {
      * Ativa um usuário que estava inativo
      */
     activate(id: string): Promise<{
-        name: string;
         status: import(".prisma/client").$Enums.UserStatus;
         id: string;
+        name: string;
         email: string;
     }>;
     /**
      * Muda a role de um usuário (Admin only)
      */
     changeRole(id: string, newRole: UserRole): Promise<{
-        name: string;
         id: string;
+        name: string;
         email: string;
         role: import(".prisma/client").$Enums.UserRole;
     }>;

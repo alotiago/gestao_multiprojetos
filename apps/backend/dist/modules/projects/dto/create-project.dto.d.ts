@@ -4,6 +4,7 @@ export declare class CreateProjectDto {
     nome: string;
     cliente: string;
     unitId: string;
+    contratoId: string;
     status?: ProjectStatus;
     tipo: string;
     dataInicio: string;

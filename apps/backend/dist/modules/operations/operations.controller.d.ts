@@ -17,13 +17,13 @@ export declare class OperationsController {
         message: string;
     }>;
     listarHistorico(projectId?: string, limit?: number): Promise<{
-        id: string;
-        createdAt: Date;
         tipo: string;
-        dadosAntes: import("@prisma/client/runtime/library").JsonValue;
-        dadosDepois: import("@prisma/client/runtime/library").JsonValue;
+        createdAt: Date;
+        id: string;
         criadoPor: string | null;
         projectId: string;
+        dadosAntes: import("@prisma/client/runtime/library").JsonValue;
+        dadosDepois: import("@prisma/client/runtime/library").JsonValue;
     }[]>;
     rollbackMassivo(historicoId: string): Promise<{
         success: boolean;

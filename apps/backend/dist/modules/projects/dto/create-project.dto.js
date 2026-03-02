@@ -46,6 +46,12 @@ __decorate([
     __metadata("design:type", String)
 ], CreateProjectDto.prototype, "unitId", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ example: 'contrato123', description: 'ID do contrato obrigatório' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)({ message: 'Contrato é obrigatório' }),
+    __metadata("design:type", String)
+], CreateProjectDto.prototype, "contratoId", void 0);
+__decorate([
     (0, swagger_1.ApiPropertyOptional)({ enum: client_1.ProjectStatus, default: client_1.ProjectStatus.ATIVO }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsEnum)(client_1.ProjectStatus, { message: 'Status deve ser um valor válido' }),

@@ -110,6 +110,10 @@ model Project {
   unitId            String
   unit              Unit      @relation(fields: [unitId], references: [id])
   
+  // Vínculo obrigatório com Contrato (US 6.1)
+  contratoId        String
+  contrato          Contrato  @relation(fields: [contratoId], references: [id])
+  
   status            ProjectStatus @default(ATIVO)
   tipo              String    // Ex: "serviço", "produto"
   
@@ -126,7 +130,6 @@ model Project {
 
   // Relations
   users             ProjectUser[]
-  objetosContratuais ObjetoContratual[]
   receitas          ReceitaMensal[]
   custos            CustoMensal[]
   despesas          Despesa[]
@@ -136,6 +139,7 @@ model Project {
 
   @@map("projects")
   @@index([unitId])
+  @@index([contratoId])
   @@index([status])
   @@index([codigo])
 }
@@ -156,16 +160,45 @@ model ProjectUser {
   @@map("project_users")
 }
 
-/// Objetos Contratuais (agrupadores de linhas contratuais)
-model ObjetoContratual {
+/// Contratos (Entidade Mestra) — US 1.1–1.4
+model Contrato {
   id                String    @id @default(cuid())
-  projectId         String
-  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   
-  numero            String    // Ex: "OC-001"
-  descricao         String
+  nomeContrato      String
+  cliente           String
+  numeroContrato    String    @unique
   
   dataInicio        DateTime
+  dataFim           DateTime?
+  
+  status            String    @default("RASCUNHO") // RASCUNHO, ATIVO, ENCERRADO, CANCELADO
+  observacoes       String?
+  
+  ativo             Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  objetos           ObjetoContratual[]
+  projetos          Project[]
+
+  @@map("contratos")
+  @@index([status])
+  @@index([cliente])
+}
+
+/// Objetos Contratuais (agrupadores de linhas contratuais) — US 2.1–2.3
+model ObjetoContratual {
+  id                String    @id @default(cuid())
+  
+  contratoId        String
+  contrato          Contrato  @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  
+  nome              String
+  descricao         String
+  observacoes       String?
+  
+  dataInicio        DateTime?
   dataFim           DateTime?
   
   valorTotalContratado Decimal? @db.Decimal(15, 2) // AUTO: soma das linhas contratuais
@@ -178,9 +211,9 @@ model ObjetoContratual {
   linhasContratuais LinhaContratual[]
   receitas          ReceitaMensal[]
 
-  @@unique([projectId, numero])
+  @@unique([contratoId, nome])
   @@map("objetos_contratuais")
-  @@index([projectId])
+  @@index([contratoId])
 }
 
 /// Linhas Contratuais (itens com valores oficiais)
@@ -224,11 +257,21 @@ model ReceitaMensal {
   tipoReceita           String    // Ex: "serviço", "produto" (ou herdado da linha)
   descricao             String?
   unidade               String?   // Herdado da linha contratual
-  quantidade            Decimal?  @db.Decimal(15, 2) // Qtd do período
-  valorUnitario         Decimal?  @db.Decimal(15, 2) // Herdado da linha contratual
   
-  valorPrevisto         Decimal   @db.Decimal(15, 2)
-  valorRealizado        Decimal   @db.Decimal(15, 2) @default(0)
+  // Receita Planejada (US 4.1)
+  quantidadePlanejada   Decimal?  @db.Decimal(15, 2) // Qtd planejada do período
+  valorUnitarioPlanejado Decimal? @db.Decimal(15, 2) // Herdado da linha contratual
+  valorPlanejado        Decimal   @db.Decimal(15, 2) // = quantidadePlanejada × valorUnitarioPlanejado
+  
+  // Receita Realizada (US 4.2)
+  quantidadeRealizada   Decimal?  @db.Decimal(15, 2) // Qtd realizada do período
+  valorUnitarioRealizado Decimal? @db.Decimal(15, 2) // Herdado da linha contratual
+  valorRealizado        Decimal   @db.Decimal(15, 2) @default(0) // = quantidadeRealizada × valorUnitarioRealizado
+  
+  // [DEPRECATED] Manter compatibilidade
+  quantidade            Decimal?  @db.Decimal(15, 2) // = quantidadePlanejada
+  valorUnitario         Decimal?  @db.Decimal(15, 2) // = valorUnitarioPlanejado
+  valorPrevisto         Decimal   @db.Decimal(15, 2) // = valorPlanejado
   
   ativo                 Boolean   @default(true)
   createdAt             DateTime  @default(now())

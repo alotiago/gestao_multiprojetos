@@ -809,7 +809,7 @@ let FinancialService = class FinancialService {
                 where: { id: data.linhaContratualId },
                 include: {
                     objetoContratual: {
-                        select: { id: true, projectId: true, numero: true, descricao: true },
+                        select: { id: true, contratoId: true, nome: true, descricao: true },
                     },
                 },
             });
@@ -822,9 +822,11 @@ let FinancialService = class FinancialService {
             const valorTotal = Math.round(quantidade * valorUnitario * 100) / 100;
             // Auto-preencher campos a partir da linha contratual (US1)
             const objetoContratualId = data.objetoContratualId || linha.objetoContratualId;
-            const projectId = data.projectId || linha.objetoContratual.projectId;
+            const projectId = data.projectId;
+            if (!projectId)
+                throw new common_1.NotFoundException('Projeto não encontrado para esta linha contratual');
             const tipoReceita = data.tipoReceita || linha.descricaoItem;
-            const descricao = data.descricao || `${linha.descricaoItem} (${linha.objetoContratual.numero})`;
+            const descricao = data.descricao || `${linha.descricaoItem} (${linha.objetoContratual.nome})`;
             // Verificar duplicata: mesma linha no mesmo mês/ano
             const existing = await this.prisma.receitaMensal.findFirst({
                 where: {
@@ -875,10 +877,14 @@ let FinancialService = class FinancialService {
                     tipoReceita,
                     descricao,
                     unidade: linha.unidade,
+                    quantidadePlanejada: new library_1.Decimal(quantidade),
+                    valorUnitarioPlanejado: new library_1.Decimal(valorUnitario),
+                    valorPlanejado: new library_1.Decimal(valorTotal),
                     quantidade: new library_1.Decimal(quantidade),
                     valorUnitario: new library_1.Decimal(valorUnitario),
-                    valorPrevisto: new library_1.Decimal(valorTotal), // US2: cálculo automático
+                    valorPrevisto: new library_1.Decimal(valorTotal),
                     valorRealizado: data.valorRealizado ? new library_1.Decimal(data.valorRealizado) : new library_1.Decimal(0),
+                    ativo: true,
                 },
                 include: this.receitaInclude,
             });
@@ -932,8 +938,10 @@ let FinancialService = class FinancialService {
                 descricao: data.descricao,
                 mes: data.mes,
                 ano: data.ano,
+                valorPlanejado: new library_1.Decimal(data.valorPrevisto),
                 valorPrevisto: new library_1.Decimal(data.valorPrevisto),
                 valorRealizado: data.valorRealizado ? new library_1.Decimal(data.valorRealizado) : new library_1.Decimal(0),
+                ativo: true,
             },
             include: this.receitaInclude,
         });

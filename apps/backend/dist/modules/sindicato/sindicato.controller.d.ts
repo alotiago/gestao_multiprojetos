@@ -8,10 +8,10 @@ export declare class SindicatoController {
             colaboradores: number;
         };
     } & {
-        id: string;
-        descricao: string | null;
         createdAt: Date;
         nome: string;
+        id: string;
+        descricao: string | null;
         ativo: boolean;
         updatedAt: Date;
         regiao: string;
@@ -29,17 +29,17 @@ export declare class SindicatoController {
     }>;
     findById(id: string): Promise<{
         colaboradores: {
+            nome: string;
             id: string;
             matricula: string;
-            nome: string;
             cargo: string;
             taxaHora: import("@prisma/client/runtime/library").Decimal;
         }[];
     } & {
-        id: string;
-        descricao: string | null;
         createdAt: Date;
         nome: string;
+        id: string;
+        descricao: string | null;
         ativo: boolean;
         updatedAt: Date;
         regiao: string;
@@ -48,10 +48,10 @@ export declare class SindicatoController {
         regimeTributario: string;
     }>;
     create(dto: CreateSindicatoDto): Promise<{
-        id: string;
-        descricao: string | null;
         createdAt: Date;
         nome: string;
+        id: string;
+        descricao: string | null;
         ativo: boolean;
         updatedAt: Date;
         regiao: string;
@@ -60,10 +60,10 @@ export declare class SindicatoController {
         regimeTributario: string;
     }>;
     update(id: string, dto: UpdateSindicatoDto): Promise<{
-        id: string;
-        descricao: string | null;
         createdAt: Date;
         nome: string;
+        id: string;
+        descricao: string | null;
         ativo: boolean;
         updatedAt: Date;
         regiao: string;
@@ -72,10 +72,10 @@ export declare class SindicatoController {
         regimeTributario: string;
     }>;
     delete(id: string): Promise<{
-        id: string;
-        descricao: string | null;
         createdAt: Date;
         nome: string;
+        id: string;
+        descricao: string | null;
         ativo: boolean;
         updatedAt: Date;
         regiao: string;
