@@ -300,6 +300,28 @@ export declare class ContractsService {
      */
     deleteLinha(id: string): Promise<void>;
     /**
+     * Listar objetos contratuais do contrato vinculado a um projeto
+     */
+    findObjetosByProject(projectId: string): Promise<{
+        id: string;
+        dataInicio: Date | null;
+        dataFim: Date | null;
+        nome: string;
+        descricao: string;
+        valorTotalContratado: Decimal | null;
+    }[]>;
+    /**
+     * Listar linhas contratuais de um objeto contratual
+     */
+    findLinhasByObjeto(objetoId: string): Promise<{
+        id: string;
+        descricaoItem: string;
+        unidade: string;
+        quantidadeAnualEstimada: Decimal;
+        valorUnitario: Decimal;
+        valorTotalAnual: Decimal;
+    }[]>;
+    /**
      * Obter contratos disponíveis para novo projeto
      */
     findContratosDisponíveis(): Promise<{

@@ -119,8 +119,8 @@ let FinancialController = class FinancialController {
         return this.financialService.calcularCustoTotalCompleto(id, parseInt(mes, 10), parseInt(ano, 10));
     }
     // ===================== RECEITAS =====================
-    findAllReceitas(page = '1', limit = '10', ano) {
-        return this.financialService.findAllReceitas(parseInt(page, 10), parseInt(limit, 10), ano ? parseInt(ano, 10) : undefined);
+    findAllReceitas(page = '1', limit = '10', ano, mes, projectId) {
+        return this.financialService.findAllReceitas(parseInt(page, 10), parseInt(limit, 10), ano ? parseInt(ano, 10) : undefined, mes ? parseInt(mes, 10) : undefined, projectId);
     }
     findReceitasById(projectId, ano) {
         return this.financialService.findReceitasById(projectId, ano ? parseInt(ano, 10) : undefined);
@@ -381,8 +381,10 @@ __decorate([
     __param(0, (0, common_1.Query)('page')),
     __param(1, (0, common_1.Query)('limit')),
     __param(2, (0, common_1.Query)('ano')),
+    __param(3, (0, common_1.Query)('mes')),
+    __param(4, (0, common_1.Query)('projectId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], FinancialController.prototype, "findAllReceitas", null);
 __decorate([

@@ -11,6 +11,7 @@ interface Project {
   status: 'ATIVO' | 'SUSPENSO' | 'ENCERRADO';
   tipo: string;
   unitId?: string;
+  contratoId?: string;
   dataInicio: string;
   dataFim?: string;
   descricao?: string;
@@ -19,12 +20,25 @@ interface Project {
     name: string;
     code?: string;
   };
+  contrato?: {
+    id: string;
+    nomeContrato: string;
+    numeroContrato: string;
+  };
 }
 
 interface Unit {
   id: string;
   code: string;
   name: string;
+}
+
+interface Contrato {
+  id: string;
+  nomeContrato: string;
+  numeroContrato: string;
+  cliente: string;
+  status: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -51,12 +65,14 @@ export default function ProjetosPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [units, setUnits] = useState<Unit[]>([]);
+  const [contratos, setContratos] = useState<Contrato[]>([]);
   const [form, setForm] = useState({
     codigo: '',
     nome: '',
     cliente: '',
     tipo: 'servico',
     unitId: '',
+    contratoId: '',
     status: 'ATIVO',
     dataInicio: new Date().toISOString().slice(0, 10),
     dataFim: '',
@@ -70,6 +86,13 @@ export default function ProjetosPage() {
       .catch(() => {});
   };
 
+  const loadContratos = () => {
+    api
+      .get('/contracts?page=1&limit=100')
+      .then((r) => setContratos(r.data?.data ?? r.data ?? []))
+      .catch(() => {});
+  };
+
   const load = () => {
     setLoading(true);
     api
@@ -80,7 +103,7 @@ export default function ProjetosPage() {
   };
 
   useEffect(() => { load(); }, [page, pageSize]);
-  useEffect(() => { loadUnits(); }, []);
+  useEffect(() => { loadUnits(); loadContratos(); }, []);
 
   useEffect(() => {
     if (successMsg) {
@@ -105,6 +128,7 @@ export default function ProjetosPage() {
       cliente: '',
       tipo: 'servico',
       unitId: '',
+      contratoId: '',
       status: 'ATIVO',
       dataInicio: new Date().toISOString().slice(0, 10),
       dataFim: '',
@@ -132,6 +156,7 @@ export default function ProjetosPage() {
       cliente: project.cliente,
       tipo: project.tipo,
       unitId: project.unitId || project.unit?.id || '',
+      contratoId: project.contratoId || project.contrato?.id || '',
       status: project.status,
       dataInicio: project.dataInicio ? project.dataInicio.slice(0, 10) : '',
       dataFim: project.dataFim ? project.dataFim.slice(0, 10) : '',
@@ -151,6 +176,7 @@ export default function ProjetosPage() {
       cliente: form.cliente.trim(),
       tipo: form.tipo.trim(),
       unitId: form.unitId.trim(),
+      contratoId: form.contratoId.trim() || undefined,
       status: form.status,
       dataInicio: form.dataInicio,
       dataFim: form.dataFim || undefined,
@@ -259,6 +285,7 @@ export default function ProjetosPage() {
                 <th className="px-6 py-4">Código</th>
                 <th className="px-6 py-4">Nome</th>
                 <th className="px-6 py-4">Cliente</th>
+                <th className="px-6 py-4">Contrato</th>
                 <th className="px-6 py-4">Unidade</th>
                 <th className="px-6 py-4">Tipo</th>
                 <th className="px-6 py-4">Início</th>
@@ -277,6 +304,13 @@ export default function ProjetosPage() {
                   <td className="px-6 py-4 font-mono text-xs text-gray-500">{p.codigo}</td>
                   <td className="px-6 py-4 font-medium text-hw1-navy">{p.nome}</td>
                   <td className="px-6 py-4 text-gray-600">{p.cliente}</td>
+                  <td className="px-6 py-4 text-xs">
+                    {p.contrato ? (
+                      <span className="font-mono text-hw1-blue">{p.contrato.numeroContrato}</span>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 text-gray-500 text-xs">
                     {p.unit ? `${p.unit.code ?? ''} — ${p.unit.name}` : '—'}
                   </td>
@@ -408,6 +442,29 @@ export default function ProjetosPage() {
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
                     required
                   />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-gray-500 mb-1">Contrato Vinculado *</label>
+                  <select
+                    value={form.contratoId}
+                    onChange={(e) => setForm({ ...form, contratoId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+                    required
+                  >
+                    <option value="">Selecione um contrato...</option>
+                    {contratos.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.numeroContrato} — {c.nomeContrato} ({c.cliente})
+                      </option>
+                    ))}
+                  </select>
+                  {contratos.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      Nenhum contrato cadastrado.{' '}
+                      <a href="/contratos" className="underline hover:text-amber-800">Cadastrar contratos</a>
+                    </p>
+                  )}
                 </div>
 
                 <div>

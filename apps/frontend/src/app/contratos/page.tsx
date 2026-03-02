@@ -67,8 +67,11 @@ export default function ContratosPage() {
   const [showContratoModal, setShowContratoModal] = useState(false);
   const [showObjetoModal, setShowObjetoModal] = useState(false);
   const [showLinhaModal, setShowLinhaModal] = useState(false);
+  const [showCloneModal, setShowCloneModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [contratoParaClonar, setContratoParaClonar] = useState<Contrato | null>(null);
+  const [cloneForm, setCloneForm] = useState({ novoNome: '', novoNumero: '' });
 
   // Forms
   const [contratoForm, setContratoForm] = useState({
@@ -169,6 +172,39 @@ export default function ContratosPage() {
       loadContratos();
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Erro ao excluir.');
+    }
+  };
+
+  const openCloneContrato = (contrato: Contrato) => {
+    setContratoParaClonar(contrato);
+    setCloneForm({
+      novoNome: `${contrato.nomeContrato} (Cópia)`,
+      novoNumero: `${contrato.numeroContrato}-CLONE`,
+    });
+    setShowCloneModal(true);
+  };
+
+  const handleSaveClone = async () => {
+    if (!cloneForm.novoNome || !cloneForm.novoNumero || !contratoParaClonar) {
+      setError('Preencha os campos obrigatórios.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.post(`/contracts/${contratoParaClonar.id}/clone`, {
+        novoNome: cloneForm.novoNome,
+        novoNumero: cloneForm.novoNumero,
+      });
+      setSuccessMsg('Contrato clonado com sucesso!');
+      setShowCloneModal(false);
+      setContratoParaClonar(null);
+      setCloneForm({ novoNome: '', novoNumero: '' });
+      setPage(1);
+      loadContratos();
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Erro ao clonar contrato.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -371,6 +407,12 @@ export default function ContratosPage() {
                       className="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
                     >
                       Editar
+                    </button>
+                    <button
+                      onClick={() => openCloneContrato(contrato)}
+                      className="px-3 py-1.5 text-xs font-medium text-hw1-gold border border-hw1-gold rounded-lg hover:bg-hw1-gold hover:text-white transition-colors"
+                    >
+                      Clonar
                     </button>
                     <button
                       onClick={() => handleDeleteContrato(contrato.id)}
@@ -792,6 +834,67 @@ export default function ContratosPage() {
                 disabled={saving}
               >
                 {saving ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Clonar Contrato */}
+      {showCloneModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-hw1-navy">
+                Clonar Contrato
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Clonando: <strong>{contratoParaClonar?.nomeContrato}</strong>
+              </p>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Novo Nome *</label>
+                <input
+                  type="text"
+                  value={cloneForm.novoNome}
+                  onChange={(e) => setCloneForm({ ...cloneForm, novoNome: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                  placeholder="Nome do contrato clonado"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Novo Número *</label>
+                <input
+                  type="text"
+                  value={cloneForm.novoNumero}
+                  onChange={(e) => setCloneForm({ ...cloneForm, novoNumero: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                  placeholder="Número único para o novo contrato"
+                />
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-800">
+                ℹ️ O novo contrato incluirá todos os Objetos e Linhas Contratuais do contrato original.
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowCloneModal(false);
+                  setContratoParaClonar(null);
+                  setCloneForm({ novoNome: '', novoNumero: '' });
+                }}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveClone}
+                className="px-4 py-2 bg-hw1-navy text-white rounded-lg hover:bg-hw1-navy/90 disabled:opacity-50"
+                disabled={saving}
+              >
+                {saving ? 'Clonando...' : 'Clonar'}
               </button>
             </div>
           </div>

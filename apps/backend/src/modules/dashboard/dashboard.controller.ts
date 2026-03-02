@@ -14,8 +14,9 @@ export class DashboardController {
   @RequirePermissions(Permission.DASHBOARD_EXECUTIVE)
   getDashboardExecutivo(
     @Query('ano', new ParseIntPipe({ optional: false })) ano: number,
+    @Query('projectId') projectId?: string,
   ) {
-    return this.dashboardService.getDashboardExecutivo(ano);
+    return this.dashboardService.getDashboardExecutivo(ano, projectId);
   }
 
   @Get('financeiro')
@@ -23,8 +24,9 @@ export class DashboardController {
   getDashboardFinanceiro(
     @Query('ano', new ParseIntPipe({ optional: false })) ano: number,
     @Query('mes', new ParseIntPipe({ optional: true })) mes?: number,
+    @Query('projectId') projectId?: string,
   ) {
-    return this.dashboardService.getDashboardFinanceiro(ano, mes);
+    return this.dashboardService.getDashboardFinanceiro(ano, mes, projectId);
   }
 
   @Get('financeiro/export/csv')
@@ -33,8 +35,9 @@ export class DashboardController {
   exportDashboardFinanceiroCsv(
     @Query('ano', new ParseIntPipe({ optional: false })) ano: number,
     @Query('mes', new ParseIntPipe({ optional: true })) mes?: number,
+    @Query('projectId') projectId?: string,
   ) {
-    return this.dashboardService.exportDashboardFinanceiroCsv(ano, mes);
+    return this.dashboardService.exportDashboardFinanceiroCsv(ano, mes, projectId);
   }
 
   @Get('recursos')

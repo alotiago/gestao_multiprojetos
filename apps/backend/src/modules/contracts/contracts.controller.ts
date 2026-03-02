@@ -198,6 +198,18 @@ export class ContractsController {
   //  HELPERS
   // ═══════════════════════════════════════════
 
+  @Get('projetos/:projectId/objetos')
+  @ApiOperation({ summary: 'Listar objetos contratuais do contrato vinculado ao projeto' })
+  async getObjetosByProject(@Param('projectId') projectId: string) {
+    return this.contractsService.findObjetosByProject(projectId);
+  }
+
+  @Get('objetos/:objetoId/linhas')
+  @ApiOperation({ summary: 'Listar linhas contratuais de um objeto contratual' })
+  async getLinhasByObjeto(@Param('objetoId') objetoId: string) {
+    return this.contractsService.findLinhasByObjeto(objetoId);
+  }
+
   @Get('projetos/:projectId/resumo')
   @ApiOperation({ summary: 'Resumo contratual do projeto' })
   async getProjectSummary(@Param('projectId') projectId: string) {

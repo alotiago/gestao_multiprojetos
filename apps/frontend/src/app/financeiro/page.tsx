@@ -41,7 +41,7 @@ interface Receita {
   };
   objetoContratual?: {
     id: string;
-    numero: string;
+    nome: string;
     descricao: string;
   };
   linhaContratual?: {
@@ -119,6 +119,7 @@ export default function FinanceiroPage() {
   const [ano, setAno] = useState(currentYear);
   const [mes, setMes] = useState<string>('');
   const [view, setView] = useState<'resumo' | 'despesas' | 'receitas'>('resumo');
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [showModal, setShowModal] = useState(false);
@@ -143,9 +144,10 @@ export default function FinanceiroPage() {
 
   const loadProjetos = () => {
     api
-      .get('/projects?limit=999')
+      .get('/projects?limit=100&page=1')
       .then((r) => {
-        const projects = (r.data?.data ?? r.data ?? []).map((p: any) => ({
+        const list = r.data?.data ?? r.data ?? [];
+        const projects = list.map((p: any) => ({
           id: p.id,
           codigo: p.codigo,
           nome: p.nome,
@@ -157,20 +159,27 @@ export default function FinanceiroPage() {
 
   const loadResumo = () => {
     setLoading(true);
-    const url = mes
-      ? `/dashboard/financeiro?ano=${ano}&mes=${mes}`
-      : `/dashboard/financeiro?ano=${ano}`;
+    let url = `/dashboard/financeiro?ano=${ano}`;
+    if (mes) url += `&mes=${mes}`;
+    if (selectedProjectId) url += `&projectId=${selectedProjectId}`;
     api
       .get(url)
       .then((r) => setData(r.data))
-      .catch(() => setError('Não foi possível carregar os dados financeiros.'))
+      .catch((err) => {
+        const msg = err?.response?.data?.message || 'Não foi possível carregar os dados financeiros.';
+        console.error('Erro ao carregar resumo:', { url, status: err?.response?.status, message: msg });
+        setError(msg);
+      })
       .finally(() => setLoading(false));
   };
 
   const loadDespesas = () => {
     setLoading(true);
+    let url = `/financial/despesas?page=${page}&limit=${pageSize}&ano=${ano}`;
+    if (mes) url += `&mes=${mes}`;
+    if (selectedProjectId) url += `&projectId=${selectedProjectId}`;
     api
-      .get(`/financial/despesas?page=${page}&limit=${pageSize}&ano=${ano}${mes ? `&mes=${mes}` : ''}`)
+      .get(url)
       .then((r) => setDespesas(r.data?.data ?? r.data ?? []))
       .catch(() => setError('Não foi possível carregar as despesas.'))
       .finally(() => setLoading(false));
@@ -178,8 +187,11 @@ export default function FinanceiroPage() {
 
   const loadReceitas = () => {
     setLoading(true);
+    let url = `/financial/receitas?page=${page}&limit=${pageSize}&ano=${ano}`;
+    if (mes) url += `&mes=${mes}`;
+    if (selectedProjectId) url += `&projectId=${selectedProjectId}`;
     api
-      .get(`/financial/receitas?page=${page}&limit=${pageSize}&ano=${ano}${mes ? `&mes=${mes}` : ''}`)
+      .get(url)
       .then((r) => setReceitas(r.data?.data ?? r.data ?? []))
       .catch(() => setError('Não foi possível carregar as receitas.'))
       .finally(() => setLoading(false));
@@ -207,7 +219,7 @@ export default function FinanceiroPage() {
     if (view === 'resumo') loadResumo();
     else if (view === 'despesas') loadDespesas();
     else loadReceitas();
-  }, [ano, mes, view, page, pageSize]);
+  }, [ano, mes, view, page, pageSize, selectedProjectId]);
 
   useEffect(() => {
     if (successMsg) {
@@ -443,6 +455,16 @@ export default function FinanceiroPage() {
         </div>
         <div className="flex gap-3">
           <div className="flex gap-2">
+            <select
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+            >
+              <option value="">Todos os projetos</option>
+              {projetos.map((p) => (
+                <option key={p.id} value={p.id}>{p.codigo} - {p.nome}</option>
+              ))}
+            </select>
             <select
               value={ano}
               onChange={(e) => setAno(Number(e.target.value))}
@@ -720,7 +742,7 @@ export default function FinanceiroPage() {
                       <td className="px-6 py-4 text-gray-600 text-xs">
                         {r.objetoContratual ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-[10px] font-medium">
-                            📑 {r.objetoContratual.numero}
+                            📑 {r.objetoContratual.nome}
                           </span>
                         ) : '-'}
                       </td>

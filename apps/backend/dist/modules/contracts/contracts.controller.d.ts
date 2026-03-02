@@ -265,6 +265,22 @@ export declare class ContractsController {
         objetoContratualId: string;
     }>;
     deleteLinha(id: string): Promise<void>;
+    getObjetosByProject(projectId: string): Promise<{
+        id: string;
+        dataInicio: Date | null;
+        dataFim: Date | null;
+        nome: string;
+        descricao: string;
+        valorTotalContratado: import("@prisma/client/runtime/library").Decimal | null;
+    }[]>;
+    getLinhasByObjeto(objetoId: string): Promise<{
+        id: string;
+        descricaoItem: string;
+        unidade: string;
+        quantidadeAnualEstimada: import("@prisma/client/runtime/library").Decimal;
+        valorUnitario: import("@prisma/client/runtime/library").Decimal;
+        valorTotalAnual: import("@prisma/client/runtime/library").Decimal;
+    }[]>;
     getProjectSummary(projectId: string): Promise<{
         projectId: string;
         contratoId: null;

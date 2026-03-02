@@ -103,6 +103,7 @@ export class ProjectsService {
         where,
         include: {
           unit: { select: { id: true, name: true, code: true } },
+          contrato: { select: { id: true, nomeContrato: true, numeroContrato: true, cliente: true } },
           _count: { select: { users: true, receitas: true } },
         },
         orderBy: { [orderBy]: order } as Prisma.ProjectOrderByWithRelationInput,

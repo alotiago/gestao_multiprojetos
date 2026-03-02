@@ -18,6 +18,9 @@ const mockPrismaService = {
     unit: {
         findUnique: jest.fn(),
     },
+    contrato: {
+        findUnique: jest.fn(),
+    },
     receitaMensal: {
         findMany: jest.fn(),
         findUnique: jest.fn(),
@@ -123,6 +126,7 @@ describe('ProjectsService', () => {
         it('deve criar projeto com sucesso', async () => {
             prisma.project.findUnique.mockResolvedValue(null); // código não existe
             prisma.unit.findUnique.mockResolvedValue(mockUnit);
+            prisma.contrato.findUnique.mockResolvedValue({ id: 'contrato-1', nomeContrato: 'Contrato 1' });
             prisma.project.create.mockResolvedValue({ ...mockProject, codigo: dto.codigo });
             const result = await service.create(dto, 'user-1');
             expect(result.codigo).toBe(dto.codigo);

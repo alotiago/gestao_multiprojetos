@@ -837,7 +837,7 @@ export class FinancialService {
 
   private readonly receitaInclude = {
     project: { select: { id: true, nome: true, codigo: true } },
-    objetoContratual: { select: { id: true, numero: true, descricao: true } },
+    objetoContratual: { select: { id: true, nome: true, descricao: true } },
     linhaContratual: {
       select: {
         id: true,
@@ -850,10 +850,12 @@ export class FinancialService {
     },
   };
 
-  async findAllReceitas(page: number = 1, limit: number = 10, ano?: number) {
+  async findAllReceitas(page: number = 1, limit: number = 10, ano?: number, mes?: number, projectId?: string) {
     const skip = (page - 1) * limit;
     const where: any = { ativo: true };
     if (ano) where.ano = ano;
+    if (mes) where.mes = mes;
+    if (projectId) where.projectId = projectId;
 
     const [receitas, total] = await Promise.all([
       this.prisma.receitaMensal.findMany({

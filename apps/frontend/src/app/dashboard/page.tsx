@@ -10,6 +10,12 @@ import {
 
 const currentYear = new Date().getFullYear();
 
+interface ProjetoSelect {
+  id: string;
+  codigo: string;
+  nome: string;
+}
+
 interface ExecutivoData {
   ano: number;
   kpis: {
@@ -63,6 +69,8 @@ export default function DashboardPage() {
   const [exportando, setExportando] = useState(false);
   const [error, setError] = useState('');
   const [ano, setAno] = useState(currentYear);
+  const [projetos, setProjetos] = useState<ProjetoSelect[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
 
   const exportarCsvFinanceiro = async () => {
     setExportando(true);
@@ -83,14 +91,35 @@ export default function DashboardPage() {
     }
   };
 
+  const loadProjetos = () => {
+    api
+      .get('/projects?limit=100&page=1')
+      .then((r) => {
+        const list = r.data?.data ?? r.data ?? [];
+        const projects = list.map((p: any) => ({
+          id: p.id,
+          codigo: p.codigo,
+          nome: p.nome,
+        }));
+        setProjetos(projects);
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    loadProjetos();
+  }, []);
+
   useEffect(() => {
     setLoading(true);
+    let url = `/dashboard/executivo?ano=${ano}`;
+    if (selectedProjectId) url += `&projectId=${selectedProjectId}`;
     api
-      .get(`/dashboard/executivo?ano=${ano}`)
+      .get(url)
       .then((r) => setData(r.data))
       .catch(() => setError('Não foi possível carregar o dashboard.'))
       .finally(() => setLoading(false));
-  }, [ano]);
+  }, [ano, selectedProjectId]);
 
   return (
     <div className="space-y-6">
@@ -116,6 +145,16 @@ export default function DashboardPage() {
           >
             {exportando ? 'Exportando...' : 'Exportar CSV'}
           </button>
+          <select
+            value={selectedProjectId}
+            onChange={(e) => setSelectedProjectId(e.target.value)}
+            className="px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+          >
+            <option value="">Todos os projetos</option>
+            {projetos.map((p) => (
+              <option key={p.id} value={p.id}>{p.codigo} - {p.nome}</option>
+            ))}
+          </select>
           <select
             value={ano}
             onChange={(e) => setAno(Number(e.target.value))}

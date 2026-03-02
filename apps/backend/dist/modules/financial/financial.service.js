@@ -47,7 +47,7 @@ let FinancialService = class FinancialService {
         /* ────────────── RECEITAS ────────────── */
         this.receitaInclude = {
             project: { select: { id: true, nome: true, codigo: true } },
-            objetoContratual: { select: { id: true, numero: true, descricao: true } },
+            objetoContratual: { select: { id: true, nome: true, descricao: true } },
             linhaContratual: {
                 select: {
                     id: true,
@@ -739,11 +739,15 @@ let FinancialService = class FinancialService {
             custoTotal: Math.round(custoTotal * 100) / 100,
         };
     }
-    async findAllReceitas(page = 1, limit = 10, ano) {
+    async findAllReceitas(page = 1, limit = 10, ano, mes, projectId) {
         const skip = (page - 1) * limit;
         const where = { ativo: true };
         if (ano)
             where.ano = ano;
+        if (mes)
+            where.mes = mes;
+        if (projectId)
+            where.projectId = projectId;
         const [receitas, total] = await Promise.all([
             this.prisma.receitaMensal.findMany({
                 where,

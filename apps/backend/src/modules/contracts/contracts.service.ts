@@ -570,6 +570,48 @@ export class ContractsService {
   // ═══════════════════════════════════════════
 
   /**
+   * Listar objetos contratuais do contrato vinculado a um projeto
+   */
+  async findObjetosByProject(projectId: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { contratoId: true },
+    });
+    if (!project?.contratoId) return [];
+
+    return this.prisma.objetoContratual.findMany({
+      where: { contratoId: project.contratoId, ativo: true },
+      select: {
+        id: true,
+        nome: true,
+        descricao: true,
+        dataInicio: true,
+        dataFim: true,
+        valorTotalContratado: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  /**
+   * Listar linhas contratuais de um objeto contratual
+   */
+  async findLinhasByObjeto(objetoId: string) {
+    return this.prisma.linhaContratual.findMany({
+      where: { objetoContratualId: objetoId, ativo: true },
+      select: {
+        id: true,
+        descricaoItem: true,
+        unidade: true,
+        quantidadeAnualEstimada: true,
+        valorUnitario: true,
+        valorTotalAnual: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  /**
    * Obter contratos disponíveis para novo projeto
    */
   async findContratosDisponíveis() {

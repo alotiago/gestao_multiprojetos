@@ -12,16 +12,54 @@ export class DashboardService {
   /**
    * Consolidação executiva: receita, custos, margens, carteira, KPIs gerais
    */
-  async getDashboardExecutivo(ano: number) {
+  async getDashboardExecutivo(ano: number, projectId?: string) {
+    const projectFilter = projectId ? { id: projectId, ativo: true } : { ativo: true };
+    const dataFilter = { ano };
+    const projectDataFilter = projectId ? { ...dataFilter, projectId } : dataFilter;
+
+    // Se especificou um projectId, valida que existe
+    if (projectId) {
+      const projectExists = await this.prisma.project.findUnique({
+        where: { id: projectId },
+      });
+      if (!projectExists) {
+        return {
+          ano,
+          kpis: {
+            projetosTotal: 0,
+            projetosAtivos: 0,
+            colaboradoresAtivos: 0,
+            fteTotal: 0,
+            carteiraAcumulada: 0,
+          },
+          financeiro: {
+            receitaPrevista: 0,
+            receitaRealizada: 0,
+            totalCustoPessoal: 0,
+            totalDespesas: 0,
+            totalImpostos: 0,
+            totalCustos: 0,
+            margemPrevista: 0,
+            margemRealizada: 0,
+          },
+          projetos: {
+            distribuicaoStatus: {},
+          },
+        };
+      }
+    }
+
     const [projetos, receitas, custosMensais, despesas, impostos, colaboradores, jornadas] =
       await Promise.all([
-        this.prisma.project.findMany({ where: { ativo: true } }),
-        this.prisma.receitaMensal.findMany({ where: { ano, ativo: true } }),
-        this.prisma.custoMensal.findMany({ where: { ano } }),
-        this.prisma.despesa.findMany({ where: { ano } }),
-        this.prisma.imposto.findMany({ where: { ano } }),
-        this.prisma.colaborador.findMany({ where: { ativo: true } }),
-        this.prisma.jornada.findMany({ where: { ano } }),
+        this.prisma.project.findMany({ where: projectFilter }),
+        this.prisma.receitaMensal.findMany({ where: { ...projectDataFilter, ativo: true } }),
+        this.prisma.custoMensal.findMany({ where: projectDataFilter }),
+        this.prisma.despesa.findMany({ where: projectDataFilter }),
+        this.prisma.imposto.findMany({ where: projectDataFilter }),
+        projectId
+          ? this.prisma.colaborador.findMany({})
+          : this.prisma.colaborador.findMany({ where: { ativo: true } }),
+        this.prisma.jornada.findMany({ where: { ...dataFilter, projectId: projectId || { not: null } } }),
       ]);
 
     const totalReceitaPrevista = receitas.reduce((s, r) => s + Number(r.valorPrevisto), 0);
@@ -86,15 +124,33 @@ export class DashboardService {
   /**
    * Painel financeiro por projeto: receita, custos, margem
    */
-  async getDashboardFinanceiro(ano: number, mes?: number) {
+  async getDashboardFinanceiro(ano: number, mes?: number, projectId?: string) {
     const whereDate = mes ? { ano, mes } : { ano };
+    const projectFilter = projectId ? { ...whereDate, projectId } : whereDate;
+
+    // Se especificou um projectId, valida que existe
+    if (projectId) {
+      const projectExists = await this.prisma.project.findUnique({
+        where: { id: projectId },
+      });
+      if (!projectExists) {
+        return {
+          ano,
+          mes: mes ?? null,
+          projetos: [],
+          totais: { receitaPrevista: 0, receitaRealizada: 0, totalCustos: 0, margemGlobal: 0 },
+        };
+      }
+    }
 
     const [projetos, receitas, custosMensais, despesas, impostos] = await Promise.all([
-      this.prisma.project.findMany({ where: { ativo: true } }),
-      this.prisma.receitaMensal.findMany({ where: { ...whereDate, ativo: true } }),
-      this.prisma.custoMensal.findMany({ where: whereDate }),
-      this.prisma.despesa.findMany({ where: whereDate }),
-      this.prisma.imposto.findMany({ where: whereDate }),
+      projectId
+        ? this.prisma.project.findMany({ where: { id: projectId, ativo: true } })
+        : this.prisma.project.findMany({ where: { ativo: true } }),
+      this.prisma.receitaMensal.findMany({ where: { ...projectFilter, ativo: true } }),
+      this.prisma.custoMensal.findMany({ where: projectFilter }),
+      this.prisma.despesa.findMany({ where: projectFilter }),
+      this.prisma.imposto.findMany({ where: projectFilter }),
     ]);
 
     const projetoMap = projetos.reduce<Record<string, { id: string; nome: string; cliente: string; status: string }>>(
@@ -190,8 +246,8 @@ export class DashboardService {
   /**
    * Exporta painel financeiro em CSV
    */
-  async exportDashboardFinanceiroCsv(ano: number, mes?: number) {
-    const data = await this.getDashboardFinanceiro(ano, mes);
+  async exportDashboardFinanceiroCsv(ano: number, mes?: number, projectId?: string) {
+    const data = await this.getDashboardFinanceiro(ano, mes, projectId);
 
     const header = [
       'projectId',

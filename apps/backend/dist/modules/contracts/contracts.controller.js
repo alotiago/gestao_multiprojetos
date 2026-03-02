@@ -75,6 +75,12 @@ let ContractsController = class ContractsController {
     // ═══════════════════════════════════════════
     //  HELPERS
     // ═══════════════════════════════════════════
+    async getObjetosByProject(projectId) {
+        return this.contractsService.findObjetosByProject(projectId);
+    }
+    async getLinhasByObjeto(objetoId) {
+        return this.contractsService.findLinhasByObjeto(objetoId);
+    }
     async getProjectSummary(projectId) {
         return this.contractsService.getProjectContractSummary(projectId);
     }
@@ -198,6 +204,22 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], ContractsController.prototype, "deleteLinha", null);
+__decorate([
+    (0, common_1.Get)('projetos/:projectId/objetos'),
+    (0, swagger_1.ApiOperation)({ summary: 'Listar objetos contratuais do contrato vinculado ao projeto' }),
+    __param(0, (0, common_1.Param)('projectId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], ContractsController.prototype, "getObjetosByProject", null);
+__decorate([
+    (0, common_1.Get)('objetos/:objetoId/linhas'),
+    (0, swagger_1.ApiOperation)({ summary: 'Listar linhas contratuais de um objeto contratual' }),
+    __param(0, (0, common_1.Param)('objetoId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], ContractsController.prototype, "getLinhasByObjeto", null);
 __decorate([
     (0, common_1.Get)('projetos/:projectId/resumo'),
     (0, swagger_1.ApiOperation)({ summary: 'Resumo contratual do projeto' }),

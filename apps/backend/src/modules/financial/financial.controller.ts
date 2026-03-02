@@ -258,11 +258,15 @@ export class FinancialController {
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
     @Query('ano') ano?: string,
+    @Query('mes') mes?: string,
+    @Query('projectId') projectId?: string,
   ) {
     return this.financialService.findAllReceitas(
       parseInt(page, 10),
       parseInt(limit, 10),
       ano ? parseInt(ano, 10) : undefined,
+      mes ? parseInt(mes, 10) : undefined,
+      projectId,
     );
   }
 

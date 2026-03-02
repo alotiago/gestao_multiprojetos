@@ -5,7 +5,7 @@ export declare class DashboardService {
     /**
      * Consolidação executiva: receita, custos, margens, carteira, KPIs gerais
      */
-    getDashboardExecutivo(ano: number): Promise<{
+    getDashboardExecutivo(ano: number, projectId?: string): Promise<{
         ano: number;
         kpis: {
             projetosTotal: number;
@@ -31,7 +31,7 @@ export declare class DashboardService {
     /**
      * Painel financeiro por projeto: receita, custos, margem
      */
-    getDashboardFinanceiro(ano: number, mes?: number): Promise<{
+    getDashboardFinanceiro(ano: number, mes?: number, projectId?: string): Promise<{
         ano: number;
         mes: number | null;
         projetos: any[];
@@ -45,7 +45,7 @@ export declare class DashboardService {
     /**
      * Exporta painel financeiro em CSV
      */
-    exportDashboardFinanceiroCsv(ano: number, mes?: number): Promise<string>;
+    exportDashboardFinanceiroCsv(ano: number, mes?: number, projectId?: string): Promise<string>;
     getDashboardRecursos(ano: number, mes?: number): Promise<{
         ano: number;
         mes: number | null;
