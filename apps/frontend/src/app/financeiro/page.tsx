@@ -29,10 +29,26 @@ interface Receita {
   valorRealizado: number;
   mes: number;
   ano: number;
+  objetoContratualId?: string;
+  linhaContratualId?: string;
+  quantidade?: number;
+  valorUnitario?: number;
+  unidade?: string;
   project?: {
     id: string;
     codigo: string;
     nome: string;
+  };
+  objetoContratual?: {
+    id: string;
+    numero: string;
+    descricao: string;
+  };
+  linhaContratual?: {
+    id: string;
+    descricaoItem: string;
+    unidade: string;
+    valorUnitario: number;
   };
 }
 
@@ -75,10 +91,18 @@ const formatBRL = (v: number) =>
 
 const currentYear = new Date().getFullYear();
 
-interface ProjetoSelect {
+interface ObjetoContratualSelect {
   id: string;
-  codigo: string;
-  nome: string;
+  numero: string;
+  descricao: string;
+}
+
+interface LinhaContratualSelect {
+  id: string;
+  descricaoItem: string;
+  unidade: string;
+  valorUnitario: number;
+  quantidadeAnualEstimada: number;
 }
 
 export default function FinanceiroPage() {
@@ -86,6 +110,8 @@ export default function FinanceiroPage() {
   const [despesas, setDespesas] = useState<Despesa[]>([]);
   const [receitas, setReceitas] = useState<Receita[]>([]);
   const [projetos, setProjetos] = useState<ProjetoSelect[]>([]);
+  const [objetosContratuais, setObjetosContratuais] = useState<ObjetoContratualSelect[]>([]);
+  const [linhasContratuais, setLinhasContratuais] = useState<LinhaContratualSelect[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -98,6 +124,7 @@ export default function FinanceiroPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [modalType, setModalType] = useState<'despesa' | 'receita'>('despesa');
+  const [receitaMode, setReceitaMode] = useState<'contrato' | 'manual'>('contrato');
   const [form, setForm] = useState({
     projectId: '',
     tipo: 'outros',
@@ -108,6 +135,9 @@ export default function FinanceiroPage() {
     valorRealizado: '',
     mes: '',
     ano: currentYear,
+    objetoContratualId: '',
+    linhaContratualId: '',
+    quantidade: '',
   });
 
   const loadProjetos = () => {
@@ -154,6 +184,20 @@ export default function FinanceiroPage() {
       .finally(() => setLoading(false));
   };
 
+  const loadObjetosByProject = (projectId: string) => {
+    if (!projectId) { setObjetosContratuais([]); setLinhasContratuais([]); return; }
+    api.get(`/contracts/projetos/${projectId}/objetos`)
+      .then((r) => setObjetosContratuais(r.data ?? []))
+      .catch(() => setObjetosContratuais([]));
+  };
+
+  const loadLinhasByObjeto = (objetoId: string) => {
+    if (!objetoId) { setLinhasContratuais([]); return; }
+    api.get(`/contracts/objetos/${objetoId}/linhas`)
+      .then((r) => setLinhasContratuais(r.data ?? []))
+      .catch(() => setLinhasContratuais([]));
+  };
+
   useEffect(() => {
     loadProjetos();
   }, []);
@@ -189,7 +233,13 @@ export default function FinanceiroPage() {
       valorRealizado: '',
       mes: '',
       ano: currentYear,
+      objetoContratualId: '',
+      linhaContratualId: '',
+      quantidade: '',
     });
+    setObjetosContratuais([]);
+    setLinhasContratuais([]);
+    setReceitaMode('contrato');
   };
 
   const closeModal = () => {
@@ -217,6 +267,9 @@ export default function FinanceiroPage() {
       valorRealizado: '',
       mes: String(despesa.mes),
       ano: despesa.ano,
+      objetoContratualId: '',
+      linhaContratualId: '',
+      quantidade: '',
     });
     setEditingId(despesa.id);
     setShowModal(true);
@@ -281,20 +334,30 @@ export default function FinanceiroPage() {
     setSaving(true);
     setError('');
 
-    const payload = {
+    const isContrato = receitaMode === 'contrato' && form.linhaContratualId;
+
+    const payload: any = {
       projectId: form.projectId,
-      tipoReceita: form.tipoReceita,
+      tipoReceita: form.tipoReceita || 'Serviços',
       descricao: form.descricao,
-      valorPrevisto: Number(form.valorPrevisto),
-      valorRealizado: Number(form.valorRealizado),
       mes: Number(form.mes),
       ano: Number(form.ano),
     };
 
+    if (isContrato) {
+      payload.objetoContratualId = form.objetoContratualId;
+      payload.linhaContratualId = form.linhaContratualId;
+      payload.quantidade = Number(form.quantidade);
+      // Backend calcula valorPrevisto = quantidade × valorUnitario
+    } else {
+      payload.valorPrevisto = Number(form.valorPrevisto);
+      payload.valorRealizado = Number(form.valorRealizado);
+    }
+
     try {
       if (editingId) {
         const updatePayload = { ...payload };
-        delete (updatePayload as any).tipoReceita;
+        delete updatePayload.tipoReceita;
         await api.put(`/financial/receitas/${editingId}`, updatePayload);
         setSuccessMsg('Receita atualizada com sucesso!');
       } else {
@@ -339,11 +402,14 @@ export default function FinanceiroPage() {
     setModalType('receita');
     resetForm();
     setEditingId(null);
+    setReceitaMode('contrato');
     setShowModal(true);
   };
 
   const openEditReceitaModal = (receita: Receita) => {
     setModalType('receita');
+    const hasContrato = !!receita.linhaContratualId;
+    setReceitaMode(hasContrato ? 'contrato' : 'manual');
     setForm({
       projectId: receita.projectId,
       tipo: receita.tipoReceita,
@@ -354,7 +420,12 @@ export default function FinanceiroPage() {
       valorRealizado: String(receita.valorRealizado),
       mes: String(receita.mes),
       ano: receita.ano,
+      objetoContratualId: receita.objetoContratualId || '',
+      linhaContratualId: receita.linhaContratualId || '',
+      quantidade: receita.quantidade ? String(receita.quantidade) : '',
     });
+    if (receita.projectId) loadObjetosByProject(receita.projectId);
+    if (receita.objetoContratualId) loadLinhasByObjeto(receita.objetoContratualId);
     setEditingId(receita.id);
     setShowModal(true);
   };
@@ -625,9 +696,10 @@ export default function FinanceiroPage() {
                     style={{ background: 'linear-gradient(90deg, #009792, #00B3AD)' }}
                   >
                     <th className="px-6 py-4">Projeto</th>
-                    <th className="px-6 py-4">Tipo</th>
-                    <th className="px-6 py-4">Descrição</th>
+                    <th className="px-6 py-4">Obj. Contratual</th>
+                    <th className="px-6 py-4">Linha</th>
                     <th className="px-6 py-4">Mês</th>
+                    <th className="px-6 py-4 text-right">Qtd</th>
                     <th className="px-6 py-4 text-right">Previsto</th>
                     <th className="px-6 py-4 text-right">Realizado</th>
                     <th className="px-6 py-4 text-right">Ações</th>
@@ -642,9 +714,10 @@ export default function FinanceiroPage() {
                       }`}
                     >
                       <td className="px-6 py-4 text-sm font-medium">{r.project?.nome || 'N/A'}</td>
-                      <td className="px-6 py-4 text-sm font-medium">{r.tipoReceita}</td>
-                      <td className="px-6 py-4 text-gray-600">{r.descricao || '-'}</td>
+                      <td className="px-6 py-4 text-gray-600 text-xs">{r.objetoContratual?.numero || '-'}</td>
+                      <td className="px-6 py-4 text-gray-600 text-xs">{r.linhaContratual?.descricaoItem || r.descricao || '-'}</td>
                       <td className="px-6 py-4 text-gray-500">{String(r.mes).padStart(2, '0')}/{r.ano}</td>
+                      <td className="px-6 py-4 text-right text-gray-600">{r.quantidade ?? '-'}</td>
                       <td className="px-6 py-4 text-right font-medium text-emerald-600">{formatBRL(r.valorPrevisto)}</td>
                       <td className="px-6 py-4 text-right font-medium text-emerald-700">{formatBRL(r.valorRealizado)}</td>
                       <td className="px-6 py-4">
@@ -732,7 +805,11 @@ export default function FinanceiroPage() {
                   <label className="block text-xs text-gray-500 mb-1">Projeto *</label>
                   <select
                     value={form.projectId}
-                    onChange={(e) => setForm({ ...form, projectId: e.target.value })}
+                    onChange={(e) => {
+                      const pid = e.target.value;
+                      setForm({ ...form, projectId: pid, objetoContratualId: '', linhaContratualId: '', quantidade: '' });
+                      if (modalType === 'receita') loadObjetosByProject(pid);
+                    }}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
                     required
                   >
@@ -744,6 +821,86 @@ export default function FinanceiroPage() {
                     ))}
                   </select>
                 </div>
+
+                {modalType === 'receita' && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Modo</label>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setReceitaMode('contrato')}
+                        className={`flex-1 px-3 py-2 rounded-xl text-xs font-medium border transition-all ${receitaMode === 'contrato' ? 'border-hw1-blue bg-hw1-blue/10 text-hw1-blue' : 'border-gray-200 text-gray-500'}`}>
+                        📑 Via Contrato
+                      </button>
+                      <button type="button" onClick={() => setReceitaMode('manual')}
+                        className={`flex-1 px-3 py-2 rounded-xl text-xs font-medium border transition-all ${receitaMode === 'manual' ? 'border-hw1-blue bg-hw1-blue/10 text-hw1-blue' : 'border-gray-200 text-gray-500'}`}>
+                        ✏️ Manual
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {modalType === 'receita' && receitaMode === 'contrato' && (
+                  <>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Objeto Contratual *</label>
+                      <select
+                        value={form.objetoContratualId}
+                        onChange={(e) => {
+                          const oid = e.target.value;
+                          setForm({ ...form, objetoContratualId: oid, linhaContratualId: '', quantidade: '' });
+                          loadLinhasByObjeto(oid);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+                        required
+                        disabled={!form.projectId}
+                      >
+                        <option value="">Selecione o objeto...</option>
+                        {objetosContratuais.map((o) => (
+                          <option key={o.id} value={o.id}>{o.numero} — {o.descricao}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Linha Contratual *</label>
+                      <select
+                        value={form.linhaContratualId}
+                        onChange={(e) => setForm({ ...form, linhaContratualId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+                        required
+                        disabled={!form.objetoContratualId}
+                      >
+                        <option value="">Selecione a linha...</option>
+                        {linhasContratuais.map((l) => (
+                          <option key={l.id} value={l.id}>{l.descricaoItem} ({l.unidade} — {formatBRL(Number(l.valorUnitario))})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Quantidade *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={form.quantidade}
+                        onChange={(e) => setForm({ ...form, quantidade: e.target.value })}
+                        placeholder="Quantidade no mês"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+                        required
+                      />
+                    </div>
+                    {form.linhaContratualId && form.quantidade && (() => {
+                      const linhaSel = linhasContratuais.find(l => l.id === form.linhaContratualId);
+                      const vlCalc = linhaSel ? Number(form.quantidade) * Number(linhaSel.valorUnitario) : 0;
+                      return (
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Valor Previsto (auto)</label>
+                          <div className="w-full px-3 py-2 border border-gray-100 bg-emerald-50 rounded-xl text-sm font-semibold text-emerald-700">
+                            {formatBRL(vlCalc)}
+                          </div>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{form.quantidade} × {linhaSel ? formatBRL(Number(linhaSel.valorUnitario)) : ''}</p>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
 
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">
@@ -759,7 +916,7 @@ export default function FinanceiroPage() {
                       )
                     })}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
-                    required
+                    required={modalType !== 'receita'}
                   >
                     {modalType === 'receita' ? (
                       <>
@@ -777,7 +934,7 @@ export default function FinanceiroPage() {
                   </select>
                 </div>
 
-                <div className="md:col-span-2">
+                <div className={modalType === 'receita' && receitaMode === 'contrato' ? '' : 'md:col-span-2'}>
                   <label className="block text-xs text-gray-500 mb-1">Descrição {modalType === 'receita' ? '' : '*'}</label>
                   <input
                     type="text"
@@ -789,7 +946,7 @@ export default function FinanceiroPage() {
                   />
                 </div>
 
-                {modalType === 'receita' ? (
+                {modalType === 'receita' && receitaMode === 'manual' && (
                   <>
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Valor Previsto *</label>
@@ -816,7 +973,9 @@ export default function FinanceiroPage() {
                       />
                     </div>
                   </>
-                ) : (
+                )}
+
+                {modalType !== 'receita' && (
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">Valor *</label>
                     <input

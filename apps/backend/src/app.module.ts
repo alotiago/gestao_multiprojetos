@@ -14,6 +14,7 @@ import { OperationsModule } from './modules/operations/operations.module';
 import { CalendarioModule } from './modules/calendario/calendario.module';
 import { SindicatoModule } from './modules/sindicato/sindicato.module';
 import { UnitsModule } from './modules/units/units.module';
+import { ContractsModule } from './modules/contracts/contracts.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { UnitsModule } from './modules/units/units.module';
     CalendarioModule,
     SindicatoModule,
     UnitsModule,
+    ContractsModule,
   ],
   providers: [
     {

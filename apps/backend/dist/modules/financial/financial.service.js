@@ -733,7 +733,11 @@ let FinancialService = class FinancialService {
         const [receitas, total] = await Promise.all([
             this.prisma.receitaMensal.findMany({
                 where,
-                include: { project: { select: { id: true, nome: true, codigo: true } } },
+                include: {
+                    project: { select: { id: true, nome: true, codigo: true } },
+                    objetoContratual: { select: { id: true, numero: true, descricao: true } },
+                    linhaContratual: { select: { id: true, descricaoItem: true, unidade: true, valorUnitario: true } },
+                },
                 orderBy: [{ ano: 'desc' }, { mes: 'desc' }],
                 skip,
                 take: limit,
@@ -748,10 +752,32 @@ let FinancialService = class FinancialService {
             where.ano = ano;
         return this.prisma.receitaMensal.findMany({
             where,
+            include: {
+                objetoContratual: { select: { id: true, numero: true, descricao: true } },
+                linhaContratual: { select: { id: true, descricaoItem: true, unidade: true, valorUnitario: true } },
+            },
             orderBy: [{ ano: 'desc' }, { mes: 'asc' }],
         });
     }
     async createReceita(data) {
+        // Se tem linhaContratualId, buscar dados da linha para cálculo automático
+        if (data.linhaContratualId) {
+            const linha = await this.prisma.linhaContratual.findUnique({
+                where: { id: data.linhaContratualId },
+                include: { objetoContratual: { select: { projectId: true } } },
+            });
+            if (!linha)
+                throw new common_1.NotFoundException('Linha contratual não encontrada');
+            // Auto-preencher campos da linha contratual
+            const quantidade = data.quantidade ? Number(data.quantidade) : 0;
+            const valorUnitario = Number(linha.valorUnitario);
+            const valorTotal = quantidade * valorUnitario;
+            data.unidade = linha.unidade;
+            data.valorUnitario = valorUnitario;
+            data.valorPrevisto = valorTotal;
+            data.descricao = data.descricao || linha.descricaoItem;
+            data.tipoReceita = data.tipoReceita || linha.descricaoItem;
+        }
         const existing = await this.prisma.receitaMensal.findUnique({
             where: {
                 projectId_mes_ano_tipoReceita: {
@@ -771,13 +797,38 @@ let FinancialService = class FinancialService {
                 data: { ...data, ativo: true, updatedAt: new Date() },
             });
         }
-        return this.prisma.receitaMensal.create({ data });
+        return this.prisma.receitaMensal.create({
+            data,
+            include: {
+                project: { select: { id: true, nome: true, codigo: true } },
+                objetoContratual: { select: { id: true, numero: true, descricao: true } },
+                linhaContratual: { select: { id: true, descricaoItem: true, unidade: true, valorUnitario: true } },
+            },
+        });
     }
     async updateReceita(id, data) {
         const receita = await this.prisma.receitaMensal.findUnique({ where: { id } });
         if (!receita)
             throw new common_1.NotFoundException(`Receita ${id} não encontrada`);
-        return this.prisma.receitaMensal.update({ where: { id }, data });
+        // Se quantidade foi alterada e há linha contratual, recalcular
+        if (data.quantidade !== undefined && receita.linhaContratualId) {
+            const linha = await this.prisma.linhaContratual.findUnique({
+                where: { id: receita.linhaContratualId },
+            });
+            if (linha) {
+                data.valorPrevisto = Number(data.quantidade) * Number(linha.valorUnitario);
+                data.valorUnitario = Number(linha.valorUnitario);
+            }
+        }
+        return this.prisma.receitaMensal.update({
+            where: { id },
+            data,
+            include: {
+                project: { select: { id: true, nome: true, codigo: true } },
+                objetoContratual: { select: { id: true, numero: true, descricao: true } },
+                linhaContratual: { select: { id: true, descricaoItem: true, unidade: true, valorUnitario: true } },
+            },
+        });
     }
     async deleteReceita(id) {
         const receita = await this.prisma.receitaMensal.findUnique({ where: { id } });

@@ -333,13 +333,7 @@ export declare class FinancialController {
         custoTotal: number;
     }>;
     findAllReceitas(page?: string, limit?: string, ano?: string): Promise<{
-        data: ({
-            project: {
-                id: string;
-                nome: string;
-                codigo: string;
-            };
-        } & {
+        data: {
             id: string;
             projectId: string;
             descricao: string | null;
@@ -351,7 +345,7 @@ export declare class FinancialController {
             tipoReceita: string;
             valorPrevisto: import("@prisma/client/runtime/library").Decimal;
             valorRealizado: import("@prisma/client/runtime/library").Decimal;
-        })[];
+        }[];
         total: number;
         page: number;
         limit: number;

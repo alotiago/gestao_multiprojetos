@@ -334,13 +334,7 @@ export declare class FinancialService {
         custoTotal: number;
     }>;
     findAllReceitas(page?: number, limit?: number, ano?: number): Promise<{
-        data: ({
-            project: {
-                id: string;
-                nome: string;
-                codigo: string;
-            };
-        } & {
+        data: {
             id: string;
             projectId: string;
             descricao: string | null;
@@ -352,7 +346,7 @@ export declare class FinancialService {
             tipoReceita: string;
             valorPrevisto: Decimal;
             valorRealizado: Decimal;
-        })[];
+        }[];
         total: number;
         page: number;
         limit: number;

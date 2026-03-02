@@ -17,6 +17,7 @@ COPY . .
 
 # Build
 WORKDIR /app/apps/backend
+RUN npx prisma generate --schema=prisma/schema.prisma
 RUN npm run build
 
 # Production stage

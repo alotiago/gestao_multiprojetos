@@ -126,6 +126,7 @@ model Project {
 
   // Relations
   users             ProjectUser[]
+  objetosContratuais ObjetoContratual[]
   receitas          ReceitaMensal[]
   custos            CustoMensal[]
   despesas          Despesa[]
@@ -155,28 +156,87 @@ model ProjectUser {
   @@map("project_users")
 }
 
-/// Receitas Mensais
-model ReceitaMensal {
+/// Objetos Contratuais (agrupadores de linhas contratuais)
+model ObjetoContratual {
   id                String    @id @default(cuid())
   projectId         String
   project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   
-  mes               Int       // 1-12
-  ano               Int
+  numero            String    // Ex: "OC-001"
+  descricao         String
   
-  tipoReceita       String    // Ex: "serviço", "produto"
-  descricao         String?
-  
-  valorPrevisto     Decimal   @db.Decimal(15, 2)
-  valorRealizado    Decimal   @db.Decimal(15, 2) @default(0)
+  dataInicio        DateTime
+  dataFim           DateTime?
   
   ativo             Boolean   @default(true)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
+  // Relations
+  linhasContratuais LinhaContratual[]
+  receitas          ReceitaMensal[]
+
+  @@unique([projectId, numero])
+  @@map("objetos_contratuais")
+  @@index([projectId])
+}
+
+/// Linhas Contratuais (itens com valores oficiais)
+model LinhaContratual {
+  id                      String    @id @default(cuid())
+  objetoContratualId      String
+  objetoContratual        ObjetoContratual @relation(fields: [objetoContratualId], references: [id], onDelete: Cascade)
+  
+  descricaoItem           String    // Descrição do serviço/item
+  unidade                 String    // Ex: "hora", "mês", "pacote", "serviço"
+  quantidadeAnualEstimada Decimal   @db.Decimal(15, 2)
+  valorUnitario           Decimal   @db.Decimal(15, 2)
+  valorTotalAnual         Decimal   @db.Decimal(15, 2) // AUTO: qtd × valorUnit
+  
+  ativo                   Boolean   @default(true)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  // Relations
+  receitas                ReceitaMensal[]
+
+  @@map("linhas_contratuais")
+  @@index([objetoContratualId])
+}
+
+/// Receitas Mensais (vinculadas a linhas contratuais)
+model ReceitaMensal {
+  id                    String    @id @default(cuid())
+  projectId             String
+  project               Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  objetoContratualId    String?
+  objetoContratual      ObjetoContratual? @relation(fields: [objetoContratualId], references: [id])
+
+  linhaContratualId     String?
+  linhaContratual       LinhaContratual?  @relation(fields: [linhaContratualId], references: [id])
+  
+  mes                   Int       // 1-12
+  ano                   Int
+  
+  tipoReceita           String    // Ex: "serviço", "produto" (ou herdado da linha)
+  descricao             String?
+  unidade               String?   // Herdado da linha contratual
+  quantidade            Decimal?  @db.Decimal(15, 2) // Qtd do período
+  valorUnitario         Decimal?  @db.Decimal(15, 2) // Herdado da linha contratual
+  
+  valorPrevisto         Decimal   @db.Decimal(15, 2)
+  valorRealizado        Decimal   @db.Decimal(15, 2) @default(0)
+  
+  ativo                 Boolean   @default(true)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
   @@unique([projectId, mes, ano, tipoReceita])
   @@map("receitas_mensais")
   @@index([projectId, ano])
+  @@index([objetoContratualId])
+  @@index([linhaContratualId])
 }
 
 /// Colaboradores/Funcionários
