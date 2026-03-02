@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================
+   HW1 — CSS Custom Properties
+   ============================================= */
+:root {
+  --hw1-navy:       #050439;
+  --hw1-blue:       #1E16A0;
+  --hw1-purple:     #35277D;
+  --hw1-pink:       #E52287;
+  --hw1-teal:       #00B3AD;
+  --hw1-hot-pink:   #F70085;
+  --hw1-cyan:       #00DDD5;
+  --hw1-teal-green: #009792;
+  --hw1-black:      #0D0E0E;
+  --hw1-white:      #FFFFFF;
+
+  /* Sidebar */
+  --sidebar-width:  260px;
+  --sidebar-bg:     var(--hw1-navy);
+  --sidebar-active: var(--hw1-blue);
+  --sidebar-hover:  rgba(30, 22, 160, 0.5);
+  --topbar-height:  64px;
+}
+
+/* =============================================
+   Base reset
+   ============================================= */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-open-sans), 'Open Sans', sans-serif;
+  background-color: #F4F5F9;
+  color: var(--hw1-black);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* =============================================
+   Typography
+   ============================================= */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-montserrat), 'Montserrat', sans-serif;
+  font-weight: 600;
+  color: var(--hw1-navy);
+  line-height: 1.3;
+}
+
+/* =============================================
+   Ant Design override — primary color sync
+   ============================================= */
+:root {
+  --ant-primary-color: #1E16A0;
+  --ant-link-color: #1E16A0;
+}
+
+/* =============================================
+   Scrollbar personalizado
+   ============================================= */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--hw1-blue);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--hw1-purple);
+}
+
+/* =============================================
+   Utility classes
+   ============================================= */
+@layer components {
+  .hw1-card {
+    @apply bg-white rounded-2xl shadow-hw1 p-6;
+  }
+
+  .hw1-btn-primary {
+    @apply bg-hw1-blue hover:bg-hw1-purple text-white font-semibold
+           px-6 py-2.5 rounded-xl transition-all duration-200
+           shadow-hw1 hover:shadow-hw1-lg;
+  }
+
+  .hw1-btn-secondary {
+    @apply bg-hw1-teal hover:bg-hw1-teal-green text-white font-semibold
+           px-6 py-2.5 rounded-xl transition-all duration-200;
+  }
+
+  .hw1-btn-accent {
+    @apply bg-hw1-pink hover:bg-hw1-hot-pink text-white font-semibold
+           px-6 py-2.5 rounded-xl transition-all duration-200;
+  }
+
+  .hw1-badge-green {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+           bg-emerald-100 text-emerald-700;
+  }
+  .hw1-badge-red {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+           bg-red-100 text-red-700;
+  }
+  .hw1-badge-yellow {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+           bg-yellow-100 text-yellow-700;
+  }
+  .hw1-badge-blue {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+           bg-blue-100 text-blue-700;
+  }
+}

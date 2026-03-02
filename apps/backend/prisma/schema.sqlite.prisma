@@ -1,0 +1,293 @@
+// This is your Prisma schema file for development (SQLite)
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============= CORE MODELS =============
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  password          String
+  name              String
+  role              String    @default("VIEWER")
+  status            String    @default("ATIVO")
+  ativo             Boolean   @default(true)
+  
+  // Timestamps
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  lastLogin         DateTime?
+
+  // Relations
+  projects          ProjectUser[]
+  auditLogs         AuditLog[]
+
+  @@map("users")
+  @@index([email])
+  @@index([role])
+}
+
+/// Perfis/Roles com permissões
+model Role {
+  id                String    @id @default(cuid())
+  name              String    @unique
+  description       String?
+  permissions       String    @default("[]")
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("roles")
+}
+
+/// Empresas/Unidades
+model Unit {
+  id                String    @id @default(cuid())
+  code              String    @unique
+  name              String
+  description       String?
+  city              String?
+  state             String?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  projects          Project[]
+  
+  @@map("units")
+}
+
+/// Projetos
+model Project {
+  id                String    @id @default(cuid())
+  code              String    @unique
+  name              String
+  description       String?
+  client            String?
+  unitId            String
+  unit              Unit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  status            String    @default("ATIVO")
+  type              String?
+  startDate         DateTime?
+  endDate           DateTime?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  users             ProjectUser[]
+  revenues          Revenue[]
+  costs             Cost[]
+  
+  @@map("projects")
+  @@index([unitId])
+  @@index([status])
+}
+
+/// Associação Projeto-Usuário
+model ProjectUser {
+  id                String    @id @default(cuid())
+  projectId         String
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role              String?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@unique([projectId, userId])
+  @@map("project_users")
+}
+
+/// Receitas
+model Revenue {
+  id                String    @id @default(cuid())
+  projectId         String
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  month             Int
+  year              Int
+  amount            Float
+  type              String?
+  description       String?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@unique([projectId, month, year])
+  @@map("revenues")
+  @@index([projectId])
+}
+
+/// Custos
+model Cost {
+  id                String    @id @default(cuid())
+  projectId         String
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  month             Int
+  year              Int
+  amount            Float
+  type              String?
+  description       String?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@map("costs")
+  @@index([projectId])
+}
+
+/// Colaboradores
+model Collaborator {
+  id                String    @id @default(cuid())
+  matricula         String    @unique
+  name              String
+  email             String    @unique
+  cargo             String?
+  classe            String?
+  taxaHora          Float?
+  cargaHoraria      Int?
+  city              String?
+  state             String?
+  status            String    @default("ATIVO")
+  dataDesligamento  DateTime?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  hours             WorkHour[]
+  costs             LabourCost[]
+  
+  @@map("collaborators")
+  @@index([email])
+  @@index([status])
+}
+
+/// Horas trabalhadas
+model WorkHour {
+  id                String    @id @default(cuid())
+  collaboratorId    String
+  collaborator      Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  month             Int
+  year              Int
+  hours             Float
+  description       String?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@unique([collaboratorId, month, year])
+  @@map("work_hours")
+}
+
+/// Custos de mão de obra
+model LabourCost {
+  id                String    @id @default(cuid())
+  collaboratorId    String
+  collaborator      Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  month             Int
+  year              Int
+  costFixed         Float?
+  costVariable      Float?
+  taxes             Float?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@unique([collaboratorId, month, year])
+  @@map("labour_costs")
+}
+
+/// Calendários/Feriados
+model CalendarEntry {
+  id                String    @id @default(cuid())
+  date              DateTime
+  type              String
+  description       String?
+  city              String?
+  state             String?
+  dayOfWeek         Int?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@unique([date, city, state])
+  @@map("calendar_entries")
+  @@index([date])
+}
+
+/// Sindicatos
+model Union {
+  id                String    @id @default(cuid())
+  name              String    @unique
+  region            String?
+  percentualDissidio Float?
+  dataDissidio      DateTime?
+  regimeTributario  String?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@map("unions")
+}
+
+/// Índices Financeiros
+model FinancialIndex {
+  id                String    @id @default(cuid())
+  type              String
+  month             Int
+  year              Int
+  value             Float
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@unique([type, month, year])
+  @@map("financial_indexes")
+}
+
+/// Impostos
+model Tax {
+  id                String    @id @default(cuid())
+  projectId         String?
+  collaboratorId    String?
+  type              String
+  aliquota          Float
+  value             Float
+  month             Int
+  year              Int
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@map("taxes")
+}
+
+/// Logs de Auditoria
+model AuditLog {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action            String
+  entity            String
+  entityId          String
+  oldValue          String?
+  newValue          String?
+  ipAddress         String?
+  userAgent         String?
+  
+  createdAt         DateTime  @default(now())
+  
+  @@map("audit_logs")
+  @@index([userId])
+  @@index([createdAt])
+}
+

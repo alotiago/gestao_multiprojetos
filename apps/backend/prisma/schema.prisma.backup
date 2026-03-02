@@ -1,0 +1,448 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============= ENUMS =============
+
+enum UserRole {
+  ADMIN
+  PMO
+  PROJECT_MANAGER
+  HR
+  FINANCE
+  VIEWER
+}
+
+enum ProjectStatus {
+  ATIVO
+  SUSPENSO
+  ENCERRADO
+}
+
+enum UserStatus {
+  ATIVO
+  INATIVO
+  DESLIGADO
+}
+
+enum FeriadoType {
+  NACIONAL
+  ESTADUAL
+  MUNICIPAL
+}
+
+// ============= MODELS =============
+
+/// Usuários do sistema
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  password          String    // Hashed com bcrypt
+  name              String
+  role              UserRole  @default(VIEWER)
+  status            UserStatus @default(ATIVO)
+  ativo             Boolean   @default(true)
+  
+  // Timestamps
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  lastLogin         DateTime?
+
+  // Relations
+  projects          ProjectUser[]
+  auditLogs         AuditLog[]
+
+  @@map("users")
+  @@index([email])
+  @@index([role])
+}
+
+/// Perfis/Roles com permissões
+model Role {
+  id                String    @id @default(cuid())
+  name              String    @unique
+  description       String?
+  permissions       String[]  // Array de permissions JSON
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("roles")
+}
+
+/// Empresas/Unidades
+model Unit {
+  id                String    @id @default(cuid())
+  code              String    @unique
+  name              String
+  description       String?
+  ativo             Boolean   @default(true)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  projects          Project[]
+
+  @@map("units")
+}
+
+/// Projetos
+model Project {
+  id                String    @id @default(cuid())
+  codigo            String    @unique
+  nome              String
+  cliente           String
+  unitId            String
+  unit              Unit      @relation(fields: [unitId], references: [id])
+  
+  status            ProjectStatus @default(ATIVO)
+  tipo              String    // Ex: "serviço", "produto"
+  
+  dataInicio        DateTime
+  dataFim           DateTime?
+  
+  descricao         String?
+  ativo             Boolean   @default(true)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  criadoPor         String?
+
+
+  // Relations
+  users             ProjectUser[]
+  receitas          ReceitaMensal[]
+  custos            CustoMensal[]
+  despesas          Despesa[]
+  impostos          Imposto[]
+  historico         HistoricoCalculo[]
+
+  @@map("projects")
+  @@index([unitId])
+  @@index([status])
+  @@index([codigo])
+}
+
+/// Relação Many-to-Many entre Projetos e Usuários
+model ProjectUser {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  projectId         String
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  role              String    // Role específico no projeto (ex: "manager", "viewer")
+  dataAlocacao      DateTime  @default(now())
+
+  @@unique([userId, projectId])
+  @@map("project_users")
+}
+
+/// Receitas Mensais
+model ReceitaMensal {
+  id                String    @id @default(cuid())
+  projectId         String
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  mes               Int       // 1-12
+  ano               Int
+  
+  tipoReceita       String    // Ex: "serviço", "produto"
+  descricao         String?
+  
+  valorPrevisto     Decimal   @db.Decimal(15, 2)
+  valorRealizado    Decimal   @db.Decimal(15, 2) @default(0)
+  
+  ativo             Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([projectId, mes, ano, tipoReceita])
+  @@map("receitas_mensais")
+  @@index([projectId, ano])
+}
+
+/// Colaboradores/Funcionários
+model Colaborador {
+  id                String    @id @default(cuid())
+  matricula         String    @unique
+  nome              String
+  email             String?   @unique
+  
+  cargo             String
+  classe            String?
+  taxaHora          Decimal   @db.Decimal(10, 2)
+  cargaHoraria      Int       // Em horas por mês
+  
+  cidade            String
+  estado            String
+  
+  sindicatoId       String?
+  sindicato         Sindicato? @relation(fields: [sindicatoId], references: [id])
+  
+  status            UserStatus @default(ATIVO)
+  dataAdmissao      DateTime
+  dataDesligamento  DateTime?
+  
+  ativo             Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  custos            CustoMensal[]
+  jornadas          Jornada[]
+  ferias            Ferias[]
+  desligamento      Desligamento?
+
+  @@map("colaboradores")
+  @@index([status])
+  @@index([sindicatoId])
+}
+
+/// Jornadas/Horas de Trabalho
+model Jornada {
+  id                String    @id @default(cuid())
+  colaboradorId     String
+  colaborador       Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+  
+  projectId         String?   // Opcional, pode ser NULL para jornadas gerais
+  
+  mes               Int       // 1-12
+  ano               Int
+  
+  horasPrevistas    Decimal   @db.Decimal(10, 2)
+  horasRealizadas   Decimal   @db.Decimal(10, 2) @default(0)
+  fte               Decimal   @db.Decimal(5, 2) @default(0)  // Full-Time Equivalent
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([colaboradorId, mes, ano])
+  @@map("jornadas")
+}
+
+/// Férias
+model Ferias {
+  id                String    @id @default(cuid())
+  colaboradorId     String
+  colaborador       Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+  
+  dataInicio        DateTime
+  dataFim           DateTime
+  dias              Int
+  
+  aprovado          Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+
+  @@map("ferias")
+}
+
+/// Desligamento
+model Desligamento {
+  id                String    @id @default(cuid())
+  colaboradorId     String    @unique
+  colaborador       Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+  
+  dataDesligamento  DateTime
+  motivo            String    // Ex: "pedido demissão", "dispensa"
+  observacoes       String?
+  
+  createdAt         DateTime  @default(now())
+
+  @@map("desligamentos")
+}
+
+/// Custos Mensais
+model CustoMensal {
+  id                String    @id @default(cuid())
+  colaboradorId     String
+  colaborador       Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+  
+  projectId         String
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  mes               Int       // 1-12
+  ano               Int
+  
+  custoFixo         Decimal   @db.Decimal(15, 2) @default(0)
+  custoVariavel     Decimal   @db.Decimal(15, 2) @default(0)
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([colaboradorId, projectId, mes, ano])
+  @@map("custos_mensais")
+  @@index([projectId, ano])
+  @@index([colaboradorId])
+}
+
+/// Despesas (Facilities, Fornecedores, etc)
+model Despesa {
+  id                String    @id @default(cuid())
+  projectId         String
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  tipo              String    // Ex: "facilities", "fornecedor", "aluguel", "endomarketing"
+  descricao         String
+  valor             Decimal   @db.Decimal(15, 2)
+  
+  mes               Int       // 1-12
+  ano               Int
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("despesas")
+  @@index([projectId, ano])
+}
+
+/// Impostos
+model Imposto {
+  id                String    @id @default(cuid())
+  projectId         String
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  tipo              String    // Ex: "INSS", "ISS", "PIS", "COFINS", "IRPJ", "CSLL"
+  aliquota          Decimal   @db.Decimal(8, 4)
+  valor             Decimal   @db.Decimal(15, 2)
+  
+  mes               Int       // 1-12
+  ano               Int
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("impostos")
+  @@index([projectId, tipo])
+}
+
+/// Sindicatos e Regras Trabalhistas
+model Sindicato {
+  id                String    @id @default(cuid())
+  nome              String    @unique
+  regiao            String
+  
+  percentualDissidio Decimal  @db.Decimal(8, 4) @default(0)
+  dataDissidio      DateTime?
+  regimeTributario  String    // Ex: "CPRB", "híbrido"
+  
+  descricao         String?
+  ativo             Boolean   @default(true)
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  colaboradores     Colaborador[]
+
+  @@map("sindicatos")
+  @@index([regiao])
+}
+
+/// Calendário de Feriados
+model Calendario {
+  id                String    @id @default(cuid())
+  data              DateTime
+  
+  tipoFeriado       FeriadoType
+  descricao         String
+  
+  cidade            String?
+  estado            String?
+  
+  diaSemana         Int       // 0-6 (segunda-domingo)
+  nacional          Boolean   @default(false)
+  
+  createdAt         DateTime  @default(now())
+
+  @@unique([data, tipoFeriado, cidade, estado])
+  @@map("calendarios")
+  @@index([data])
+  @@index([estado])
+}
+
+/// Índices Financeiros
+model IndiceFinanceiro {
+  id                String    @id @default(cuid())
+  tipo              String    // Ex: "IPCA", "INPC"
+  valor             Decimal   @db.Decimal(10, 4)
+  
+  mesReferencia     Int
+  anoReferencia     Int
+  
+  createdAt         DateTime  @default(now())
+
+  @@unique([tipo, mesReferencia, anoReferencia])
+  @@map("indices_financeiros")
+}
+
+/// Histórico de Cálculos (Para auditoria)
+model HistoricoCalculo {
+  id                String    @id @default(cuid())
+  projectId         String
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  tipo              String    // Ex: "FCST", "custo_cascata", "fte_calculo"
+  dadosAntes        Json      // JSON com dados anteriores
+  dadosDepois       Json      // JSON com dados novos
+  
+  criadoPor         String?
+  createdAt         DateTime  @default(now())
+
+  @@map("historicos_calculo")
+  @@index([projectId])
+}
+
+/// Logs de Auditoria
+model AuditLog {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  acao              String    // Ex: "CREATE", "UPDATE", "DELETE"
+  entidade          String    // Ex: "User", "Project", "Colaborador"
+  entityId          String    // ID da entidade modificada
+  
+  dadosAntes        Json?     // Estado anterior (para UPDATE/DELETE)
+  dadosDepois       Json?     // Estado posterior (para CREATE/UPDATE)
+  
+  detalhes          String?
+  ipAddress         String?
+  userAgent         String?
+  
+  createdAt         DateTime  @default(now())
+
+  @@map("audit_logs")
+  @@index([userId])
+  @@index([entidade])
+  @@index([createdAt])
+}
+
+/// Sessions para JWT Refresh Tokens
+model RefreshTokenSession {
+  id                String    @id @default(cuid())
+  userId            String
+  
+  token             String    @unique
+  expiresAt         DateTime
+  
+  revokedAt         DateTime?
+  ipAddress         String?
+  userAgent         String?
+  
+  createdAt         DateTime  @default(now())
+
+  @@map("refresh_token_sessions")
+  @@index([userId])
+  @@index([expiresAt])
+}
