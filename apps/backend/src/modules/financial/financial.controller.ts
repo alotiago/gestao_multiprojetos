@@ -273,6 +273,19 @@ export class FinancialController {
     return this.financialService.findReceitasById(projectId, ano ? parseInt(ano, 10) : undefined);
   }
 
+  @Get('objetos/:objetoContratualId/receitas')
+  @ApiOperation({ summary: 'Receitas por objeto contratual (US3)' })
+  @Permissions(Permission.FINANCIAL_READ)
+  findReceitasByObjeto(
+    @Param('objetoContratualId') objetoContratualId: string,
+    @Query('ano') ano?: string,
+  ) {
+    return this.financialService.findReceitasByObjeto(
+      objetoContratualId,
+      ano ? parseInt(ano, 10) : undefined,
+    );
+  }
+
   @Post('receitas')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Criar receita' })

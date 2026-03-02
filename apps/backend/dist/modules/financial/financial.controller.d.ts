@@ -9,102 +9,102 @@ export declare class FinancialController {
     private readonly financialService;
     constructor(financialService: FinancialService);
     findDespesas(filters: FilterDespesaDto): Promise<{
-        id: string;
-        projectId: string;
-        tipo: string;
-        descricao: string;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
+        id: string;
+        descricao: string;
         createdAt: Date;
         updatedAt: Date;
+        tipo: string;
+        projectId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
     }[]>;
     findDespesaById(id: string): Promise<{
-        id: string;
-        projectId: string;
-        tipo: string;
-        descricao: string;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
+        id: string;
+        descricao: string;
         createdAt: Date;
         updatedAt: Date;
+        tipo: string;
+        projectId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
     }>;
     createDespesa(dto: CreateDespesaDto): Promise<{
-        id: string;
-        projectId: string;
-        tipo: string;
-        descricao: string;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
+        id: string;
+        descricao: string;
         createdAt: Date;
         updatedAt: Date;
+        tipo: string;
+        projectId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
     }>;
     updateDespesa(id: string, dto: UpdateDespesaDto): Promise<{
-        id: string;
-        projectId: string;
-        tipo: string;
-        descricao: string;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
+        id: string;
+        descricao: string;
         createdAt: Date;
         updatedAt: Date;
+        tipo: string;
+        projectId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
     }>;
     deleteDespesa(id: string): Promise<{
-        id: string;
-        projectId: string;
-        tipo: string;
-        descricao: string;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
+        id: string;
+        descricao: string;
         createdAt: Date;
         updatedAt: Date;
+        tipo: string;
+        projectId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
     }>;
     findImpostos(id: string, ano?: string): Promise<{
-        id: string;
-        projectId: string;
-        tipo: string;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        tipo: string;
+        projectId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
         aliquota: import("@prisma/client/runtime/library").Decimal;
     }[]>;
     createImposto(dto: CreateImpostoDto): Promise<{
-        id: string;
-        projectId: string;
-        tipo: string;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        tipo: string;
+        projectId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
         aliquota: import("@prisma/client/runtime/library").Decimal;
     }>;
     updateImposto(id: string, dto: UpdateImpostoDto): Promise<{
-        id: string;
-        projectId: string;
-        tipo: string;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        tipo: string;
+        projectId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
         aliquota: import("@prisma/client/runtime/library").Decimal;
     }>;
     deleteImposto(id: string): Promise<{
-        id: string;
-        projectId: string;
-        tipo: string;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        tipo: string;
+        projectId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
         aliquota: import("@prisma/client/runtime/library").Decimal;
     }>;
     calcularImpostos(dto: CalcularImpostosDto): Promise<{
@@ -143,40 +143,40 @@ export declare class FinancialController {
             cargo: string;
         };
     } & {
-        id: string;
-        projectId: string;
         mes: number;
         ano: number;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        projectId: string;
         colaboradorId: string;
         custoFixo: import("@prisma/client/runtime/library").Decimal;
         custoVariavel: import("@prisma/client/runtime/library").Decimal;
     })[]>;
     upsertCustoMensal(dto: CreateCustoMensalDto): Promise<{
-        id: string;
-        projectId: string;
         mes: number;
         ano: number;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        projectId: string;
         colaboradorId: string;
         custoFixo: import("@prisma/client/runtime/library").Decimal;
         custoVariavel: import("@prisma/client/runtime/library").Decimal;
     }>;
     findIndices(tipo?: string, ano?: string): Promise<{
         id: string;
+        createdAt: Date;
         tipo: string;
         valor: import("@prisma/client/runtime/library").Decimal;
-        createdAt: Date;
         mesReferencia: number;
         anoReferencia: number;
     }[]>;
     createIndice(dto: CreateIndiceFinanceiroDto): Promise<{
         id: string;
+        createdAt: Date;
         tipo: string;
         valor: import("@prisma/client/runtime/library").Decimal;
-        createdAt: Date;
         mesReferencia: number;
         anoReferencia: number;
     }>;
@@ -213,64 +213,64 @@ export declare class FinancialController {
         };
     }>;
     findProvisoes(filters: FilterProvisaoDto): Promise<{
-        id: string;
-        projectId: string;
-        tipo: string;
-        descricao: string | null;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
+        id: string;
+        descricao: string | null;
         createdAt: Date;
-        updatedAt: Date;
         ativo: boolean;
+        updatedAt: Date;
+        tipo: string;
+        projectId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
     }[]>;
     findProvisaoById(id: string): Promise<{
-        id: string;
-        projectId: string;
-        tipo: string;
-        descricao: string | null;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
+        id: string;
+        descricao: string | null;
         createdAt: Date;
-        updatedAt: Date;
         ativo: boolean;
+        updatedAt: Date;
+        tipo: string;
+        projectId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
     }>;
     createProvisao(dto: CreateProvisaoDto): Promise<{
-        id: string;
-        projectId: string;
-        tipo: string;
-        descricao: string | null;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
+        id: string;
+        descricao: string | null;
         createdAt: Date;
-        updatedAt: Date;
         ativo: boolean;
+        updatedAt: Date;
+        tipo: string;
+        projectId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
     }>;
     updateProvisao(id: string, dto: UpdateProvisaoDto): Promise<{
-        id: string;
-        projectId: string;
-        tipo: string;
-        descricao: string | null;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
+        id: string;
+        descricao: string | null;
         createdAt: Date;
-        updatedAt: Date;
         ativo: boolean;
+        updatedAt: Date;
+        tipo: string;
+        projectId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
     }>;
     deleteProvisao(id: string): Promise<{
-        id: string;
-        projectId: string;
-        tipo: string;
-        descricao: string | null;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
+        id: string;
+        descricao: string | null;
         createdAt: Date;
-        updatedAt: Date;
         ativo: boolean;
+        updatedAt: Date;
+        tipo: string;
+        projectId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
     }>;
     importarDespesasEmLote(dto: BulkImportDespesaDto, req: any): Promise<{
         totalProcessado: number;
@@ -333,72 +333,218 @@ export declare class FinancialController {
         custoTotal: number;
     }>;
     findAllReceitas(page?: string, limit?: string, ano?: string): Promise<{
-        data: {
-            id: string;
-            projectId: string;
-            descricao: string | null;
+        data: ({
+            project: {
+                id: string;
+                nome: string;
+                codigo: string;
+            };
+            objetoContratual: {
+                id: string;
+                descricao: string;
+                numero: string;
+            } | null;
+            linhaContratual: {
+                id: string;
+                descricaoItem: string;
+                unidade: string;
+                quantidadeAnualEstimada: import("@prisma/client/runtime/library").Decimal;
+                valorUnitario: import("@prisma/client/runtime/library").Decimal;
+                valorTotalAnual: import("@prisma/client/runtime/library").Decimal;
+            } | null;
+        } & {
             mes: number;
             ano: number;
+            id: string;
+            descricao: string | null;
             createdAt: Date;
-            updatedAt: Date;
             ativo: boolean;
+            updatedAt: Date;
+            projectId: string;
+            objetoContratualId: string | null;
+            unidade: string | null;
+            valorUnitario: import("@prisma/client/runtime/library").Decimal | null;
+            linhaContratualId: string | null;
             tipoReceita: string;
+            quantidade: import("@prisma/client/runtime/library").Decimal | null;
             valorPrevisto: import("@prisma/client/runtime/library").Decimal;
             valorRealizado: import("@prisma/client/runtime/library").Decimal;
-        }[];
+        })[];
         total: number;
         page: number;
         limit: number;
     }>;
-    findReceitasById(projectId: string, ano?: string): Promise<{
-        id: string;
-        projectId: string;
-        descricao: string | null;
+    findReceitasById(projectId: string, ano?: string): Promise<({
+        project: {
+            id: string;
+            nome: string;
+            codigo: string;
+        };
+        objetoContratual: {
+            id: string;
+            descricao: string;
+            numero: string;
+        } | null;
+        linhaContratual: {
+            id: string;
+            descricaoItem: string;
+            unidade: string;
+            quantidadeAnualEstimada: import("@prisma/client/runtime/library").Decimal;
+            valorUnitario: import("@prisma/client/runtime/library").Decimal;
+            valorTotalAnual: import("@prisma/client/runtime/library").Decimal;
+        } | null;
+    } & {
         mes: number;
         ano: number;
+        id: string;
+        descricao: string | null;
         createdAt: Date;
-        updatedAt: Date;
         ativo: boolean;
+        updatedAt: Date;
+        projectId: string;
+        objetoContratualId: string | null;
+        unidade: string | null;
+        valorUnitario: import("@prisma/client/runtime/library").Decimal | null;
+        linhaContratualId: string | null;
         tipoReceita: string;
+        quantidade: import("@prisma/client/runtime/library").Decimal | null;
         valorPrevisto: import("@prisma/client/runtime/library").Decimal;
         valorRealizado: import("@prisma/client/runtime/library").Decimal;
-    }[]>;
+    })[]>;
+    findReceitasByObjeto(objetoContratualId: string, ano?: string): Promise<{
+        objetoContratualId: string;
+        receitas: ({
+            project: {
+                id: string;
+                nome: string;
+                codigo: string;
+            };
+            objetoContratual: {
+                id: string;
+                descricao: string;
+                numero: string;
+            } | null;
+            linhaContratual: {
+                id: string;
+                descricaoItem: string;
+                unidade: string;
+                quantidadeAnualEstimada: import("@prisma/client/runtime/library").Decimal;
+                valorUnitario: import("@prisma/client/runtime/library").Decimal;
+                valorTotalAnual: import("@prisma/client/runtime/library").Decimal;
+            } | null;
+        } & {
+            mes: number;
+            ano: number;
+            id: string;
+            descricao: string | null;
+            createdAt: Date;
+            ativo: boolean;
+            updatedAt: Date;
+            projectId: string;
+            objetoContratualId: string | null;
+            unidade: string | null;
+            valorUnitario: import("@prisma/client/runtime/library").Decimal | null;
+            linhaContratualId: string | null;
+            tipoReceita: string;
+            quantidade: import("@prisma/client/runtime/library").Decimal | null;
+            valorPrevisto: import("@prisma/client/runtime/library").Decimal;
+            valorRealizado: import("@prisma/client/runtime/library").Decimal;
+        })[];
+        totais: {
+            totalPrevisto: number;
+            totalRealizado: number;
+            totalReceitas: number;
+        };
+    }>;
     createReceita(dto: CreateReceitaDto): Promise<{
-        id: string;
-        projectId: string;
-        descricao: string | null;
+        project: {
+            id: string;
+            nome: string;
+            codigo: string;
+        };
+        objetoContratual: {
+            id: string;
+            descricao: string;
+            numero: string;
+        } | null;
+        linhaContratual: {
+            id: string;
+            descricaoItem: string;
+            unidade: string;
+            quantidadeAnualEstimada: import("@prisma/client/runtime/library").Decimal;
+            valorUnitario: import("@prisma/client/runtime/library").Decimal;
+            valorTotalAnual: import("@prisma/client/runtime/library").Decimal;
+        } | null;
+    } & {
         mes: number;
         ano: number;
+        id: string;
+        descricao: string | null;
         createdAt: Date;
-        updatedAt: Date;
         ativo: boolean;
+        updatedAt: Date;
+        projectId: string;
+        objetoContratualId: string | null;
+        unidade: string | null;
+        valorUnitario: import("@prisma/client/runtime/library").Decimal | null;
+        linhaContratualId: string | null;
         tipoReceita: string;
+        quantidade: import("@prisma/client/runtime/library").Decimal | null;
         valorPrevisto: import("@prisma/client/runtime/library").Decimal;
         valorRealizado: import("@prisma/client/runtime/library").Decimal;
     }>;
     updateReceita(id: string, dto: UpdateReceitaDto): Promise<{
-        id: string;
-        projectId: string;
-        descricao: string | null;
+        project: {
+            id: string;
+            nome: string;
+            codigo: string;
+        };
+        objetoContratual: {
+            id: string;
+            descricao: string;
+            numero: string;
+        } | null;
+        linhaContratual: {
+            id: string;
+            descricaoItem: string;
+            unidade: string;
+            quantidadeAnualEstimada: import("@prisma/client/runtime/library").Decimal;
+            valorUnitario: import("@prisma/client/runtime/library").Decimal;
+            valorTotalAnual: import("@prisma/client/runtime/library").Decimal;
+        } | null;
+    } & {
         mes: number;
         ano: number;
+        id: string;
+        descricao: string | null;
         createdAt: Date;
-        updatedAt: Date;
         ativo: boolean;
+        updatedAt: Date;
+        projectId: string;
+        objetoContratualId: string | null;
+        unidade: string | null;
+        valorUnitario: import("@prisma/client/runtime/library").Decimal | null;
+        linhaContratualId: string | null;
         tipoReceita: string;
+        quantidade: import("@prisma/client/runtime/library").Decimal | null;
         valorPrevisto: import("@prisma/client/runtime/library").Decimal;
         valorRealizado: import("@prisma/client/runtime/library").Decimal;
     }>;
     deleteReceita(id: string): Promise<{
-        id: string;
-        projectId: string;
-        descricao: string | null;
         mes: number;
         ano: number;
+        id: string;
+        descricao: string | null;
         createdAt: Date;
-        updatedAt: Date;
         ativo: boolean;
+        updatedAt: Date;
+        projectId: string;
+        objetoContratualId: string | null;
+        unidade: string | null;
+        valorUnitario: import("@prisma/client/runtime/library").Decimal | null;
+        linhaContratualId: string | null;
         tipoReceita: string;
+        quantidade: import("@prisma/client/runtime/library").Decimal | null;
         valorPrevisto: import("@prisma/client/runtime/library").Decimal;
         valorRealizado: import("@prisma/client/runtime/library").Decimal;
     }>;

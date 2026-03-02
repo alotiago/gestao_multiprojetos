@@ -52,6 +52,12 @@ export class ContractsController {
     return this.contractsService.findObjetosByProject(projectId);
   }
 
+  @Get('projetos/:projectId/resumo')
+  @ApiOperation({ summary: 'Resumo contratual do projeto (totais por objeto e linhas)' })
+  async getProjectContractSummary(@Param('projectId') projectId: string) {
+    return this.contractsService.getProjectContractSummary(projectId);
+  }
+
   @Post('objetos')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Criar objeto contratual' })

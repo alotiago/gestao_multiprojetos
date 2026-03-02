@@ -190,12 +190,12 @@ describe('ProjectsService', () => {
         });
         it('deve lançar ConflictException se receita duplicada', async () => {
             prisma.project.findUnique.mockResolvedValue(mockProject);
-            prisma.receitaMensal.findUnique.mockResolvedValue({ id: 'rec-1' }); // já existe
+            prisma.receitaMensal.findFirst.mockResolvedValue({ id: 'rec-1', ativo: true }); // já existe
             await expect(service.createReceita('proj-1', receitaDto)).rejects.toThrow(common_1.ConflictException);
         });
         it('deve criar receita com sucesso', async () => {
             prisma.project.findUnique.mockResolvedValue(mockProject);
-            prisma.receitaMensal.findUnique.mockResolvedValue(null);
+            prisma.receitaMensal.findFirst.mockResolvedValue(null);
             prisma.receitaMensal.create.mockResolvedValue({
                 id: 'rec-1',
                 projectId: 'proj-1',

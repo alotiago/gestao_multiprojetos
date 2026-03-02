@@ -33,6 +33,9 @@ let ContractsController = class ContractsController {
     async findObjetosByProject(projectId) {
         return this.contractsService.findObjetosByProject(projectId);
     }
+    async getProjectContractSummary(projectId) {
+        return this.contractsService.getProjectContractSummary(projectId);
+    }
     async createObjeto(data) {
         return this.contractsService.createObjeto(data);
     }
@@ -91,6 +94,14 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], ContractsController.prototype, "findObjetosByProject", null);
+__decorate([
+    (0, common_1.Get)('projetos/:projectId/resumo'),
+    (0, swagger_1.ApiOperation)({ summary: 'Resumo contratual do projeto (totais por objeto e linhas)' }),
+    __param(0, (0, common_1.Param)('projectId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], ContractsController.prototype, "getProjectContractSummary", null);
 __decorate([
     (0, common_1.Post)('objetos'),
     (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),

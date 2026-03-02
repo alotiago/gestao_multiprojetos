@@ -11,6 +11,26 @@ export class ContractsService {
   constructor(private readonly prisma: PrismaService) {}
 
   // ═══════════════════════════════════════════
+  //  HELPERS — RECALCULAR TOTAIS
+  // ═══════════════════════════════════════════
+
+  /**
+   * Recalcula o valorTotalContratado de um ObjetoContratual
+   * como a soma dos valorTotalAnual de suas linhas ativas
+   */
+  private async recalcularTotalObjeto(objetoContratualId: string) {
+    const linhas = await this.prisma.linhaContratual.findMany({
+      where: { objetoContratualId, ativo: true },
+      select: { valorTotalAnual: true },
+    });
+    const total = linhas.reduce((s, l) => s + Number(l.valorTotalAnual), 0);
+    await this.prisma.objetoContratual.update({
+      where: { id: objetoContratualId },
+      data: { valorTotalContratado: new Decimal(Math.round(total * 100) / 100) },
+    });
+  }
+
+  // ═══════════════════════════════════════════
   //  OBJETOS CONTRATUAIS
   // ═══════════════════════════════════════════
 
@@ -24,6 +44,10 @@ export class ContractsService {
         include: {
           project: { select: { id: true, codigo: true, nome: true } },
           _count: { select: { linhasContratuais: { where: { ativo: true } } } },
+          linhasContratuais: {
+            where: { ativo: true },
+            select: { valorTotalAnual: true },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -32,7 +56,20 @@ export class ContractsService {
       this.prisma.objetoContratual.count({ where }),
     ]);
 
-    return { data, total, page, limit };
+    // Adicionar valorTotalCalculado a cada objeto
+    const dataComTotais = data.map((obj) => {
+      const valorTotalLinhas = obj.linhasContratuais.reduce(
+        (s, l) => s + Number(l.valorTotalAnual),
+        0,
+      );
+      const { linhasContratuais, ...rest } = obj;
+      return {
+        ...rest,
+        valorTotalContratado: Math.round(valorTotalLinhas * 100) / 100,
+      };
+    });
+
+    return { data: dataComTotais, total, page, limit };
   }
 
   async findObjetoById(id: string) {
@@ -51,13 +88,78 @@ export class ContractsService {
   }
 
   async findObjetosByProject(projectId: string) {
-    return this.prisma.objetoContratual.findMany({
+    const objetos = await this.prisma.objetoContratual.findMany({
       where: { projectId, ativo: true },
       include: {
         _count: { select: { linhasContratuais: { where: { ativo: true } } } },
+        linhasContratuais: {
+          where: { ativo: true },
+          select: { valorTotalAnual: true },
+        },
       },
       orderBy: { numero: 'asc' },
     });
+
+    return objetos.map((obj) => {
+      const valorTotalLinhas = obj.linhasContratuais.reduce(
+        (s, l) => s + Number(l.valorTotalAnual),
+        0,
+      );
+      const { linhasContratuais, ...rest } = obj;
+      return {
+        ...rest,
+        valorTotalContratado: Math.round(valorTotalLinhas * 100) / 100,
+      };
+    });
+  }
+
+  /**
+   * Resumo financeiro contratual do projeto
+   * Total contratado = soma de todos os objetos contratuais
+   */
+  async getProjectContractSummary(projectId: string) {
+    const objetos = await this.prisma.objetoContratual.findMany({
+      where: { projectId, ativo: true },
+      include: {
+        linhasContratuais: {
+          where: { ativo: true },
+          select: {
+            id: true,
+            descricaoItem: true,
+            unidade: true,
+            quantidadeAnualEstimada: true,
+            valorUnitario: true,
+            valorTotalAnual: true,
+          },
+        },
+        _count: { select: { receitas: { where: { ativo: true } } } },
+      },
+    });
+
+    let totalContratadoProjeto = 0;
+    const objetosResumo = objetos.map((obj) => {
+      const valorTotal = obj.linhasContratuais.reduce(
+        (s, l) => s + Number(l.valorTotalAnual),
+        0,
+      );
+      totalContratadoProjeto += valorTotal;
+      return {
+        id: obj.id,
+        numero: obj.numero,
+        descricao: obj.descricao,
+        totalLinhas: obj.linhasContratuais.length,
+        totalReceitas: obj._count.receitas,
+        valorTotalContratado: Math.round(valorTotal * 100) / 100,
+        linhas: obj.linhasContratuais,
+      };
+    });
+
+    return {
+      projectId,
+      totalObjetos: objetos.length,
+      totalContratadoProjeto: Math.round(totalContratadoProjeto * 100) / 100,
+      objetos: objetosResumo,
+    };
   }
 
   async createObjeto(data: {
@@ -191,7 +293,7 @@ export class ContractsService {
     const vUnit = new Decimal(data.valorUnitario);
     const valorTotalAnual = qtd.mul(vUnit);
 
-    return this.prisma.linhaContratual.create({
+    const created = await this.prisma.linhaContratual.create({
       data: {
         objetoContratualId: data.objetoContratualId,
         descricaoItem: data.descricaoItem,
@@ -206,6 +308,11 @@ export class ContractsService {
         },
       },
     });
+
+    // Recalcular total do objeto contratual
+    await this.recalcularTotalObjeto(data.objetoContratualId);
+
+    return created;
   }
 
   async updateLinha(
@@ -283,6 +390,9 @@ export class ContractsService {
       }
     }
 
+    // Recalcular total do objeto contratual
+    await this.recalcularTotalObjeto(linha.objetoContratualId);
+
     return updated;
   }
 
@@ -293,5 +403,7 @@ export class ContractsService {
       where: { id },
       data: { ativo: false },
     });
+    // Recalcular total do objeto contratual
+    await this.recalcularTotalObjeto(linha.objetoContratualId);
   }
 }

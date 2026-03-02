@@ -168,6 +168,8 @@ model ObjetoContratual {
   dataInicio        DateTime
   dataFim           DateTime?
   
+  valorTotalContratado Decimal? @db.Decimal(15, 2) // AUTO: soma das linhas contratuais
+  
   ativo             Boolean   @default(true)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -232,7 +234,8 @@ model ReceitaMensal {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  @@unique([projectId, mes, ano, tipoReceita])
+  // Permite múltiplas receitas por mês desde que sejam de linhas contratuais diferentes
+  @@unique([projectId, mes, ano, linhaContratualId])
   @@map("receitas_mensais")
   @@index([projectId, ano])
   @@index([objetoContratualId])

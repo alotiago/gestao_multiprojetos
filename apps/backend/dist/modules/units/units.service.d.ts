@@ -5,8 +5,8 @@ export declare class UnitsService {
     findAll(): Promise<{
         name: string;
         id: string;
-        ativo: boolean;
         createdAt: Date;
+        ativo: boolean;
         updatedAt: Date;
         description: string | null;
         code: string;
@@ -14,8 +14,8 @@ export declare class UnitsService {
     findById(id: string): Promise<{
         name: string;
         id: string;
-        ativo: boolean;
         createdAt: Date;
+        ativo: boolean;
         updatedAt: Date;
         description: string | null;
         code: string;
@@ -27,8 +27,8 @@ export declare class UnitsService {
     }): Promise<{
         name: string;
         id: string;
-        ativo: boolean;
         createdAt: Date;
+        ativo: boolean;
         updatedAt: Date;
         description: string | null;
         code: string;
@@ -41,8 +41,8 @@ export declare class UnitsService {
     }): Promise<{
         name: string;
         id: string;
-        ativo: boolean;
         createdAt: Date;
+        ativo: boolean;
         updatedAt: Date;
         description: string | null;
         code: string;
@@ -50,8 +50,8 @@ export declare class UnitsService {
     delete(id: string): Promise<{
         name: string;
         id: string;
-        ativo: boolean;
         createdAt: Date;
+        ativo: boolean;
         updatedAt: Date;
         description: string | null;
         code: string;

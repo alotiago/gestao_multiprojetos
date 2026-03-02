@@ -17,29 +17,29 @@ export declare class HrController {
                 regiao: string;
             } | null;
             _count: {
-                ferias: number;
                 custos: number;
                 jornadas: number;
+                ferias: number;
             };
         } & {
-            email: string | null;
-            id: string;
             status: import(".prisma/client").$Enums.UserStatus;
-            ativo: boolean;
+            estado: string;
+            cidade: string;
+            id: string;
             createdAt: Date;
-            updatedAt: Date;
-            nome: string;
             matricula: string;
+            nome: string;
+            email: string | null;
             cargo: string;
             classe: string | null;
             tipoContratacao: import(".prisma/client").$Enums.TipoContratacao;
             taxaHora: import("@prisma/client/runtime/library").Decimal;
             cargaHoraria: number;
-            cidade: string;
-            estado: string;
             sindicatoId: string | null;
             dataAdmissao: Date;
             dataDesligamento: Date | null;
+            ativo: boolean;
+            updatedAt: Date;
         })[];
         meta: {
             total: number;
@@ -49,34 +49,57 @@ export declare class HrController {
         };
     }>;
     findById(id: string): Promise<{
-        ferias: {
-            id: string;
-            createdAt: Date;
-            dataInicio: Date;
-            dataFim: Date;
-            colaboradorId: string;
-            dias: number;
-            aprovado: boolean;
-        }[];
-        desligamento: {
-            id: string;
-            createdAt: Date;
-            colaboradorId: string;
-            dataDesligamento: Date;
-            motivo: string;
-            observacoes: string | null;
-        } | null;
         sindicato: {
             id: string;
-            ativo: boolean;
-            createdAt: Date;
-            updatedAt: Date;
-            nome: string;
             descricao: string | null;
+            createdAt: Date;
+            nome: string;
+            ativo: boolean;
+            updatedAt: Date;
             regiao: string;
             percentualDissidio: import("@prisma/client/runtime/library").Decimal;
             dataDissidio: Date | null;
             regimeTributario: string;
+        } | null;
+        custos: {
+            mes: number;
+            ano: number;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            projectId: string;
+            colaboradorId: string;
+            custoFixo: import("@prisma/client/runtime/library").Decimal;
+            custoVariavel: import("@prisma/client/runtime/library").Decimal;
+        }[];
+        jornadas: {
+            mes: number;
+            ano: number;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            projectId: string | null;
+            colaboradorId: string;
+            horasPrevistas: import("@prisma/client/runtime/library").Decimal;
+            horasRealizadas: import("@prisma/client/runtime/library").Decimal;
+            fte: import("@prisma/client/runtime/library").Decimal;
+        }[];
+        ferias: {
+            id: string;
+            createdAt: Date;
+            colaboradorId: string;
+            dataInicio: Date;
+            dataFim: Date;
+            aprovado: boolean;
+            dias: number;
+        }[];
+        desligamento: {
+            id: string;
+            createdAt: Date;
+            dataDesligamento: Date;
+            motivo: string;
+            colaboradorId: string;
+            observacoes: string | null;
         } | null;
         _count: {
             sindicato: number;
@@ -85,48 +108,25 @@ export declare class HrController {
             ferias: number;
             desligamento: number;
         };
-        custos: {
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            mes: number;
-            ano: number;
-            projectId: string;
-            colaboradorId: string;
-            custoFixo: import("@prisma/client/runtime/library").Decimal;
-            custoVariavel: import("@prisma/client/runtime/library").Decimal;
-        }[];
-        jornadas: {
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            mes: number;
-            ano: number;
-            projectId: string | null;
-            colaboradorId: string;
-            horasPrevistas: import("@prisma/client/runtime/library").Decimal;
-            horasRealizadas: import("@prisma/client/runtime/library").Decimal;
-            fte: import("@prisma/client/runtime/library").Decimal;
-        }[];
     } & {
-        email: string | null;
-        id: string;
         status: import(".prisma/client").$Enums.UserStatus;
-        ativo: boolean;
+        estado: string;
+        cidade: string;
+        id: string;
         createdAt: Date;
-        updatedAt: Date;
-        nome: string;
         matricula: string;
+        nome: string;
+        email: string | null;
         cargo: string;
         classe: string | null;
         tipoContratacao: import(".prisma/client").$Enums.TipoContratacao;
         taxaHora: import("@prisma/client/runtime/library").Decimal;
         cargaHoraria: number;
-        cidade: string;
-        estado: string;
         sindicatoId: string | null;
         dataAdmissao: Date;
         dataDesligamento: Date | null;
+        ativo: boolean;
+        updatedAt: Date;
     }>;
     create(dto: CreateColaboradorDto): Promise<{
         sindicato: {
@@ -134,24 +134,24 @@ export declare class HrController {
             nome: string;
         } | null;
     } & {
-        email: string | null;
-        id: string;
         status: import(".prisma/client").$Enums.UserStatus;
-        ativo: boolean;
+        estado: string;
+        cidade: string;
+        id: string;
         createdAt: Date;
-        updatedAt: Date;
-        nome: string;
         matricula: string;
+        nome: string;
+        email: string | null;
         cargo: string;
         classe: string | null;
         tipoContratacao: import(".prisma/client").$Enums.TipoContratacao;
         taxaHora: import("@prisma/client/runtime/library").Decimal;
         cargaHoraria: number;
-        cidade: string;
-        estado: string;
         sindicatoId: string | null;
         dataAdmissao: Date;
         dataDesligamento: Date | null;
+        ativo: boolean;
+        updatedAt: Date;
     }>;
     update(id: string, dto: UpdateColaboradorDto): Promise<{
         sindicato: {
@@ -159,44 +159,44 @@ export declare class HrController {
             nome: string;
         } | null;
     } & {
-        email: string | null;
-        id: string;
         status: import(".prisma/client").$Enums.UserStatus;
-        ativo: boolean;
+        estado: string;
+        cidade: string;
+        id: string;
         createdAt: Date;
-        updatedAt: Date;
-        nome: string;
         matricula: string;
+        nome: string;
+        email: string | null;
         cargo: string;
         classe: string | null;
         tipoContratacao: import(".prisma/client").$Enums.TipoContratacao;
         taxaHora: import("@prisma/client/runtime/library").Decimal;
         cargaHoraria: number;
-        cidade: string;
-        estado: string;
         sindicatoId: string | null;
         dataAdmissao: Date;
         dataDesligamento: Date | null;
+        ativo: boolean;
+        updatedAt: Date;
     }>;
     delete(id: string): Promise<{
-        email: string | null;
-        id: string;
         status: import(".prisma/client").$Enums.UserStatus;
-        ativo: boolean;
+        estado: string;
+        cidade: string;
+        id: string;
         createdAt: Date;
-        updatedAt: Date;
-        nome: string;
         matricula: string;
+        nome: string;
+        email: string | null;
         cargo: string;
         classe: string | null;
         tipoContratacao: import(".prisma/client").$Enums.TipoContratacao;
         taxaHora: import("@prisma/client/runtime/library").Decimal;
         cargaHoraria: number;
-        cidade: string;
-        estado: string;
         sindicatoId: string | null;
         dataAdmissao: Date;
         dataDesligamento: Date | null;
+        ativo: boolean;
+        updatedAt: Date;
     }>;
     importarEmLote(dto: BulkImportColaboradorDto, req: any): Promise<{
         totalProcessado: number;
@@ -210,11 +210,11 @@ export declare class HrController {
         errors: string[];
     }>;
     findJornadas(id: string, ano?: string): Promise<{
+        mes: number;
+        ano: number;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        mes: number;
-        ano: number;
         projectId: string | null;
         colaboradorId: string;
         horasPrevistas: import("@prisma/client/runtime/library").Decimal;
@@ -222,11 +222,11 @@ export declare class HrController {
         fte: import("@prisma/client/runtime/library").Decimal;
     }[]>;
     createJornada(id: string, dto: CreateJornadaDto): Promise<{
+        mes: number;
+        ano: number;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        mes: number;
-        ano: number;
         projectId: string | null;
         colaboradorId: string;
         horasPrevistas: import("@prisma/client/runtime/library").Decimal;
@@ -234,11 +234,11 @@ export declare class HrController {
         fte: import("@prisma/client/runtime/library").Decimal;
     }>;
     updateJornada(id: string, jornadaId: string, dto: UpdateJornadaDto): Promise<{
+        mes: number;
+        ano: number;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        mes: number;
-        ano: number;
         projectId: string | null;
         colaboradorId: string;
         horasPrevistas: import("@prisma/client/runtime/library").Decimal;
@@ -260,36 +260,36 @@ export declare class HrController {
     findFerias(id: string): Promise<{
         id: string;
         createdAt: Date;
+        colaboradorId: string;
         dataInicio: Date;
         dataFim: Date;
-        colaboradorId: string;
-        dias: number;
         aprovado: boolean;
+        dias: number;
     }[]>;
     createFerias(id: string, dto: CreateFeriasDto): Promise<{
         id: string;
         createdAt: Date;
+        colaboradorId: string;
         dataInicio: Date;
         dataFim: Date;
-        colaboradorId: string;
-        dias: number;
         aprovado: boolean;
+        dias: number;
     }>;
     updateFerias(id: string, feriasId: string, dto: UpdateFeriasDto): Promise<{
         id: string;
         createdAt: Date;
+        colaboradorId: string;
         dataInicio: Date;
         dataFim: Date;
-        colaboradorId: string;
-        dias: number;
         aprovado: boolean;
+        dias: number;
     }>;
     createDesligamento(id: string, dto: CreateDesligamentoDto): Promise<{
         id: string;
         createdAt: Date;
-        colaboradorId: string;
         dataDesligamento: Date;
         motivo: string;
+        colaboradorId: string;
         observacoes: string | null;
     }>;
     calcularCusto(id: string, mes: number, ano: number): Promise<{

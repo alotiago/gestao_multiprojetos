@@ -103,6 +103,7 @@ interface LinhaContratualSelect {
   unidade: string;
   valorUnitario: number;
   quantidadeAnualEstimada: number;
+  valorTotalAnual: number;
 }
 
 export default function FinanceiroPage() {
@@ -697,9 +698,11 @@ export default function FinanceiroPage() {
                   >
                     <th className="px-6 py-4">Projeto</th>
                     <th className="px-6 py-4">Obj. Contratual</th>
-                    <th className="px-6 py-4">Linha</th>
+                    <th className="px-6 py-4">Linha / Descrição</th>
+                    <th className="px-6 py-4">Unid.</th>
                     <th className="px-6 py-4">Mês</th>
                     <th className="px-6 py-4 text-right">Qtd</th>
+                    <th className="px-6 py-4 text-right">Vl. Unit.</th>
                     <th className="px-6 py-4 text-right">Previsto</th>
                     <th className="px-6 py-4 text-right">Realizado</th>
                     <th className="px-6 py-4 text-right">Ações</th>
@@ -714,10 +717,18 @@ export default function FinanceiroPage() {
                       }`}
                     >
                       <td className="px-6 py-4 text-sm font-medium">{r.project?.nome || 'N/A'}</td>
-                      <td className="px-6 py-4 text-gray-600 text-xs">{r.objetoContratual?.numero || '-'}</td>
+                      <td className="px-6 py-4 text-gray-600 text-xs">
+                        {r.objetoContratual ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-[10px] font-medium">
+                            📑 {r.objetoContratual.numero}
+                          </span>
+                        ) : '-'}
+                      </td>
                       <td className="px-6 py-4 text-gray-600 text-xs">{r.linhaContratual?.descricaoItem || r.descricao || '-'}</td>
+                      <td className="px-6 py-4 text-gray-500 text-xs capitalize">{r.unidade || r.linhaContratual?.unidade || '-'}</td>
                       <td className="px-6 py-4 text-gray-500">{String(r.mes).padStart(2, '0')}/{r.ano}</td>
-                      <td className="px-6 py-4 text-right text-gray-600">{r.quantidade ?? '-'}</td>
+                      <td className="px-6 py-4 text-right text-gray-600">{r.quantidade ? Number(r.quantidade).toLocaleString('pt-BR') : '-'}</td>
+                      <td className="px-6 py-4 text-right text-gray-500 text-xs">{r.valorUnitario ? formatBRL(Number(r.valorUnitario)) : '-'}</td>
                       <td className="px-6 py-4 text-right font-medium text-emerald-600">{formatBRL(r.valorPrevisto)}</td>
                       <td className="px-6 py-4 text-right font-medium text-emerald-700">{formatBRL(r.valorRealizado)}</td>
                       <td className="px-6 py-4">
@@ -874,8 +885,30 @@ export default function FinanceiroPage() {
                         ))}
                       </select>
                     </div>
+
+                    {/* Card com detalhes da linha selecionada (US1) */}
+                    {form.linhaContratualId && (() => {
+                      const linhaSel = linhasContratuais.find(l => l.id === form.linhaContratualId);
+                      if (!linhaSel) return null;
+                      return (
+                        <div className="md:col-span-2 p-3 rounded-xl border border-emerald-200 bg-emerald-50/50">
+                          <p className="text-xs font-semibold text-emerald-800 mb-2">📋 Dados da Linha Contratual</p>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                            <div><span className="text-gray-500">Descrição:</span><br/><span className="font-medium">{linhaSel.descricaoItem}</span></div>
+                            <div><span className="text-gray-500">Unidade:</span><br/><span className="font-medium capitalize">{linhaSel.unidade}</span></div>
+                            <div><span className="text-gray-500">Qtd. Anual:</span><br/><span className="font-medium">{Number(linhaSel.quantidadeAnualEstimada).toLocaleString('pt-BR')}</span></div>
+                            <div><span className="text-gray-500">Vl. Unitário:</span><br/><span className="font-medium text-emerald-700">{formatBRL(Number(linhaSel.valorUnitario))}</span></div>
+                          </div>
+                          <div className="mt-2 pt-2 border-t border-emerald-200 text-xs">
+                            <span className="text-gray-500">Valor Total Anual Contratado:</span>{' '}
+                            <span className="font-bold text-emerald-700">{formatBRL(Number(linhaSel.valorTotalAnual || (Number(linhaSel.quantidadeAnualEstimada) * Number(linhaSel.valorUnitario))))}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     <div>
-                      <label className="block text-xs text-gray-500 mb-1">Quantidade *</label>
+                      <label className="block text-xs text-gray-500 mb-1">Quantidade do Período *</label>
                       <input
                         type="number"
                         step="0.01"
@@ -895,7 +928,7 @@ export default function FinanceiroPage() {
                           <div className="w-full px-3 py-2 border border-gray-100 bg-emerald-50 rounded-xl text-sm font-semibold text-emerald-700">
                             {formatBRL(vlCalc)}
                           </div>
-                          <p className="text-[10px] text-gray-400 mt-0.5">{form.quantidade} × {linhaSel ? formatBRL(Number(linhaSel.valorUnitario)) : ''}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">= {form.quantidade} × {linhaSel ? formatBRL(Number(linhaSel.valorUnitario)) : ''}</p>
                         </div>
                       );
                     })()}

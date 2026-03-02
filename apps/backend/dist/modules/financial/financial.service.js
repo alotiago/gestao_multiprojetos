@@ -44,6 +44,21 @@ const ALIQUOTAS = {
 let FinancialService = class FinancialService {
     constructor(prisma) {
         this.prisma = prisma;
+        /* ────────────── RECEITAS ────────────── */
+        this.receitaInclude = {
+            project: { select: { id: true, nome: true, codigo: true } },
+            objetoContratual: { select: { id: true, numero: true, descricao: true } },
+            linhaContratual: {
+                select: {
+                    id: true,
+                    descricaoItem: true,
+                    unidade: true,
+                    valorUnitario: true,
+                    quantidadeAnualEstimada: true,
+                    valorTotalAnual: true,
+                },
+            },
+        };
     }
     // ===================== DESPESAS =====================
     async findDespesas(filters) {
@@ -724,7 +739,6 @@ let FinancialService = class FinancialService {
             custoTotal: Math.round(custoTotal * 100) / 100,
         };
     }
-    /* ────────────── RECEITAS ────────────── */
     async findAllReceitas(page = 1, limit = 10, ano) {
         const skip = (page - 1) * limit;
         const where = { ativo: true };
@@ -733,11 +747,7 @@ let FinancialService = class FinancialService {
         const [receitas, total] = await Promise.all([
             this.prisma.receitaMensal.findMany({
                 where,
-                include: {
-                    project: { select: { id: true, nome: true, codigo: true } },
-                    objetoContratual: { select: { id: true, numero: true, descricao: true } },
-                    linhaContratual: { select: { id: true, descricaoItem: true, unidade: true, valorUnitario: true } },
-                },
+                include: this.receitaInclude,
                 orderBy: [{ ano: 'desc' }, { mes: 'desc' }],
                 skip,
                 take: limit,
@@ -752,82 +762,243 @@ let FinancialService = class FinancialService {
             where.ano = ano;
         return this.prisma.receitaMensal.findMany({
             where,
-            include: {
-                objetoContratual: { select: { id: true, numero: true, descricao: true } },
-                linhaContratual: { select: { id: true, descricaoItem: true, unidade: true, valorUnitario: true } },
-            },
+            include: this.receitaInclude,
             orderBy: [{ ano: 'desc' }, { mes: 'asc' }],
         });
     }
+    /**
+     * Buscar receitas agregadas por Objeto Contratual
+     * US3 — Receita agregada ao objeto contratual
+     */
+    async findReceitasByObjeto(objetoContratualId, ano) {
+        const where = { objetoContratualId, ativo: true };
+        if (ano)
+            where.ano = ano;
+        const receitas = await this.prisma.receitaMensal.findMany({
+            where,
+            include: this.receitaInclude,
+            orderBy: [{ ano: 'desc' }, { mes: 'asc' }],
+        });
+        const totalPrevisto = receitas.reduce((s, r) => s + Number(r.valorPrevisto), 0);
+        const totalRealizado = receitas.reduce((s, r) => s + Number(r.valorRealizado), 0);
+        return {
+            objetoContratualId,
+            receitas,
+            totais: {
+                totalPrevisto: Math.round(totalPrevisto * 100) / 100,
+                totalRealizado: Math.round(totalRealizado * 100) / 100,
+                totalReceitas: receitas.length,
+            },
+        };
+    }
+    /**
+     * Criar receita — suporta dois modos:
+     * 1. Via Contrato: linhaContratualId + quantidade → auto-calcula valor
+     * 2. Manual: valorPrevisto direto
+     *
+     * Fluxo Via Contrato (US1 + US2):
+     * - Busca linha contratual automaticamente
+     * - Auto-preenche: descrição, unidade, valorUnitário
+     * - Calcula: valorPrevisto = quantidade × valorUnitário
+     * - Vincula ao projeto, objeto e linha (US3)
+     */
     async createReceita(data) {
-        // Se tem linhaContratualId, buscar dados da linha para cálculo automático
+        // ═══════════ MODO CONTRATO ═══════════
         if (data.linhaContratualId) {
             const linha = await this.prisma.linhaContratual.findUnique({
                 where: { id: data.linhaContratualId },
-                include: { objetoContratual: { select: { projectId: true } } },
+                include: {
+                    objetoContratual: {
+                        select: { id: true, projectId: true, numero: true, descricao: true },
+                    },
+                },
             });
             if (!linha)
                 throw new common_1.NotFoundException('Linha contratual não encontrada');
-            // Auto-preencher campos da linha contratual
+            if (!linha.ativo)
+                throw new common_1.NotFoundException('Linha contratual está inativa');
             const quantidade = data.quantidade ? Number(data.quantidade) : 0;
             const valorUnitario = Number(linha.valorUnitario);
-            const valorTotal = quantidade * valorUnitario;
-            data.unidade = linha.unidade;
-            data.valorUnitario = valorUnitario;
-            data.valorPrevisto = valorTotal;
-            data.descricao = data.descricao || linha.descricaoItem;
-            data.tipoReceita = data.tipoReceita || linha.descricaoItem;
-        }
-        const existing = await this.prisma.receitaMensal.findUnique({
-            where: {
-                projectId_mes_ano_tipoReceita: {
-                    projectId: data.projectId,
+            const valorTotal = Math.round(quantidade * valorUnitario * 100) / 100;
+            // Auto-preencher campos a partir da linha contratual (US1)
+            const objetoContratualId = data.objetoContratualId || linha.objetoContratualId;
+            const projectId = data.projectId || linha.objetoContratual.projectId;
+            const tipoReceita = data.tipoReceita || linha.descricaoItem;
+            const descricao = data.descricao || `${linha.descricaoItem} (${linha.objetoContratual.numero})`;
+            // Verificar duplicata: mesma linha no mesmo mês/ano
+            const existing = await this.prisma.receitaMensal.findFirst({
+                where: {
+                    projectId,
+                    linhaContratualId: data.linhaContratualId,
                     mes: data.mes,
                     ano: data.ano,
-                    tipoReceita: data.tipoReceita,
+                    ativo: true,
                 },
+            });
+            if (existing) {
+                throw new common_1.ConflictException(`Já existe receita para esta linha contratual em ${String(data.mes).padStart(2, '0')}/${data.ano}`);
+            }
+            // Verificar se há receita inativa para reativar
+            const inactive = await this.prisma.receitaMensal.findFirst({
+                where: {
+                    projectId,
+                    linhaContratualId: data.linhaContratualId,
+                    mes: data.mes,
+                    ano: data.ano,
+                    ativo: false,
+                },
+            });
+            if (inactive) {
+                return this.prisma.receitaMensal.update({
+                    where: { id: inactive.id },
+                    data: {
+                        objetoContratualId,
+                        tipoReceita,
+                        descricao,
+                        unidade: linha.unidade,
+                        quantidade: new library_1.Decimal(quantidade),
+                        valorUnitario: new library_1.Decimal(valorUnitario),
+                        valorPrevisto: new library_1.Decimal(valorTotal),
+                        valorRealizado: data.valorRealizado ? new library_1.Decimal(data.valorRealizado) : new library_1.Decimal(0),
+                        ativo: true,
+                    },
+                    include: this.receitaInclude,
+                });
+            }
+            return this.prisma.receitaMensal.create({
+                data: {
+                    projectId,
+                    objetoContratualId,
+                    linhaContratualId: data.linhaContratualId,
+                    mes: data.mes,
+                    ano: data.ano,
+                    tipoReceita,
+                    descricao,
+                    unidade: linha.unidade,
+                    quantidade: new library_1.Decimal(quantidade),
+                    valorUnitario: new library_1.Decimal(valorUnitario),
+                    valorPrevisto: new library_1.Decimal(valorTotal), // US2: cálculo automático
+                    valorRealizado: data.valorRealizado ? new library_1.Decimal(data.valorRealizado) : new library_1.Decimal(0),
+                },
+                include: this.receitaInclude,
+            });
+        }
+        // ═══════════ MODO MANUAL ═══════════
+        if (!data.valorPrevisto && data.valorPrevisto !== 0) {
+            throw new common_1.ConflictException('Informe valorPrevisto para receita manual ou linhaContratualId para receita via contrato');
+        }
+        const tipoReceita = data.tipoReceita || 'Manual';
+        // Validar duplicata para receita manual
+        const existing = await this.prisma.receitaMensal.findFirst({
+            where: {
+                projectId: data.projectId,
+                tipoReceita,
+                mes: data.mes,
+                ano: data.ano,
+                linhaContratualId: null,
+                ativo: true,
             },
         });
-        if (existing && existing.ativo) {
-            throw new common_1.ConflictException(`Receita de ${data.tipoReceita} já existe para este projeto em ${data.mes}/${data.ano}`);
+        if (existing) {
+            throw new common_1.ConflictException(`Receita de tipo '${tipoReceita}' já existe para este projeto em ${String(data.mes).padStart(2, '0')}/${data.ano}`);
         }
-        if (existing && !existing.ativo) {
+        // Buscar receita inativa para reativar
+        const inactive = await this.prisma.receitaMensal.findFirst({
+            where: {
+                projectId: data.projectId,
+                tipoReceita,
+                mes: data.mes,
+                ano: data.ano,
+                linhaContratualId: null,
+                ativo: false,
+            },
+        });
+        if (inactive) {
             return this.prisma.receitaMensal.update({
-                where: { id: existing.id },
-                data: { ...data, ativo: true, updatedAt: new Date() },
+                where: { id: inactive.id },
+                data: {
+                    descricao: data.descricao,
+                    valorPrevisto: new library_1.Decimal(data.valorPrevisto),
+                    valorRealizado: data.valorRealizado ? new library_1.Decimal(data.valorRealizado) : new library_1.Decimal(0),
+                    ativo: true,
+                },
+                include: this.receitaInclude,
             });
         }
         return this.prisma.receitaMensal.create({
-            data,
-            include: {
-                project: { select: { id: true, nome: true, codigo: true } },
-                objetoContratual: { select: { id: true, numero: true, descricao: true } },
-                linhaContratual: { select: { id: true, descricaoItem: true, unidade: true, valorUnitario: true } },
+            data: {
+                projectId: data.projectId,
+                tipoReceita,
+                descricao: data.descricao,
+                mes: data.mes,
+                ano: data.ano,
+                valorPrevisto: new library_1.Decimal(data.valorPrevisto),
+                valorRealizado: data.valorRealizado ? new library_1.Decimal(data.valorRealizado) : new library_1.Decimal(0),
             },
+            include: this.receitaInclude,
         });
     }
+    /**
+     * Atualizar receita — US4: Atualização Dinâmica
+     * Se quantidade é alterada e há linha contratual → recalcula valorPrevisto
+     */
     async updateReceita(id, data) {
-        const receita = await this.prisma.receitaMensal.findUnique({ where: { id } });
+        const receita = await this.prisma.receitaMensal.findUnique({
+            where: { id },
+            include: { linhaContratual: true },
+        });
         if (!receita)
             throw new common_1.NotFoundException(`Receita ${id} não encontrada`);
-        // Se quantidade foi alterada e há linha contratual, recalcular
-        if (data.quantidade !== undefined && receita.linhaContratualId) {
-            const linha = await this.prisma.linhaContratual.findUnique({
-                where: { id: receita.linhaContratualId },
-            });
-            if (linha) {
-                data.valorPrevisto = Number(data.quantidade) * Number(linha.valorUnitario);
-                data.valorUnitario = Number(linha.valorUnitario);
+        const updateData = {};
+        // Se é receita vinculada a contrato
+        if (receita.linhaContratualId && receita.linhaContratual) {
+            // Só permite alterar quantidade e valorRealizado (valores vêm do contrato)
+            if (data.quantidade !== undefined) {
+                const novaQtd = Number(data.quantidade);
+                const valorUnit = Number(receita.linhaContratual.valorUnitario);
+                updateData.quantidade = new library_1.Decimal(novaQtd);
+                updateData.valorPrevisto = new library_1.Decimal(Math.round(novaQtd * valorUnit * 100) / 100);
+                updateData.valorUnitario = new library_1.Decimal(valorUnit);
+            }
+            if (data.valorRealizado !== undefined) {
+                updateData.valorRealizado = new library_1.Decimal(data.valorRealizado);
+            }
+            if (data.descricao !== undefined) {
+                updateData.descricao = data.descricao;
+            }
+        }
+        else {
+            // Receita manual — permite alterar todos os campos
+            if (data.valorPrevisto !== undefined)
+                updateData.valorPrevisto = new library_1.Decimal(data.valorPrevisto);
+            if (data.valorRealizado !== undefined)
+                updateData.valorRealizado = new library_1.Decimal(data.valorRealizado);
+            if (data.descricao !== undefined)
+                updateData.descricao = data.descricao;
+            if (data.tipoReceita !== undefined)
+                updateData.tipoReceita = data.tipoReceita;
+            // Se mudando para via contrato (vinculando a uma linha)
+            if (data.linhaContratualId) {
+                const linha = await this.prisma.linhaContratual.findUnique({
+                    where: { id: data.linhaContratualId },
+                    include: { objetoContratual: true },
+                });
+                if (linha) {
+                    const qtd = data.quantidade ? Number(data.quantidade) : 0;
+                    const vUnit = Number(linha.valorUnitario);
+                    updateData.linhaContratualId = data.linhaContratualId;
+                    updateData.objetoContratualId = data.objetoContratualId || linha.objetoContratualId;
+                    updateData.unidade = linha.unidade;
+                    updateData.valorUnitario = new library_1.Decimal(vUnit);
+                    updateData.quantidade = new library_1.Decimal(qtd);
+                    updateData.valorPrevisto = new library_1.Decimal(Math.round(qtd * vUnit * 100) / 100);
+                }
             }
         }
         return this.prisma.receitaMensal.update({
             where: { id },
-            data,
-            include: {
-                project: { select: { id: true, nome: true, codigo: true } },
-                objetoContratual: { select: { id: true, numero: true, descricao: true } },
-                linhaContratual: { select: { id: true, descricaoItem: true, unidade: true, valorUnitario: true } },
-            },
+            data: updateData,
+            include: this.receitaInclude,
         });
     }
     async deleteReceita(id) {

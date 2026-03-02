@@ -22,10 +22,10 @@ export declare class OperationsService {
         id: string;
         createdAt: Date;
         tipo: string;
-        criadoPor: string | null;
-        projectId: string;
         dadosAntes: import("@prisma/client/runtime/library").JsonValue;
         dadosDepois: import("@prisma/client/runtime/library").JsonValue;
+        criadoPor: string | null;
+        projectId: string;
     }[]>;
     rollbackMassivo(historicoId: string): Promise<{
         success: boolean;

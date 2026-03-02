@@ -220,14 +220,15 @@ export class ProjectsService {
   async createReceita(projectId: string, dto: CreateReceitaDto): Promise<any> {
     await this._assertProjectExists(projectId);
 
-    const existing = await this.prisma.receitaMensal.findUnique({
+    // Verificar duplicata: mesma tipoReceita sem linha contratual no mesmo mês/ano
+    const existing = await this.prisma.receitaMensal.findFirst({
       where: {
-        projectId_mes_ano_tipoReceita: {
-          projectId,
-          mes: dto.mes,
-          ano: dto.ano,
-          tipoReceita: dto.tipoReceita,
-        },
+        projectId,
+        mes: dto.mes,
+        ano: dto.ano,
+        tipoReceita: dto.tipoReceita,
+        linhaContratualId: null,
+        ativo: true,
       },
     });
     if (existing) {

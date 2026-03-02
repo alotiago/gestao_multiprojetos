@@ -11,10 +11,10 @@ export declare class AuthController {
         refreshToken: string;
         expiresIn: number;
         user: {
-            role: import(".prisma/client").$Enums.UserRole;
-            email: string;
             name: string;
             id: string;
+            email: string;
+            role: import(".prisma/client").$Enums.UserRole;
         };
     }>;
     /**
@@ -35,12 +35,12 @@ export declare class AuthController {
      * Valida o token atual e retorna dados do usuário
      */
     getMe(request: any): Promise<{
-        role: import(".prisma/client").$Enums.UserRole;
-        email: string;
         name: string;
-        id: string;
         status: import(".prisma/client").$Enums.UserStatus;
+        id: string;
         createdAt: Date;
+        email: string;
+        role: import(".prisma/client").$Enums.UserRole;
         lastLogin: Date | null;
     }>;
 }

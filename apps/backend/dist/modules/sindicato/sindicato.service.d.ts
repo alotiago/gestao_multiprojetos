@@ -10,11 +10,11 @@ export declare class SindicatoService {
         };
     } & {
         id: string;
-        ativo: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        nome: string;
         descricao: string | null;
+        createdAt: Date;
+        nome: string;
+        ativo: boolean;
+        updatedAt: Date;
         regiao: string;
         percentualDissidio: Decimal;
         dataDissidio: Date | null;
@@ -23,18 +23,18 @@ export declare class SindicatoService {
     findById(id: string): Promise<{
         colaboradores: {
             id: string;
-            nome: string;
             matricula: string;
+            nome: string;
             cargo: string;
             taxaHora: Decimal;
         }[];
     } & {
         id: string;
-        ativo: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        nome: string;
         descricao: string | null;
+        createdAt: Date;
+        nome: string;
+        ativo: boolean;
+        updatedAt: Date;
         regiao: string;
         percentualDissidio: Decimal;
         dataDissidio: Date | null;
@@ -42,11 +42,11 @@ export declare class SindicatoService {
     }>;
     create(dto: CreateSindicatoDto): Promise<{
         id: string;
-        ativo: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        nome: string;
         descricao: string | null;
+        createdAt: Date;
+        nome: string;
+        ativo: boolean;
+        updatedAt: Date;
         regiao: string;
         percentualDissidio: Decimal;
         dataDissidio: Date | null;
@@ -54,11 +54,11 @@ export declare class SindicatoService {
     }>;
     update(id: string, dto: UpdateSindicatoDto): Promise<{
         id: string;
-        ativo: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        nome: string;
         descricao: string | null;
+        createdAt: Date;
+        nome: string;
+        ativo: boolean;
+        updatedAt: Date;
         regiao: string;
         percentualDissidio: Decimal;
         dataDissidio: Date | null;
@@ -66,11 +66,11 @@ export declare class SindicatoService {
     }>;
     delete(id: string): Promise<{
         id: string;
-        ativo: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        nome: string;
         descricao: string | null;
+        createdAt: Date;
+        nome: string;
+        ativo: boolean;
+        updatedAt: Date;
         regiao: string;
         percentualDissidio: Decimal;
         dataDissidio: Date | null;

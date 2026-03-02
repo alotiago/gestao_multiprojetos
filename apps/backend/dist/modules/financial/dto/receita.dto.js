@@ -31,6 +31,7 @@ __decorate([
     __metadata("design:type", Number)
 ], CreateReceitaDto.prototype, "ano", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateReceitaDto.prototype, "tipoReceita", void 0);
@@ -40,25 +41,51 @@ __decorate([
     __metadata("design:type", String)
 ], CreateReceitaDto.prototype, "descricao", void 0);
 __decorate([
-    (0, class_validator_1.IsDecimal)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateReceitaDto.prototype, "objetoContratualId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateReceitaDto.prototype, "linhaContratualId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateReceitaDto.prototype, "quantidade", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateReceitaDto.prototype, "valorPrevisto", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDecimal)(),
+    (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateReceitaDto.prototype, "valorRealizado", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateReceitaDto.prototype, "unidade", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateReceitaDto.prototype, "valorUnitario", void 0);
 class UpdateReceitaDto {
 }
 exports.UpdateReceitaDto = UpdateReceitaDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDecimal)(),
+    (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], UpdateReceitaDto.prototype, "valorPrevisto", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDecimal)(),
+    (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], UpdateReceitaDto.prototype, "valorRealizado", void 0);
 __decorate([
@@ -68,6 +95,22 @@ __decorate([
 ], UpdateReceitaDto.prototype, "descricao", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateReceitaDto.prototype, "tipoReceita", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], UpdateReceitaDto.prototype, "quantidade", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateReceitaDto.prototype, "objetoContratualId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateReceitaDto.prototype, "linhaContratualId", void 0);
 //# sourceMappingURL=receita.dto.js.map

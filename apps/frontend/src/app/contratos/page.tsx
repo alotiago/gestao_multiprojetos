@@ -13,6 +13,7 @@ interface ObjetoContratual {
   dataInicio: string;
   dataFim?: string;
   ativo: boolean;
+  valorTotalContratado?: number;
   project?: { id: string; codigo: string; nome: string };
   _count?: { linhasContratuais: number };
 }
@@ -268,6 +269,7 @@ export default function ContratosPage() {
                 <th className="px-6 py-4">Descrição</th>
                 <th className="px-6 py-4">Período</th>
                 <th className="px-6 py-4 text-center">Linhas</th>
+                <th className="px-6 py-4 text-right">Valor Total</th>
                 <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
@@ -291,6 +293,9 @@ export default function ContratosPage() {
                         {obj._count?.linhasContratuais ?? 0}
                       </span>
                     </td>
+                    <td className="px-6 py-4 text-right font-semibold text-emerald-700">
+                      {formatBRL(obj.valorTotalContratado ?? 0)}
+                    </td>
                     <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-2">
                         <button
@@ -312,7 +317,7 @@ export default function ContratosPage() {
                   {/* Linhas expandidas */}
                   {expandedObjId === obj.id && (
                     <tr key={`${obj.id}-linhas`}>
-                      <td colSpan={7} className="p-0">
+                      <td colSpan={8} className="p-0">
                         <div className="bg-blue-50/50 border-l-4 border-hw1-blue px-6 py-4">
                           <div className="flex items-center justify-between mb-3">
                             <h3 className="text-sm font-semibold text-hw1-navy">

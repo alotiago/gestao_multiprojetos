@@ -9,11 +9,11 @@ export declare class SindicatoController {
         };
     } & {
         id: string;
-        ativo: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        nome: string;
         descricao: string | null;
+        createdAt: Date;
+        nome: string;
+        ativo: boolean;
+        updatedAt: Date;
         regiao: string;
         percentualDissidio: import("@prisma/client/runtime/library").Decimal;
         dataDissidio: Date | null;
@@ -30,18 +30,18 @@ export declare class SindicatoController {
     findById(id: string): Promise<{
         colaboradores: {
             id: string;
-            nome: string;
             matricula: string;
+            nome: string;
             cargo: string;
             taxaHora: import("@prisma/client/runtime/library").Decimal;
         }[];
     } & {
         id: string;
-        ativo: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        nome: string;
         descricao: string | null;
+        createdAt: Date;
+        nome: string;
+        ativo: boolean;
+        updatedAt: Date;
         regiao: string;
         percentualDissidio: import("@prisma/client/runtime/library").Decimal;
         dataDissidio: Date | null;
@@ -49,11 +49,11 @@ export declare class SindicatoController {
     }>;
     create(dto: CreateSindicatoDto): Promise<{
         id: string;
-        ativo: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        nome: string;
         descricao: string | null;
+        createdAt: Date;
+        nome: string;
+        ativo: boolean;
+        updatedAt: Date;
         regiao: string;
         percentualDissidio: import("@prisma/client/runtime/library").Decimal;
         dataDissidio: Date | null;
@@ -61,11 +61,11 @@ export declare class SindicatoController {
     }>;
     update(id: string, dto: UpdateSindicatoDto): Promise<{
         id: string;
-        ativo: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        nome: string;
         descricao: string | null;
+        createdAt: Date;
+        nome: string;
+        ativo: boolean;
+        updatedAt: Date;
         regiao: string;
         percentualDissidio: import("@prisma/client/runtime/library").Decimal;
         dataDissidio: Date | null;
@@ -73,11 +73,11 @@ export declare class SindicatoController {
     }>;
     delete(id: string): Promise<{
         id: string;
-        ativo: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        nome: string;
         descricao: string | null;
+        createdAt: Date;
+        nome: string;
+        ativo: boolean;
+        updatedAt: Date;
         regiao: string;
         percentualDissidio: import("@prisma/client/runtime/library").Decimal;
         dataDissidio: Date | null;

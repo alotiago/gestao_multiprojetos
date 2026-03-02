@@ -1,4 +1,4 @@
-import { IsString, IsDecimal, IsInt, IsOptional, Min, Max } from 'class-validator';
+import { IsString, IsNumber, IsInt, IsOptional, Min, Max } from 'class-validator';
 
 export class CreateReceitaDto {
   @IsString()
@@ -14,28 +14,53 @@ export class CreateReceitaDto {
   @Max(2099)
   ano: number;
 
+  @IsOptional()
   @IsString()
-  tipoReceita: string;
+  tipoReceita?: string;
 
   @IsOptional()
   @IsString()
   descricao?: string;
 
-  @IsDecimal()
-  valorPrevisto: number;
+  // --- Campos opcionais para receita via contrato ---
+  @IsOptional()
+  @IsString()
+  objetoContratualId?: string;
 
   @IsOptional()
-  @IsDecimal()
+  @IsString()
+  linhaContratualId?: string;
+
+  @IsOptional()
+  @IsNumber()
+  quantidade?: number;
+
+  // --- Campos para receita manual ---
+  @IsOptional()
+  @IsNumber()
+  valorPrevisto?: number;
+
+  @IsOptional()
+  @IsNumber()
   valorRealizado?: number;
+
+  // --- Campos auto-preenchidos (read-only, do contrato) ---
+  @IsOptional()
+  @IsString()
+  unidade?: string;
+
+  @IsOptional()
+  @IsNumber()
+  valorUnitario?: number;
 }
 
 export class UpdateReceitaDto {
   @IsOptional()
-  @IsDecimal()
+  @IsNumber()
   valorPrevisto?: number;
 
   @IsOptional()
-  @IsDecimal()
+  @IsNumber()
   valorRealizado?: number;
 
   @IsOptional()
@@ -43,5 +68,18 @@ export class UpdateReceitaDto {
   descricao?: string;
 
   @IsOptional()
+  @IsString()
   tipoReceita?: string;
+
+  @IsOptional()
+  @IsNumber()
+  quantidade?: number;
+
+  @IsOptional()
+  @IsString()
+  objetoContratualId?: string;
+
+  @IsOptional()
+  @IsString()
+  linhaContratualId?: string;
 }

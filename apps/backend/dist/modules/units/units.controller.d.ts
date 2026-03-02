@@ -6,8 +6,8 @@ export declare class UnitsController {
         data: {
             name: string;
             id: string;
-            ativo: boolean;
             createdAt: Date;
+            ativo: boolean;
             updatedAt: Date;
             description: string | null;
             code: string;
@@ -16,8 +16,8 @@ export declare class UnitsController {
     findById(id: string): Promise<{
         name: string;
         id: string;
-        ativo: boolean;
         createdAt: Date;
+        ativo: boolean;
         updatedAt: Date;
         description: string | null;
         code: string;
@@ -29,8 +29,8 @@ export declare class UnitsController {
     }): Promise<{
         name: string;
         id: string;
-        ativo: boolean;
         createdAt: Date;
+        ativo: boolean;
         updatedAt: Date;
         description: string | null;
         code: string;
@@ -43,8 +43,8 @@ export declare class UnitsController {
     }): Promise<{
         name: string;
         id: string;
-        ativo: boolean;
         createdAt: Date;
+        ativo: boolean;
         updatedAt: Date;
         description: string | null;
         code: string;
@@ -52,8 +52,8 @@ export declare class UnitsController {
     delete(id: string): Promise<{
         name: string;
         id: string;
-        ativo: boolean;
         createdAt: Date;
+        ativo: boolean;
         updatedAt: Date;
         description: string | null;
         code: string;

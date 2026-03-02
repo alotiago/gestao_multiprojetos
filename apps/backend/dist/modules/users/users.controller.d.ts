@@ -8,13 +8,13 @@ export declare class UsersController {
      */
     findAll(page?: string, limit?: string): Promise<{
         data: {
-            role: import(".prisma/client").$Enums.UserRole;
-            email: string;
             name: string;
-            id: string;
             status: import(".prisma/client").$Enums.UserStatus;
-            ativo: boolean;
+            id: string;
             createdAt: Date;
+            email: string;
+            ativo: boolean;
+            role: import(".prisma/client").$Enums.UserRole;
             lastLogin: Date | null;
         }[];
         pagination: {
@@ -28,38 +28,38 @@ export declare class UsersController {
      * Busca um usuário por ID
      */
     findById(id: string): Promise<{
-        role: import(".prisma/client").$Enums.UserRole;
-        email: string;
         name: string;
-        id: string;
         status: import(".prisma/client").$Enums.UserStatus;
-        ativo: boolean;
+        id: string;
         createdAt: Date;
+        email: string;
+        ativo: boolean;
+        role: import(".prisma/client").$Enums.UserRole;
         lastLogin: Date | null;
     }>;
     /**
      * Cria um novo usuário
      */
     create(createUserDto: CreateUserDto): Promise<{
-        role: import(".prisma/client").$Enums.UserRole;
-        email: string;
         name: string;
-        id: string;
         status: import(".prisma/client").$Enums.UserStatus;
+        id: string;
         createdAt: Date;
+        email: string;
+        role: import(".prisma/client").$Enums.UserRole;
     }>;
     /**
      * Atualiza um usuário
      */
     update(id: string, updateUserDto: UpdateUserDto): Promise<{
-        role: import(".prisma/client").$Enums.UserRole;
-        email: string;
         name: string;
-        id: string;
         status: import(".prisma/client").$Enums.UserStatus;
-        ativo: boolean;
+        id: string;
         createdAt: Date;
+        email: string;
+        ativo: boolean;
         updatedAt: Date;
+        role: import(".prisma/client").$Enums.UserRole;
     }>;
     /**
      * Deleta um usuário (soft delete)
@@ -67,28 +67,28 @@ export declare class UsersController {
     delete(id: string): Promise<{
         message: string;
         user: {
-            email: string;
             name: string;
             id: string;
+            email: string;
         };
     }>;
     /**
      * Ativa um usuário inativo
      */
     activate(id: string): Promise<{
-        email: string;
         name: string;
-        id: string;
         status: import(".prisma/client").$Enums.UserStatus;
+        id: string;
+        email: string;
     }>;
     /**
      * Muda a role de um usuário
      */
     changeRole(id: string, role: string): Promise<{
-        role: import(".prisma/client").$Enums.UserRole;
-        email: string;
         name: string;
         id: string;
+        email: string;
+        role: import(".prisma/client").$Enums.UserRole;
     }>;
     /**
      * Retorna estatísticas de usuários

@@ -125,6 +125,9 @@ let FinancialController = class FinancialController {
     findReceitasById(projectId, ano) {
         return this.financialService.findReceitasById(projectId, ano ? parseInt(ano, 10) : undefined);
     }
+    findReceitasByObjeto(objetoContratualId, ano) {
+        return this.financialService.findReceitasByObjeto(objetoContratualId, ano ? parseInt(ano, 10) : undefined);
+    }
     createReceita(dto) {
         return this.financialService.createReceita(dto);
     }
@@ -392,6 +395,16 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], FinancialController.prototype, "findReceitasById", null);
+__decorate([
+    (0, common_1.Get)('objetos/:objetoContratualId/receitas'),
+    (0, swagger_1.ApiOperation)({ summary: 'Receitas por objeto contratual (US3)' }),
+    (0, permissions_decorator_1.Permissions)(permission_service_1.Permission.FINANCIAL_READ),
+    __param(0, (0, common_1.Param)('objetoContratualId')),
+    __param(1, (0, common_1.Query)('ano')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], FinancialController.prototype, "findReceitasByObjeto", null);
 __decorate([
     (0, common_1.Post)('receitas'),
     (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
