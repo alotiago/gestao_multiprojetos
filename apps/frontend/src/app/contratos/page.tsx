@@ -3,18 +3,32 @@
 import { useEffect, useState } from 'react';
 import api from '@/services/api';
 
-interface ProjetoSelect { id: string; codigo: string; nome: string; }
+interface Contrato {
+  id: string;
+  nomeContrato: string;
+  cliente: string;
+  numeroContrato: string;
+  dataInicio: string;
+  dataFim?: string;
+  status: string;
+  observacoes?: string;
+  ativo: boolean;
+  createdAt: string;
+  _count?: { objetos: number; projetos: number };
+  objetos?: ObjetoContratual[];
+}
 
 interface ObjetoContratual {
   id: string;
-  projectId: string;
-  numero: string;
+  contratoId: string;
+  nome: string;
   descricao: string;
   dataInicio: string;
   dataFim?: string;
-  ativo: boolean;
+  observacoes?: string;
   valorTotalContratado?: number;
-  project?: { id: string; codigo: string; nome: string };
+  ativo: boolean;
+  linhasContratuais?: LinhaContratual[];
   _count?: { linhasContratuais: number };
 }
 
@@ -26,72 +40,72 @@ interface LinhaContratual {
   quantidadeAnualEstimada: number;
   valorUnitario: number;
   valorTotalAnual: number;
-  objetoContratual?: { id: string; numero: string; descricao: string; projectId: string };
 }
 
 const formatBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-const UNIDADES = ['hora', 'mês', 'pacote', 'serviço', 'diária', 'unidade'];
+const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('pt-BR') : '-';
+const UNIDADES = ['hora', 'mês', 'pacote', 'serviço', 'diária', 'unidade', 'projeto'];
+const STATUS_OPTIONS = ['RASCUNHO', 'VIGENTE', 'ENCERRADO', 'CANCELADO'];
 
 export default function ContratosPage() {
-  const [projetos, setProjetos] = useState<ProjetoSelect[]>([]);
-  const [objetos, setObjetos] = useState<ObjetoContratual[]>([]);
-  const [linhas, setLinhas] = useState<LinhaContratual[]>([]);
+  const [contratos, setContratos] = useState<Contrato[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-
-  // Filtros
-  const [filterProjectId, setFilterProjectId] = useState('');
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [pageSize] = useState(10);
 
-  // Objeto Contratual expandido (para ver linhas)
-  const [expandedObjId, setExpandedObjId] = useState<string | null>(null);
+  // Expansão de hierarquia
+  const [expandedContratoId, setExpandedContratoId] = useState<string | null>(null);
+  const [expandedObjetoId, setExpandedObjetoId] = useState<string | null>(null);
+  const [contratoDetalhes, setContratoDetalhes] = useState<Contrato | null>(null);
 
   // Modais
+  const [showContratoModal, setShowContratoModal] = useState(false);
   const [showObjetoModal, setShowObjetoModal] = useState(false);
   const [showLinhaModal, setShowLinhaModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Forms
+  const [contratoForm, setContratoForm] = useState({
+    nomeContrato: '', cliente: '', numeroContrato: '',
+    dataInicio: '', dataFim: '', status: 'RASCUNHO', observacoes: '',
+  });
   const [objetoForm, setObjetoForm] = useState({
-    projectId: '', numero: '', descricao: '', dataInicio: '', dataFim: '',
+    contratoId: '', nome: '', descricao: '',
+    dataInicio: '', dataFim: '', observacoes: '',
   });
   const [linhaForm, setLinhaForm] = useState({
-    objetoContratualId: '',
-    descricaoItem: '', unidade: 'hora', quantidadeAnualEstimada: '', valorUnitario: '',
+    objetoContratualId: '', descricaoItem: '', unidade: 'hora',
+    quantidadeAnualEstimada: '', valorUnitario: '',
   });
 
   // ══════════════ Loaders ══════════════
-  const loadProjetos = () => {
-    api.get('/projects?limit=999').then((r) => {
-      setProjetos((r.data?.data ?? r.data ?? []).map((p: any) => ({ id: p.id, codigo: p.codigo, nome: p.nome })));
-    }).catch(() => {});
-  };
-
-  const loadObjetos = () => {
+  const loadContratos = () => {
     setLoading(true);
-    const url = filterProjectId
-      ? `/contracts/objetos?page=${page}&limit=${pageSize}&projectId=${filterProjectId}`
-      : `/contracts/objetos?page=${page}&limit=${pageSize}`;
-    api.get(url)
-      .then((r) => setObjetos(r.data?.data ?? []))
-      .catch(() => setError('Não foi possível carregar os objetos contratuais.'))
+    api.get(`/contracts?page=${page}&limit=${pageSize}`)
+      .then((r) => {
+        setContratos(r.data?.data ?? []);
+        setTotal(r.data?.total ?? 0);
+      })
+      .catch(() => setError('Não foi possível carregar os contratos.'))
       .finally(() => setLoading(false));
   };
 
-  const loadLinhas = (objetoId: string) => {
-    api.get(`/contracts/objetos/${objetoId}/linhas`)
-      .then((r) => setLinhas(r.data ?? []))
-      .catch(() => setError('Não foi possível carregar as linhas contratuais.'));
+  const loadContratoDetalhes = (contratoId: string) => {
+    api.get(`/contracts/${contratoId}`)
+      .then((r) => {
+        setContratoDetalhes(r.data);
+        setExpandedContratoId(contratoId);
+      })
+      .catch(() => setError('Não foi possível carregar detalhes do contrato.'));
   };
 
-  useEffect(() => { loadProjetos(); }, []);
-  useEffect(() => { loadObjetos(); }, [filterProjectId, page]);
-
+  useEffect(() => { loadContratos(); }, [page]);
   useEffect(() => {
     if (successMsg) { const t = setTimeout(() => setSuccessMsg(''), 4000); return () => clearTimeout(t); }
   }, [successMsg]);
@@ -99,74 +113,129 @@ export default function ContratosPage() {
     if (error) { const t = setTimeout(() => setError(''), 5000); return () => clearTimeout(t); }
   }, [error]);
 
-  // ══════════════ Objetos CRUD ══════════════
-  const openCreateObjeto = () => {
+  // ══════════════ CRUD Contratos ══════════════
+  const openCreateContrato = () => {
     setEditingId(null);
-    setObjetoForm({ projectId: filterProjectId || '', numero: '', descricao: '', dataInicio: '', dataFim: '' });
-    setShowObjetoModal(true);
-  };
-
-  const openEditObjeto = (obj: ObjetoContratual) => {
-    setEditingId(obj.id);
-    setObjetoForm({
-      projectId: obj.projectId,
-      numero: obj.numero,
-      descricao: obj.descricao,
-      dataInicio: obj.dataInicio?.split('T')[0] ?? '',
-      dataFim: obj.dataFim?.split('T')[0] ?? '',
+    setContratoForm({
+      nomeContrato: '', cliente: '', numeroContrato: '',
+      dataInicio: '', dataFim: '', status: 'RASCUNHO', observacoes: '',
     });
-    setShowObjetoModal(true);
+    setShowContratoModal(true);
   };
 
-  const handleSubmitObjeto = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const openEditContrato = (contrato: Contrato) => {
+    setEditingId(contrato.id);
+    setContratoForm({
+      nomeContrato: contrato.nomeContrato,
+      cliente: contrato.cliente,
+      numeroContrato: contrato.numeroContrato,
+      dataInicio: contrato.dataInicio.split('T')[0],
+      dataFim: contrato.dataFim ? contrato.dataFim.split('T')[0] : '',
+      status: contrato.status,
+      observacoes: contrato.observacoes || '',
+    });
+    setShowContratoModal(true);
+  };
+
+  const handleSaveContrato = async () => {
+    if (!contratoForm.nomeContrato || !contratoForm.cliente || !contratoForm.numeroContrato || !contratoForm.dataInicio) {
+      setError('Preencha os campos obrigatórios.');
+      return;
+    }
     setSaving(true);
     try {
       if (editingId) {
-        await api.put(`/contracts/objetos/${editingId}`, {
-          descricao: objetoForm.descricao,
-          dataInicio: objetoForm.dataInicio,
-          dataFim: objetoForm.dataFim || undefined,
-        });
-        setSuccessMsg('Objeto contratual atualizado!');
+        await api.put(`/contracts/${editingId}`, contratoForm);
+        setSuccessMsg('Contrato atualizado!');
       } else {
-        await api.post('/contracts/objetos', objetoForm);
-        setSuccessMsg('Objeto contratual criado!');
+        await api.post('/contracts', contratoForm);
+        setSuccessMsg('Contrato criado!');
       }
-      setShowObjetoModal(false);
-      loadObjetos();
+      setShowContratoModal(false);
+      loadContratos();
+      if (expandedContratoId) loadContratoDetalhes(expandedContratoId);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Erro ao salvar objeto contratual.');
+      setError(err?.response?.data?.message || 'Erro ao salvar contrato.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteObjeto = async (obj: ObjetoContratual) => {
-    if (!confirm(`Deseja excluir o objeto ${obj.numero} — ${obj.descricao}?`)) return;
+  const handleDeleteContrato = async (id: string) => {
+    if (!confirm('Deseja excluir este contrato?')) return;
     try {
-      await api.delete(`/contracts/objetos/${obj.id}`);
-      setSuccessMsg('Objeto contratual excluído!');
-      loadObjetos();
+      await api.delete(`/contracts/${id}`);
+      setSuccessMsg('Contrato excluído!');
+      loadContratos();
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Erro ao excluir.');
     }
   };
 
-  // ══════════════ Linhas CRUD ══════════════
-  const toggleExpand = (objId: string) => {
-    if (expandedObjId === objId) {
-      setExpandedObjId(null);
-      setLinhas([]);
-    } else {
-      setExpandedObjId(objId);
-      loadLinhas(objId);
+  // ══════════════ CRUD Objetos ══════════════
+  const openCreateObjeto = (contratoId: string) => {
+    setEditingId(null);
+    setObjetoForm({
+      contratoId, nome: '', descricao: '',
+      dataInicio: '', dataFim: '', observacoes: '',
+    });
+    setShowObjetoModal(true);
+  };
+
+  const openEditObjeto = (objeto: ObjetoContratual) => {
+    setEditingId(objeto.id);
+    setObjetoForm({
+      contratoId: objeto.contratoId,
+      nome: objeto.nome,
+      descricao: objeto.descricao,
+      dataInicio: objeto.dataInicio ? objeto.dataInicio.split('T')[0] : '',
+      dataFim: objeto.dataFim ? objeto.dataFim.split('T')[0] : '',
+      observacoes: objeto.observacoes || '',
+    });
+    setShowObjetoModal(true);
+  };
+
+  const handleSaveObjeto = async () => {
+    if (!objetoForm.nome || !objetoForm.descricao || !objetoForm.dataInicio) {
+      setError('Preencha os campos obrigatórios.');
+      return;
+    }
+    setSaving(true);
+    try {
+      if (editingId) {
+        await api.put(`/contracts/objetos/${editingId}`, objetoForm);
+        setSuccessMsg('Objeto atualizado!');
+      } else {
+        await api.post(`/contracts/${objetoForm.contratoId}/objetos`, objetoForm);
+        setSuccessMsg('Objeto criado!');
+      }
+      setShowObjetoModal(false);
+      if (expandedContratoId) loadContratoDetalhes(expandedContratoId);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Erro ao salvar objeto.');
+    } finally {
+      setSaving(false);
     }
   };
 
+  const handleDeleteObjeto = async (id: string) => {
+    if (!confirm('Deseja excluir este objeto?')) return;
+    try {
+      await api.delete(`/contracts/objetos/${id}`);
+      setSuccessMsg('Objeto excluído!');
+      if (expandedContratoId) loadContratoDetalhes(expandedContratoId);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Erro ao excluir.');
+    }
+  };
+
+  // ══════════════ CRUD Linhas ══════════════
   const openCreateLinha = (objetoId: string) => {
     setEditingId(null);
-    setLinhaForm({ objetoContratualId: objetoId, descricaoItem: '', unidade: 'hora', quantidadeAnualEstimada: '', valorUnitario: '' });
+    setLinhaForm({
+      objetoContratualId: objetoId, descricaoItem: '', unidade: 'hora',
+      quantidadeAnualEstimada: '', valorUnitario: '',
+    });
     setShowLinhaModal(true);
   };
 
@@ -182,48 +251,47 @@ export default function ContratosPage() {
     setShowLinhaModal(true);
   };
 
-  const handleSubmitLinha = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveLinha = async () => {
+    if (!linhaForm.descricaoItem || !linhaForm.quantidadeAnualEstimada || !linhaForm.valorUnitario) {
+      setError('Preencha os campos obrigatórios.');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
-        objetoContratualId: linhaForm.objetoContratualId,
-        descricaoItem: linhaForm.descricaoItem,
-        unidade: linhaForm.unidade,
+        ...linhaForm,
         quantidadeAnualEstimada: Number(linhaForm.quantidadeAnualEstimada),
         valorUnitario: Number(linhaForm.valorUnitario),
       };
       if (editingId) {
-        const { objetoContratualId, ...upd } = payload;
-        await api.put(`/contracts/linhas/${editingId}`, upd);
-        setSuccessMsg('Linha contratual atualizada!');
+        await api.put(`/contracts/linhas/${editingId}`, payload);
+        setSuccessMsg('Linha atualizada!');
       } else {
-        await api.post('/contracts/linhas', payload);
-        setSuccessMsg('Linha contratual criada!');
+        await api.post(`/contracts/objetos/${linhaForm.objetoContratualId}/linhas`, payload);
+        setSuccessMsg('Linha criada!');
       }
       setShowLinhaModal(false);
-      if (expandedObjId) loadLinhas(expandedObjId);
-      loadObjetos();
+      if (expandedContratoId) loadContratoDetalhes(expandedContratoId);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Erro ao salvar linha contratual.');
+      setError(err?.response?.data?.message || 'Erro ao salvar linha.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteLinha = async (linha: LinhaContratual) => {
-    if (!confirm(`Deseja excluir a linha "${linha.descricaoItem}"?`)) return;
+  const handleDeleteLinha = async (id: string) => {
+    if (!confirm('Deseja excluir esta linha?')) return;
     try {
-      await api.delete(`/contracts/linhas/${linha.id}`);
-      setSuccessMsg('Linha contratual excluída!');
-      if (expandedObjId) loadLinhas(expandedObjId);
-      loadObjetos();
+      await api.delete(`/contracts/linhas/${id}`);
+      setSuccessMsg('Linha excluída!');
+      if (expandedContratoId) loadContratoDetalhes(expandedContratoId);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Erro ao excluir.');
+      setError(err?.response?. data?.message || 'Erro ao excluir.');
     }
   };
 
   const vlTotalCalc = Number(linhaForm.quantidadeAnualEstimada || 0) * Number(linhaForm.valorUnitario || 0);
+  const totalPages = Math.ceil(total / pageSize);
 
   return (
     <div className="space-y-6">
@@ -231,282 +299,501 @@ export default function ContratosPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-heading font-semibold text-hw1-navy">Contratos</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Objetos Contratuais e Linhas Contratuais</p>
+          <p className="text-sm text-gray-500 mt-0.5">Gestão completa de Contratos, Objetos e Linhas Contratuais</p>
         </div>
-        <div className="flex gap-3">
-          <select
-            value={filterProjectId}
-            onChange={(e) => { setFilterProjectId(e.target.value); setPage(1); setExpandedObjId(null); }}
-            className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
-          >
-            <option value="">Todos os projetos</option>
-            {projetos.map((p) => (
-              <option key={p.id} value={p.id}>{p.codigo} — {p.nome}</option>
-            ))}
-          </select>
-          <button onClick={openCreateObjeto} className="hw1-btn-primary text-sm">
-            + Novo Objeto Contratual
-          </button>
-        </div>
+        <button onClick={openCreateContrato} className="hw1-btn-primary text-sm">
+          + Novo Contrato
+        </button>
       </div>
 
-      {error && <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">{error}</div>}
-      {successMsg && <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm">{successMsg}</div>}
+      {/* Mensagens */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
+      {successMsg && (
+        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg text-sm">
+          {successMsg}
+        </div>
+      )}
 
-      {/* Tabela Objetos */}
-      <div className="hw1-card p-0 overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-gray-400 text-sm">Carregando...</div>
-        ) : objetos.length === 0 ? (
-          <div className="p-12 text-center text-gray-400 text-sm">Nenhum objeto contratual cadastrado.</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs font-semibold uppercase tracking-wide text-white" style={{ background: 'linear-gradient(90deg, #050439, #1E16A0)' }}>
-                <th className="px-6 py-4 w-8"></th>
-                <th className="px-6 py-4">Número</th>
-                <th className="px-6 py-4">Projeto</th>
-                <th className="px-6 py-4">Descrição</th>
-                <th className="px-6 py-4">Período</th>
-                <th className="px-6 py-4 text-center">Linhas</th>
-                <th className="px-6 py-4 text-right">Valor Total</th>
-                <th className="px-6 py-4 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {objetos.map((obj, i) => (
-                <>
-                  <tr
-                    key={obj.id}
-                    className={`border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
-                    onClick={() => toggleExpand(obj.id)}
-                  >
-                    <td className="px-6 py-4 text-gray-400">{expandedObjId === obj.id ? '▼' : '▶'}</td>
-                    <td className="px-6 py-4 font-medium text-hw1-navy">{obj.numero}</td>
-                    <td className="px-6 py-4 text-gray-600">{obj.project?.codigo} — {obj.project?.nome}</td>
-                    <td className="px-6 py-4 text-gray-600">{obj.descricao}</td>
-                    <td className="px-6 py-4 text-gray-500 text-xs">
-                      {obj.dataInicio?.split('T')[0]} {obj.dataFim ? `→ ${obj.dataFim.split('T')[0]}` : ''}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold text-white" style={{ background: '#1E16A0' }}>
-                        {obj._count?.linhasContratuais ?? 0}
+      {/* Lista de Contratos */}
+      {loading ? (
+        <div className="text-center py-12 text-gray-500">Carregando...</div>
+      ) : contratos.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">Nenhum contrato cadastrado.</div>
+      ) : (
+        <div className="space-y-4">
+          {contratos.map((contrato) => (
+            <div key={contrato.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+              {/* Cabeçalho do Contrato */}
+              <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-hw1-navy/5 to-transparent">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-lg font-semibold text-hw1-navy">{contrato.nomeContrato}</h3>
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        contrato.status === 'VIGENTE' ? 'bg-green-100 text-green-800' :
+                        contrato.status === 'RASCUNHO' ? 'bg-yellow-100 text-yellow-800' :
+                        contrato.status === 'ENCERRADO' ? 'bg-gray-100 text-gray-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {contrato.status}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 text-right font-semibold text-emerald-700">
-                      {formatBRL(obj.valorTotalContratado ?? 0)}
-                    </td>
-                    <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEditObjeto(obj)}
-                          className="px-3 py-1 text-xs font-medium rounded-lg border border-hw1-blue text-hw1-blue hover:bg-hw1-blue hover:text-white transition-all"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => handleDeleteObjeto(obj)}
-                          className="px-3 py-1 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-all"
-                        >
-                          Excluir
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-1.5 text-sm">
+                      <div><span className="text-gray-500">Cliente:</span> <span className="font-medium">{contrato.cliente}</span></div>
+                      <div><span className="text-gray-500">Número:</span> <span className="font-mono text-hw1-blue font-medium">{contrato.numeroContrato}</span></div>
+                      <div><span className="text-gray-500">Início:</span> {formatDate(contrato.dataInicio)}</div>
+                      <div><span className="text-gray-500">Fim:</span> {formatDate(contrato.dataFim)}</div>
+                      <div><span className="text-gray-500">Objetos:</span> <span className="font-semibold">{contrato._count?.objetos ?? 0}</span></div>
+                      <div><span className="text-gray-500">Projetos:</span> <span className="font-semibold">{contrato._count?.projetos ?? 0}</span></div>
+                    </div>
+                    {contrato.observacoes && <p className="text-xs text-gray-600 mt-2 italic">{contrato.observacoes}</p>}
+                  </div>
+                  <div className="flex gap-2 ml-4">
+                    <button
+                      onClick={() => {
+                        if (expandedContratoId === contrato.id) {
+                          setExpandedContratoId(null);
+                          setContratoDetalhes(null);
+                        } else {
+                          loadContratoDetalhes(contrato.id);
+                        }
+                      }}
+                      className="px-3 py-1.5 text-xs font-medium text-hw1-blue border border-hw1-blue rounded-lg hover:bg-hw1-blue hover:text-white transition-colors"
+                    >
+                      {expandedContratoId === contrato.id ? 'Ocultar' : 'Ver Objetos'}
+                    </button>
+                    <button
+                      onClick={() => openEditContrato(contrato)}
+                      className="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleDeleteContrato(contrato.id)}
+                      className="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              </div>
 
-                  {/* Linhas expandidas */}
-                  {expandedObjId === obj.id && (
-                    <tr key={`${obj.id}-linhas`}>
-                      <td colSpan={8} className="p-0">
-                        <div className="bg-blue-50/50 border-l-4 border-hw1-blue px-6 py-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-sm font-semibold text-hw1-navy">
-                              Linhas Contratuais — {obj.numero}
-                            </h3>
-                            <button
-                              onClick={() => openCreateLinha(obj.id)}
-                              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-hw1-blue text-white hover:bg-hw1-navy transition-all"
-                            >
-                              + Nova Linha
-                            </button>
+              {/* Objetos Contratuais (expandível) */}
+              {expandedContratoId === contrato.id && contratoDetalhes && (
+                <div className="px-5 py-4 bg-gray-50/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-gray-700">Objetos Contratuais</h4>
+                    <button
+                      onClick={() => openCreateObjeto(contrato.id)}
+                      className="px-3 py-1.5 text-xs font-medium text-hw1-gold bg-white border border-hw1-gold rounded-lg hover:bg-hw1-gold hover:text-white transition-colors"
+                    >
+                      + Novo Objeto
+                    </button>
+                  </div>
+
+                  {!contratoDetalhes.objetos || contratoDetalhes.objetos.length === 0 ? (
+                    <p className="text-sm text-gray-500 py-4">Nenhum objeto contratual vinculado.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {contratoDetalhes.objetos.map((objeto) => (
+                        <div key={objeto.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <h5 className="font-semibold text-hw1-navy text-sm">{objeto.nome}</h5>
+                              <p className="text-sm text-gray-600 mt-1">{objeto.descricao}</p>
+                              <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                                <span>Início: {formatDate(objeto.dataInicio)}</span>
+                                {objeto.dataFim && <span>Fim: {formatDate(objeto.dataFim)}</span>}
+                                <span className="font-semibold">Linhas: {objeto._count?.linhasContratuais ?? 0}</span>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  if (expandedObjetoId === objeto.id) {
+                                    setExpandedObjetoId(null);
+                                  } else {
+                                    setExpandedObjetoId(objeto.id);
+                                  }
+                                }}
+                                className="px-2.5 py-1 text-xs font-medium text-hw1-gold border border-hw1-gold rounded hover:bg-hw1-gold hover:text-white transition-colors"
+                              >
+                                {expandedObjetoId === objeto.id ? 'Ocultar' : 'Ver Linhas'}
+                              </button>
+                              <button
+                                onClick={() => openEditObjeto(objeto)}
+                                className="px-2.5 py-1 text-xs font-medium text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => handleDeleteObjeto(objeto.id)}
+                                className="px-2.5 py-1 text-xs font-medium text-red-600 border border-red-200 rounded hover:bg-red-50"
+                              >
+                                Excluir
+                              </button>
+                            </div>
                           </div>
 
-                          {linhas.length === 0 ? (
-                            <p className="text-sm text-gray-400">Nenhuma linha contratual.</p>
-                          ) : (
-                            <table className="w-full text-sm bg-white rounded-xl overflow-hidden shadow-sm">
-                              <thead>
-                                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-white" style={{ background: 'linear-gradient(90deg, #009792, #00B3AD)' }}>
-                                  <th className="px-4 py-3">Descrição Item</th>
-                                  <th className="px-4 py-3">Unidade</th>
-                                  <th className="px-4 py-3 text-right">Qtd. Anual</th>
-                                  <th className="px-4 py-3 text-right">Vl. Unitário</th>
-                                  <th className="px-4 py-3 text-right">Vl. Total Anual</th>
-                                  <th className="px-4 py-3 text-right">Ações</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {linhas.map((l, li) => (
-                                  <tr key={l.id} className={`border-b border-gray-50 ${li % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                                    <td className="px-4 py-3 font-medium">{l.descricaoItem}</td>
-                                    <td className="px-4 py-3 text-gray-500 capitalize">{l.unidade}</td>
-                                    <td className="px-4 py-3 text-right text-gray-600">{Number(l.quantidadeAnualEstimada).toLocaleString('pt-BR')}</td>
-                                    <td className="px-4 py-3 text-right text-gray-600">{formatBRL(Number(l.valorUnitario))}</td>
-                                    <td className="px-4 py-3 text-right font-semibold text-emerald-700">{formatBRL(Number(l.valorTotalAnual))}</td>
-                                    <td className="px-4 py-3">
-                                      <div className="flex items-center justify-end gap-2">
-                                        <button
-                                          onClick={() => openEditLinha(l)}
-                                          className="px-2 py-1 text-xs font-medium rounded border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-all"
-                                        >
-                                          Editar
-                                        </button>
-                                        <button
-                                          onClick={() => handleDeleteLinha(l)}
-                                          className="px-2 py-1 text-xs font-medium rounded border border-red-200 text-red-600 hover:bg-red-50 transition-all"
-                                        >
-                                          Excluir
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                          {/* Linhas Contratuais (expandível) */}
+                          {expandedObjetoId === objeto.id && (
+                            <div className="mt-3 pt-3 border-t border-gray-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h6 className="text-xs font-semibold text-gray-600 uppercase">Linhas Contratuais</h6>
+                                <button
+                                  onClick={() => openCreateLinha(objeto.id)}
+                                  className="px-2.5 py-1 text-xs font-medium text-hw1-blue bg-white border border-hw1-blue rounded hover:bg-hw1-blue hover:text-white transition-colors"
+                                >
+                                  + Nova Linha
+                                </button>
+                              </div>
+
+                              {!objeto.linhasContratuais || objeto.linhasContratuais.length === 0 ? (
+                                <p className="text-xs text-gray-500 py-2">Nenhuma linha contratual cadastrada.</p>
+                              ) : (
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-xs">
+                                    <thead className="bg-gray-100">
+                                      <tr>
+                                        <th className="text-left px-2 py-1.5 font-medium text-gray-700">Item</th>
+                                        <th className="text-left px-2 py-1.5 font-medium text-gray-700">Unidade</th>
+                                        <th className="text-right px-2 py-1.5 font-medium text-gray-700">Qtd.  Anual</th>
+                                        <th className="text-right px-2 py-1.5 font-medium text-gray-700">Vl. Unitário</th>
+                                        <th className="text-right px-2 py-1.5 font-medium text-gray-700">Vl. Total</th>
+                                        <th className="text-center px-2 py-1.5 font-medium text-gray-700">Ações</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {objeto.linhasContratuais.map((linha) => (
+                                        <tr key={linha.id} className="border-t border-gray-200 hover:bg-gray-50">
+                                          <td className="px-2 py-1.5">{linha.descricaoItem}</td>
+                                          <td className="px-2 py-1.5">{linha.unidade}</td>
+                                          <td className="px-2 py-1.5 text-right">{linha.quantidadeAnualEstimada}</td>
+                                          <td className="px-2 py-1.5 text-right">{formatBRL(linha.valorUnitario)}</td>
+                                          <td className="px-2 py-1.5 text-right font-semibold">{formatBRL(linha.valorTotalAnual)}</td>
+                                          <td className="px-2 py-1.5 text-center">
+                                            <div className="flex justify-center gap-2">
+                                              <button
+                                                onClick={() => openEditLinha(linha)}
+                                                className="text-hw1-blue hover:text-hw1-blue/80 font-medium"
+                                              >
+                                                Editar
+                                              </button>
+                                              <button
+                                                onClick={() => handleDeleteLinha(linha.id)}
+                                                className="text-red-600 hover:text-red-700 font-medium"
+                                              >
+                                                Excluir
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
-                      </td>
-                    </tr>
+                      ))}
+                    </div>
                   )}
-                </>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Paginação */}
-      <div className="flex items-center justify-end gap-2">
-        <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}
-          className="px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 disabled:opacity-50">
-          ← Anterior
-        </button>
-        <span className="px-4 py-2 text-sm text-gray-600">Página {page}</span>
-        <button onClick={() => setPage(page + 1)} disabled={objetos.length < pageSize}
-          className="px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 disabled:opacity-50">
-          Próxima →
-        </button>
-      </div>
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2 mt-6">
+          <button
+            disabled={page === 1}
+            onClick={() => setPage(page - 1)}
+            className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            Anterior
+          </button>
+          <span className="px-4 py-2 text-sm text-gray-600">
+            Página {page} de {totalPages}
+          </span>
+          <button
+            disabled={page === totalPages}
+            onClick={() => setPage(page + 1)}
+            className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            Próxima
+          </button>
+        </div>
+      )}
 
-      {/* ═════════ Modal Objeto Contratual ═════════ */}
-      {showObjetoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-lg font-heading font-semibold text-hw1-navy">
-                {editingId ? 'Editar Objeto Contratual' : 'Novo Objeto Contratual'}
+      {/* Modal Contrato */}
+      {showContratoModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-hw1-navy">
+                {editingId ? 'Editar Contrato' : 'Novo Contrato'}
               </h2>
-              <button onClick={() => setShowObjetoModal(false)} className="text-gray-400 hover:text-gray-700 text-xl">×</button>
             </div>
-            <form onSubmit={handleSubmitObjeto} className="p-6 space-y-4">
+            <div className="px-6 py-4 space-y-4">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Projeto *</label>
-                <select value={objetoForm.projectId} onChange={(e) => setObjetoForm({ ...objetoForm, projectId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue" required disabled={!!editingId}>
-                  <option value="">Selecione...</option>
-                  {projetos.map((p) => <option key={p.id} value={p.id}>{p.codigo} — {p.nome}</option>)}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Contrato *</label>
+                <input
+                  type="text"
+                  value={contratoForm.nomeContrato}
+                  onChange={(e) => setContratoForm({ ...contratoForm, nomeContrato: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                  placeholder="Ex: Contrato de Consultoria ACME"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cliente *</label>
+                <input
+                  type="text"
+                  value={contratoForm.cliente}
+                  onChange={(e) => setContratoForm({ ...contratoForm, cliente: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                  placeholder="Nome do cliente"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Número do Contrato *</label>
+                <input
+                  type="text"
+                  value={contratoForm.numeroContrato}
+                  onChange={(e) => setContratoForm({ ...contratoForm, numeroContrato: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                  placeholder="Ex: CONT-2024-001"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data de Início *</label>
+                  <input
+                    type="date"
+                    value={contratoForm.dataInicio}
+                    onChange={(e) => setContratoForm({ ...contratoForm, dataInicio: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data de Fim</label>
+                  <input
+                    type="date"
+                    value={contratoForm.dataFim}
+                    onChange={(e) => setContratoForm({ ...contratoForm, dataFim: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={contratoForm.status}
+                  onChange={(e) => setContratoForm({ ...contratoForm, status: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                >
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Número *</label>
-                  <input type="text" value={objetoForm.numero} onChange={(e) => setObjetoForm({ ...objetoForm, numero: e.target.value })}
-                    placeholder="Ex: OC-001" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
-                    required disabled={!!editingId} />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs text-gray-500 mb-1">Descrição *</label>
-                  <input type="text" value={objetoForm.descricao} onChange={(e) => setObjetoForm({ ...objetoForm, descricao: e.target.value })}
-                    placeholder="Descrição do objeto contratual" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue" required />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                <textarea
+                  value={contratoForm.observacoes}
+                  onChange={(e) => setContratoForm({ ...contratoForm, observacoes: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                  rows={3}
+                />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Data Início *</label>
-                  <input type="date" value={objetoForm.dataInicio} onChange={(e) => setObjetoForm({ ...objetoForm, dataInicio: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue" required />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Data Fim</label>
-                  <input type="date" value={objetoForm.dataFim} onChange={(e) => setObjetoForm({ ...objetoForm, dataFim: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue" />
-                </div>
-              </div>
-              <div className="flex gap-3 pt-4 border-t">
-                <button type="button" onClick={() => setShowObjetoModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50">Cancelar</button>
-                <button type="submit" disabled={saving} className="flex-1 hw1-btn-primary text-sm disabled:opacity-50">
-                  {saving ? 'Salvando...' : 'Salvar'}
-                </button>
-              </div>
-            </form>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setShowContratoModal(false)}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveContrato}
+                className="px-4 py-2 bg-hw1-navy text-white rounded-lg hover:bg-hw1-navy/90 disabled:opacity-50"
+                disabled={saving}
+              >
+                {saving ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ═════════ Modal Linha Contratual ═════════ */}
+      {/* Modal Objeto */}
+      {showObjetoModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-hw1-navy">
+                {editingId ? 'Editar Objeto Contratual' : 'Novo Objeto Contratual'}
+              </h2>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Objeto *</label>
+                <input
+                  type="text"
+                  value={objetoForm.nome}
+                  onChange={(e) => setObjetoForm({ ...objetoForm, nome: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                  placeholder="Ex: OC-001"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Descrição *</label>
+                <textarea
+                  value={objetoForm.descricao}
+                  onChange={(e) => setObjetoForm({ ...objetoForm, descricao: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                  rows={3}
+                  placeholder="Descrição detalhada do objeto contratual"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data de Início *</label>
+                  <input
+                    type="date"
+                    value={objetoForm.dataInicio}
+                    onChange={(e) => setObjetoForm({ ...objetoForm, dataInicio: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data de Fim</label>
+                  <input
+                    type="date"
+                    value={objetoForm.dataFim}
+                    onChange={(e) => setObjetoForm({ ...objetoForm, dataFim: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                <textarea
+                  value={objetoForm.observacoes}
+                  onChange={(e) => setObjetoForm({ ...objetoForm, observacoes: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                  rows={2}
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setShowObjetoModal(false)}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveObjeto}
+                className="px-4 py-2 bg-hw1-gold text-white rounded-lg hover:bg-hw1-gold/90 disabled:opacity-50"
+                disabled={saving}
+              >
+                {saving ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Linha */}
       {showLinhaModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-lg font-heading font-semibold text-hw1-navy">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-hw1-navy">
                 {editingId ? 'Editar Linha Contratual' : 'Nova Linha Contratual'}
               </h2>
-              <button onClick={() => setShowLinhaModal(false)} className="text-gray-400 hover:text-gray-700 text-xl">×</button>
             </div>
-            <form onSubmit={handleSubmitLinha} className="p-6 space-y-4">
+            <div className="px-6 py-4 space-y-4">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Descrição do Item *</label>
-                <input type="text" value={linhaForm.descricaoItem} onChange={(e) => setLinhaForm({ ...linhaForm, descricaoItem: e.target.value })}
-                  placeholder="Ex: Consultoria técnica especializada" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue" required />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Descrição do Item *</label>
+                <input
+                  type="text"
+                  value={linhaForm.descricaoItem}
+                  onChange={(e) => setLinhaForm({ ...linhaForm, descricaoItem: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                  placeholder="Ex: Consultoria Senior"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Unidade *</label>
+                <select
+                  value={linhaForm.unidade}
+                  onChange={(e) => setLinhaForm({ ...linhaForm, unidade: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                >
+                  {UNIDADES.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Unidade *</label>
-                  <select value={linhaForm.unidade} onChange={(e) => setLinhaForm({ ...linhaForm, unidade: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue" required>
-                    {UNIDADES.map((u) => <option key={u} value={u}>{u}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Qtd. Anual Estimada *</label>
-                  <input type="number" step="0.01" value={linhaForm.quantidadeAnualEstimada}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantidade Anual *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={linhaForm.quantidadeAnualEstimada}
                     onChange={(e) => setLinhaForm({ ...linhaForm, quantidadeAnualEstimada: e.target.value })}
-                    placeholder="0" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue" required />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                    placeholder="0"
+                  />
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Valor Unitário (R$) *</label>
-                  <input type="number" step="0.01" value={linhaForm.valorUnitario}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Valor Unitário (R$) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={linhaForm.valorUnitario}
                     onChange={(e) => setLinhaForm({ ...linhaForm, valorUnitario: e.target.value })}
-                    placeholder="0.00" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue" required />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Valor Total Anual</label>
-                  <div className="w-full px-3 py-2 border border-gray-100 bg-gray-50 rounded-xl text-sm font-semibold text-emerald-700">
-                    {formatBRL(vlTotalCalc)}
-                  </div>
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw1-blue"
+                    placeholder="0.00"
+                  />
                 </div>
               </div>
-              <div className="flex gap-3 pt-4 border-t">
-                <button type="button" onClick={() => setShowLinhaModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50">Cancelar</button>
-                <button type="submit" disabled={saving} className="flex-1 hw1-btn-primary text-sm disabled:opacity-50">
-                  {saving ? 'Salvando...' : 'Salvar'}
-                </button>
+              <div className="bg-hw1-navy/5 border border-hw1-navy/20 rounded-lg px-4 py-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-gray-700">Valor Total Anual:</span>
+                  <span className="text-lg font-bold text-hw1-navy">{formatBRL(vlTotalCalc)}</span>
+                </div>
               </div>
-            </form>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setShowLinhaModal(false)}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveLinha}
+                className="px-4 py-2 bg-hw1-blue text-white rounded-lg hover:bg-hw1-blue/90 disabled:opacity-50"
+                disabled={saving}
+              >
+                {saving ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
           </div>
         </div>
       )}
