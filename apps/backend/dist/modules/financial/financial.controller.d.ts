@@ -9,44 +9,44 @@ export declare class FinancialController {
     private readonly financialService;
     constructor(financialService: FinancialService);
     findDespesas(filters: FilterDespesaDto): Promise<{
+        valor: number;
         id: string;
         projectId: string;
         tipo: string;
         descricao: string;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
         createdAt: Date;
         updatedAt: Date;
     }[]>;
     findDespesaById(id: string): Promise<{
+        valor: number;
         id: string;
         projectId: string;
         tipo: string;
         descricao: string;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
         createdAt: Date;
         updatedAt: Date;
     }>;
     createDespesa(dto: CreateDespesaDto): Promise<{
+        valor: number;
         id: string;
         projectId: string;
         tipo: string;
         descricao: string;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
         createdAt: Date;
         updatedAt: Date;
     }>;
     updateDespesa(id: string, dto: UpdateDespesaDto): Promise<{
+        valor: number;
         id: string;
         projectId: string;
         tipo: string;
         descricao: string;
-        valor: import("@prisma/client/runtime/library").Decimal;
         mes: number;
         ano: number;
         createdAt: Date;

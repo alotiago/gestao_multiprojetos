@@ -19,9 +19,9 @@ export declare class OperationsService {
         message: string;
     }>;
     listarHistorico(projectId?: string, limit?: number): Promise<{
-        tipo: string;
-        createdAt: Date;
         id: string;
+        createdAt: Date;
+        tipo: string;
         criadoPor: string | null;
         projectId: string;
         dadosAntes: import("@prisma/client/runtime/library").JsonValue;

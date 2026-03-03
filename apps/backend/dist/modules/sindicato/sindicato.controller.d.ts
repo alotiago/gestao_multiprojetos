@@ -8,12 +8,12 @@ export declare class SindicatoController {
             colaboradores: number;
         };
     } & {
-        createdAt: Date;
-        nome: string;
         id: string;
-        descricao: string | null;
         ativo: boolean;
+        createdAt: Date;
         updatedAt: Date;
+        nome: string;
+        descricao: string | null;
         regiao: string;
         percentualDissidio: import("@prisma/client/runtime/library").Decimal;
         dataDissidio: Date | null;
@@ -29,55 +29,55 @@ export declare class SindicatoController {
     }>;
     findById(id: string): Promise<{
         colaboradores: {
-            nome: string;
             id: string;
+            nome: string;
             matricula: string;
             cargo: string;
             taxaHora: import("@prisma/client/runtime/library").Decimal;
         }[];
     } & {
-        createdAt: Date;
-        nome: string;
         id: string;
-        descricao: string | null;
         ativo: boolean;
+        createdAt: Date;
         updatedAt: Date;
+        nome: string;
+        descricao: string | null;
         regiao: string;
         percentualDissidio: import("@prisma/client/runtime/library").Decimal;
         dataDissidio: Date | null;
         regimeTributario: string;
     }>;
     create(dto: CreateSindicatoDto): Promise<{
-        createdAt: Date;
-        nome: string;
         id: string;
-        descricao: string | null;
         ativo: boolean;
+        createdAt: Date;
         updatedAt: Date;
+        nome: string;
+        descricao: string | null;
         regiao: string;
         percentualDissidio: import("@prisma/client/runtime/library").Decimal;
         dataDissidio: Date | null;
         regimeTributario: string;
     }>;
     update(id: string, dto: UpdateSindicatoDto): Promise<{
-        createdAt: Date;
-        nome: string;
         id: string;
-        descricao: string | null;
         ativo: boolean;
+        createdAt: Date;
         updatedAt: Date;
+        nome: string;
+        descricao: string | null;
         regiao: string;
         percentualDissidio: import("@prisma/client/runtime/library").Decimal;
         dataDissidio: Date | null;
         regimeTributario: string;
     }>;
     delete(id: string): Promise<{
-        createdAt: Date;
-        nome: string;
         id: string;
-        descricao: string | null;
         ativo: boolean;
+        createdAt: Date;
         updatedAt: Date;
+        nome: string;
+        descricao: string | null;
         regiao: string;
         percentualDissidio: import("@prisma/client/runtime/library").Decimal;
         dataDissidio: Date | null;

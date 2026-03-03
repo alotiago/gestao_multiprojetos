@@ -2,7 +2,7 @@ import { DashboardService } from './dashboard.service';
 export declare class DashboardController {
     private readonly dashboardService;
     constructor(dashboardService: DashboardService);
-    getDashboardExecutivo(ano: number, projectId?: string): Promise<{
+    getDashboardExecutivo(ano?: string, projectId?: string): Promise<{
         ano: number;
         kpis: {
             projetosTotal: number;
@@ -25,7 +25,7 @@ export declare class DashboardController {
             distribuicaoStatus: Record<string, number>;
         };
     }>;
-    getDashboardFinanceiro(ano: number, mes?: number, projectId?: string): Promise<{
+    getDashboardFinanceiro(ano?: string, mes?: string, projectId?: string): Promise<{
         ano: number;
         mes: number | null;
         projetos: any[];
@@ -36,7 +36,7 @@ export declare class DashboardController {
             margemGlobal: number;
         };
     }>;
-    exportDashboardFinanceiroCsv(ano: number, mes?: number, projectId?: string): Promise<string>;
+    exportDashboardFinanceiroCsv(ano?: string, mes?: string, projectId?: string): Promise<string>;
     getDashboardRecursos(ano: number, mes?: number): Promise<{
         ano: number;
         mes: number | null;

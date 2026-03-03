@@ -31,10 +31,10 @@ export declare class AuthService {
         refreshToken: string;
         expiresIn: number;
         user: {
-            id: string;
-            name: string;
-            email: string;
             role: import(".prisma/client").$Enums.UserRole;
+            email: string;
+            name: string;
+            id: string;
         };
     }>;
     /**
@@ -61,12 +61,12 @@ export declare class AuthService {
      * Obtém um usuário por ID
      */
     getUserById(userId: string): Promise<{
+        role: import(".prisma/client").$Enums.UserRole;
+        email: string;
+        name: string;
+        id: string;
         status: import(".prisma/client").$Enums.UserStatus;
         createdAt: Date;
-        id: string;
-        name: string;
-        email: string;
-        role: import(".prisma/client").$Enums.UserRole;
         lastLogin: Date | null;
     }>;
     /**

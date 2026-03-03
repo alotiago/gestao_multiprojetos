@@ -24,13 +24,18 @@ let DashboardController = class DashboardController {
         this.dashboardService = dashboardService;
     }
     getDashboardExecutivo(ano, projectId) {
-        return this.dashboardService.getDashboardExecutivo(ano, projectId);
+        const anoNum = ano ? parseInt(ano, 10) : new Date().getFullYear();
+        return this.dashboardService.getDashboardExecutivo(anoNum, projectId);
     }
     getDashboardFinanceiro(ano, mes, projectId) {
-        return this.dashboardService.getDashboardFinanceiro(ano, mes, projectId);
+        const anoNum = ano ? parseInt(ano, 10) : new Date().getFullYear();
+        const mesNum = mes ? parseInt(mes, 10) : undefined;
+        return this.dashboardService.getDashboardFinanceiro(anoNum, mesNum, projectId);
     }
     exportDashboardFinanceiroCsv(ano, mes, projectId) {
-        return this.dashboardService.exportDashboardFinanceiroCsv(ano, mes, projectId);
+        const anoNum = ano ? parseInt(ano, 10) : new Date().getFullYear();
+        const mesNum = mes ? parseInt(mes, 10) : undefined;
+        return this.dashboardService.exportDashboardFinanceiroCsv(anoNum, mesNum, projectId);
     }
     getDashboardRecursos(ano, mes) {
         return this.dashboardService.getDashboardRecursos(ano, mes);
@@ -46,31 +51,31 @@ exports.DashboardController = DashboardController;
 __decorate([
     (0, common_1.Get)('executivo'),
     (0, permissions_decorator_1.RequirePermissions)(permission_service_1.Permission.DASHBOARD_EXECUTIVE),
-    __param(0, (0, common_1.Query)('ano', new common_1.ParseIntPipe({ optional: false }))),
+    __param(0, (0, common_1.Query)('ano')),
     __param(1, (0, common_1.Query)('projectId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], DashboardController.prototype, "getDashboardExecutivo", null);
 __decorate([
     (0, common_1.Get)('financeiro'),
     (0, permissions_decorator_1.RequirePermissions)(permission_service_1.Permission.DASHBOARD_FINANCIAL),
-    __param(0, (0, common_1.Query)('ano', new common_1.ParseIntPipe({ optional: false }))),
-    __param(1, (0, common_1.Query)('mes', new common_1.ParseIntPipe({ optional: true }))),
+    __param(0, (0, common_1.Query)('ano')),
+    __param(1, (0, common_1.Query)('mes')),
     __param(2, (0, common_1.Query)('projectId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Number, String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], DashboardController.prototype, "getDashboardFinanceiro", null);
 __decorate([
     (0, common_1.Get)('financeiro/export/csv'),
     (0, common_1.Header)('Content-Type', 'text/csv; charset=utf-8'),
     (0, permissions_decorator_1.RequirePermissions)(permission_service_1.Permission.DASHBOARD_FINANCIAL),
-    __param(0, (0, common_1.Query)('ano', new common_1.ParseIntPipe({ optional: false }))),
-    __param(1, (0, common_1.Query)('mes', new common_1.ParseIntPipe({ optional: true }))),
+    __param(0, (0, common_1.Query)('ano')),
+    __param(1, (0, common_1.Query)('mes')),
     __param(2, (0, common_1.Query)('projectId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Number, String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], DashboardController.prototype, "exportDashboardFinanceiroCsv", null);
 __decorate([

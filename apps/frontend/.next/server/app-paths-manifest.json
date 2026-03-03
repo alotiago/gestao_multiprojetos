@@ -1,7 +1,15 @@
 {
-  "/page": "app/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/config/calendarios/page": "app/config/calendarios/page.js",
+  "/config/sindicatos/page": "app/config/sindicatos/page.js",
   "/dashboard/page": "app/dashboard/page.js",
+  "/contratos/page": "app/contratos/page.js",
+  "/financeiro/page": "app/financeiro/page.js",
   "/projetos/page": "app/projetos/page.js",
   "/operacoes/page": "app/operacoes/page.js",
-  "/financeiro/page": "app/financeiro/page.js"
+  "/rh/page": "app/rh/page.js",
+  "/unidades/page": "app/unidades/page.js",
+  "/page": "app/page.js",
+  "/config/page": "app/config/page.js",
+  "/relatorios/contratos-dashboard/page": "app/relatorios/contratos-dashboard/page.js"
 }

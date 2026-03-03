@@ -24,6 +24,7 @@ const calendario_module_1 = require("./modules/calendario/calendario.module");
 const sindicato_module_1 = require("./modules/sindicato/sindicato.module");
 const units_module_1 = require("./modules/units/units.module");
 const contracts_module_1 = require("./modules/contracts/contracts.module");
+const relatorios_module_1 = require("./modules/relatorios/relatorios.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -52,6 +53,7 @@ exports.AppModule = AppModule = __decorate([
             sindicato_module_1.SindicatoModule,
             units_module_1.UnitsModule,
             contracts_module_1.ContractsModule,
+            relatorios_module_1.RelatoriosModule,
         ],
         providers: [
             {

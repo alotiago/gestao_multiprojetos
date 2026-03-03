@@ -4,27 +4,27 @@ export declare class ContractsController {
     constructor(contractsService: ContractsService);
     findAll(page?: string, limit?: string, status?: string): Promise<{
         data: ({
+            _count: {
+                objetos: number;
+                projetos: number;
+            };
             objetos: {
                 id: string;
                 nome: string;
                 valorTotalContratado: import("@prisma/client/runtime/library").Decimal | null;
             }[];
-            _count: {
-                objetos: number;
-                projetos: number;
-            };
         } & {
             id: string;
-            nomeContrato: string;
-            cliente: string;
-            numeroContrato: string;
-            dataInicio: Date;
-            dataFim: Date | null;
             status: string;
-            observacoes: string | null;
             ativo: boolean;
             createdAt: Date;
             updatedAt: Date;
+            cliente: string;
+            dataInicio: Date;
+            dataFim: Date | null;
+            nomeContrato: string;
+            numeroContrato: string;
+            observacoes: string | null;
         })[];
         total: number;
         page: number;
@@ -32,35 +32,35 @@ export declare class ContractsController {
     }>;
     findDisponíveis(): Promise<{
         id: string;
-        nomeContrato: string;
         cliente: string;
-        numeroContrato: string;
         dataInicio: Date;
         dataFim: Date | null;
+        nomeContrato: string;
+        numeroContrato: string;
     }[]>;
     findById(id: string): Promise<{
         objetos: any[];
         valorTotalContratado: import("@prisma/client/runtime/library").Decimal;
-        projetos: {
-            id: string;
-            nome: string;
-            codigo: string;
-        }[];
         _count: {
             objetos: number;
             projetos: number;
         };
+        projetos: {
+            id: string;
+            codigo: string;
+            nome: string;
+        }[];
         id: string;
-        nomeContrato: string;
-        cliente: string;
-        numeroContrato: string;
-        dataInicio: Date;
-        dataFim: Date | null;
         status: string;
-        observacoes: string | null;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
+        cliente: string;
+        dataInicio: Date;
+        dataFim: Date | null;
+        nomeContrato: string;
+        numeroContrato: string;
+        observacoes: string | null;
     }>;
     create(data: {
         nomeContrato: string;
@@ -77,16 +77,16 @@ export declare class ContractsController {
         };
     } & {
         id: string;
-        nomeContrato: string;
-        cliente: string;
-        numeroContrato: string;
-        dataInicio: Date;
-        dataFim: Date | null;
         status: string;
-        observacoes: string | null;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
+        cliente: string;
+        dataInicio: Date;
+        dataFim: Date | null;
+        nomeContrato: string;
+        numeroContrato: string;
+        observacoes: string | null;
     }>;
     update(id: string, data: {
         nomeContrato?: string;
@@ -103,29 +103,29 @@ export declare class ContractsController {
         };
     } & {
         id: string;
-        nomeContrato: string;
-        cliente: string;
-        numeroContrato: string;
-        dataInicio: Date;
-        dataFim: Date | null;
         status: string;
-        observacoes: string | null;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
+        cliente: string;
+        dataInicio: Date;
+        dataFim: Date | null;
+        nomeContrato: string;
+        numeroContrato: string;
+        observacoes: string | null;
     }>;
     delete(id: string): Promise<{
         id: string;
-        nomeContrato: string;
-        cliente: string;
-        numeroContrato: string;
-        dataInicio: Date;
-        dataFim: Date | null;
         status: string;
-        observacoes: string | null;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
+        cliente: string;
+        dataInicio: Date;
+        dataFim: Date | null;
+        nomeContrato: string;
+        numeroContrato: string;
+        observacoes: string | null;
     }>;
     clone(id: string, data: {
         novoNome: string;
@@ -133,26 +133,26 @@ export declare class ContractsController {
     }): Promise<{
         objetos: any[];
         valorTotalContratado: import("@prisma/client/runtime/library").Decimal;
-        projetos: {
-            id: string;
-            nome: string;
-            codigo: string;
-        }[];
         _count: {
             objetos: number;
             projetos: number;
         };
+        projetos: {
+            id: string;
+            codigo: string;
+            nome: string;
+        }[];
         id: string;
-        nomeContrato: string;
-        cliente: string;
-        numeroContrato: string;
-        dataInicio: Date;
-        dataFim: Date | null;
         status: string;
-        observacoes: string | null;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
+        cliente: string;
+        dataInicio: Date;
+        dataFim: Date | null;
+        nomeContrato: string;
+        numeroContrato: string;
+        observacoes: string | null;
     }>;
     createObjeto(contratoId: string, data: {
         nome: string;
@@ -170,15 +170,15 @@ export declare class ContractsController {
         };
     } & {
         id: string;
-        dataInicio: Date | null;
-        dataFim: Date | null;
-        observacoes: string | null;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
-        contratoId: string;
         nome: string;
+        contratoId: string;
+        dataInicio: Date | null;
+        dataFim: Date | null;
         descricao: string;
+        observacoes: string | null;
         valorTotalContratado: import("@prisma/client/runtime/library").Decimal | null;
     }>;
     updateObjeto(id: string, data: {
@@ -194,28 +194,28 @@ export declare class ContractsController {
         };
     } & {
         id: string;
-        dataInicio: Date | null;
-        dataFim: Date | null;
-        observacoes: string | null;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
-        contratoId: string;
         nome: string;
+        contratoId: string;
+        dataInicio: Date | null;
+        dataFim: Date | null;
         descricao: string;
+        observacoes: string | null;
         valorTotalContratado: import("@prisma/client/runtime/library").Decimal | null;
     }>;
     deleteObjeto(id: string): Promise<{
         id: string;
-        dataInicio: Date | null;
-        dataFim: Date | null;
-        observacoes: string | null;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
-        contratoId: string;
         nome: string;
+        contratoId: string;
+        dataInicio: Date | null;
+        dataFim: Date | null;
         descricao: string;
+        observacoes: string | null;
         valorTotalContratado: import("@prisma/client/runtime/library").Decimal | null;
     }>;
     createLinha(objetoContratualId: string, data: {
@@ -226,20 +226,20 @@ export declare class ContractsController {
     }): Promise<{
         objetoContratual: {
             id: string;
-            contratoId: string;
             nome: string;
+            contratoId: string;
         };
     } & {
         id: string;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
-        descricaoItem: string;
-        unidade: string;
-        quantidadeAnualEstimada: import("@prisma/client/runtime/library").Decimal;
-        valorUnitario: import("@prisma/client/runtime/library").Decimal;
-        valorTotalAnual: import("@prisma/client/runtime/library").Decimal;
         objetoContratualId: string;
+        unidade: string;
+        valorUnitario: import("@prisma/client/runtime/library").Decimal;
+        descricaoItem: string;
+        quantidadeAnualEstimada: import("@prisma/client/runtime/library").Decimal;
+        valorTotalAnual: import("@prisma/client/runtime/library").Decimal;
     }>;
     updateLinha(id: string, data: {
         descricaoItem?: string;
@@ -249,36 +249,36 @@ export declare class ContractsController {
     }): Promise<{
         objetoContratual: {
             id: string;
-            contratoId: string;
             nome: string;
+            contratoId: string;
         };
     } & {
         id: string;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
-        descricaoItem: string;
-        unidade: string;
-        quantidadeAnualEstimada: import("@prisma/client/runtime/library").Decimal;
-        valorUnitario: import("@prisma/client/runtime/library").Decimal;
-        valorTotalAnual: import("@prisma/client/runtime/library").Decimal;
         objetoContratualId: string;
+        unidade: string;
+        valorUnitario: import("@prisma/client/runtime/library").Decimal;
+        descricaoItem: string;
+        quantidadeAnualEstimada: import("@prisma/client/runtime/library").Decimal;
+        valorTotalAnual: import("@prisma/client/runtime/library").Decimal;
     }>;
     deleteLinha(id: string): Promise<void>;
     getObjetosByProject(projectId: string): Promise<{
         id: string;
+        nome: string;
         dataInicio: Date | null;
         dataFim: Date | null;
-        nome: string;
         descricao: string;
         valorTotalContratado: import("@prisma/client/runtime/library").Decimal | null;
     }[]>;
     getLinhasByObjeto(objetoId: string): Promise<{
         id: string;
-        descricaoItem: string;
         unidade: string;
-        quantidadeAnualEstimada: import("@prisma/client/runtime/library").Decimal;
         valorUnitario: import("@prisma/client/runtime/library").Decimal;
+        descricaoItem: string;
+        quantidadeAnualEstimada: import("@prisma/client/runtime/library").Decimal;
         valorTotalAnual: import("@prisma/client/runtime/library").Decimal;
     }[]>;
     getProjectSummary(projectId: string): Promise<{

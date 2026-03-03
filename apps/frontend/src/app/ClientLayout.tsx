@@ -11,6 +11,7 @@ const navItems = [
   { href: '/contratos', label: 'Contratos', icon: '📑' },
   { href: '/rh', label: 'Recursos Humanos', icon: '👥' },
   { href: '/financeiro', label: 'Financeiro', icon: '💰' },
+  { href: '/relatorios/contratos-dashboard', label: 'Relatórios', icon: '📈' },
   { href: '/operacoes', label: 'Operações', icon: '🔄' },
   { href: '/unidades', label: 'Unidades', icon: '🏢' },
   { href: '/config', label: 'Configurações', icon: '⚙️' },

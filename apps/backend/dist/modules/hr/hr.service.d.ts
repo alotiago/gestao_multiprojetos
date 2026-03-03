@@ -11,32 +11,32 @@ export declare class HrService {
     constructor(prisma: PrismaService);
     findAll(filters: FilterColaboradorDto): Promise<{
         data: ({
-            _count: {
-                custos: number;
-                jornadas: number;
-                ferias: number;
-            };
             sindicato: {
-                nome: string;
                 id: string;
+                nome: string;
                 regiao: string;
             } | null;
+            _count: {
+                ferias: number;
+                custos: number;
+                jornadas: number;
+            };
         } & {
-            status: import(".prisma/client").$Enums.UserStatus;
-            createdAt: Date;
-            nome: string;
-            id: string;
-            ativo: boolean;
-            updatedAt: Date;
             email: string | null;
-            estado: string;
-            cidade: string;
+            id: string;
+            status: import(".prisma/client").$Enums.UserStatus;
+            ativo: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            nome: string;
             matricula: string;
             cargo: string;
             classe: string | null;
             tipoContratacao: import(".prisma/client").$Enums.TipoContratacao;
             taxaHora: Decimal;
             cargaHoraria: number;
+            cidade: string;
+            estado: string;
             sindicatoId: string | null;
             dataAdmissao: Date;
             dataDesligamento: Date | null;
@@ -49,9 +49,45 @@ export declare class HrService {
         };
     }>;
     findById(id: string): Promise<{
-        custos: {
-            createdAt: Date;
+        ferias: {
             id: string;
+            createdAt: Date;
+            dataInicio: Date;
+            dataFim: Date;
+            colaboradorId: string;
+            aprovado: boolean;
+            dias: number;
+        }[];
+        desligamento: {
+            id: string;
+            createdAt: Date;
+            observacoes: string | null;
+            colaboradorId: string;
+            dataDesligamento: Date;
+            motivo: string;
+        } | null;
+        sindicato: {
+            id: string;
+            ativo: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            nome: string;
+            descricao: string | null;
+            regiao: string;
+            percentualDissidio: Decimal;
+            dataDissidio: Date | null;
+            regimeTributario: string;
+        } | null;
+        _count: {
+            sindicato: number;
+            custos: number;
+            jornadas: number;
+            ferias: number;
+            desligamento: number;
+        };
+        custos: {
+            id: string;
+            createdAt: Date;
             updatedAt: Date;
             mes: number;
             ano: number;
@@ -60,28 +96,9 @@ export declare class HrService {
             custoFixo: Decimal;
             custoVariavel: Decimal;
         }[];
-        _count: {
-            sindicato: number;
-            custos: number;
-            jornadas: number;
-            ferias: number;
-            desligamento: number;
-        };
-        sindicato: {
-            createdAt: Date;
-            nome: string;
-            id: string;
-            descricao: string | null;
-            ativo: boolean;
-            updatedAt: Date;
-            regiao: string;
-            percentualDissidio: Decimal;
-            dataDissidio: Date | null;
-            regimeTributario: string;
-        } | null;
         jornadas: {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             updatedAt: Date;
             mes: number;
             ano: number;
@@ -91,109 +108,92 @@ export declare class HrService {
             horasRealizadas: Decimal;
             fte: Decimal;
         }[];
-        ferias: {
-            createdAt: Date;
-            id: string;
-            dataInicio: Date;
-            dataFim: Date;
-            colaboradorId: string;
-            dias: number;
-            aprovado: boolean;
-        }[];
-        desligamento: {
-            createdAt: Date;
-            id: string;
-            observacoes: string | null;
-            colaboradorId: string;
-            dataDesligamento: Date;
-            motivo: string;
-        } | null;
     } & {
-        status: import(".prisma/client").$Enums.UserStatus;
-        createdAt: Date;
-        nome: string;
-        id: string;
-        ativo: boolean;
-        updatedAt: Date;
         email: string | null;
-        estado: string;
-        cidade: string;
+        id: string;
+        status: import(".prisma/client").$Enums.UserStatus;
+        ativo: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        nome: string;
         matricula: string;
         cargo: string;
         classe: string | null;
         tipoContratacao: import(".prisma/client").$Enums.TipoContratacao;
         taxaHora: Decimal;
         cargaHoraria: number;
+        cidade: string;
+        estado: string;
         sindicatoId: string | null;
         dataAdmissao: Date;
         dataDesligamento: Date | null;
     }>;
     create(dto: CreateColaboradorDto): Promise<{
         sindicato: {
-            nome: string;
             id: string;
+            nome: string;
         } | null;
     } & {
-        status: import(".prisma/client").$Enums.UserStatus;
-        createdAt: Date;
-        nome: string;
-        id: string;
-        ativo: boolean;
-        updatedAt: Date;
         email: string | null;
-        estado: string;
-        cidade: string;
+        id: string;
+        status: import(".prisma/client").$Enums.UserStatus;
+        ativo: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        nome: string;
         matricula: string;
         cargo: string;
         classe: string | null;
         tipoContratacao: import(".prisma/client").$Enums.TipoContratacao;
         taxaHora: Decimal;
         cargaHoraria: number;
+        cidade: string;
+        estado: string;
         sindicatoId: string | null;
         dataAdmissao: Date;
         dataDesligamento: Date | null;
     }>;
     update(id: string, dto: UpdateColaboradorDto): Promise<{
         sindicato: {
-            nome: string;
             id: string;
+            nome: string;
         } | null;
     } & {
-        status: import(".prisma/client").$Enums.UserStatus;
-        createdAt: Date;
-        nome: string;
-        id: string;
-        ativo: boolean;
-        updatedAt: Date;
         email: string | null;
-        estado: string;
-        cidade: string;
+        id: string;
+        status: import(".prisma/client").$Enums.UserStatus;
+        ativo: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        nome: string;
         matricula: string;
         cargo: string;
         classe: string | null;
         tipoContratacao: import(".prisma/client").$Enums.TipoContratacao;
         taxaHora: Decimal;
         cargaHoraria: number;
+        cidade: string;
+        estado: string;
         sindicatoId: string | null;
         dataAdmissao: Date;
         dataDesligamento: Date | null;
     }>;
     delete(id: string): Promise<{
-        status: import(".prisma/client").$Enums.UserStatus;
-        createdAt: Date;
-        nome: string;
-        id: string;
-        ativo: boolean;
-        updatedAt: Date;
         email: string | null;
-        estado: string;
-        cidade: string;
+        id: string;
+        status: import(".prisma/client").$Enums.UserStatus;
+        ativo: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        nome: string;
         matricula: string;
         cargo: string;
         classe: string | null;
         tipoContratacao: import(".prisma/client").$Enums.TipoContratacao;
         taxaHora: Decimal;
         cargaHoraria: number;
+        cidade: string;
+        estado: string;
         sindicatoId: string | null;
         dataAdmissao: Date;
         dataDesligamento: Date | null;
@@ -203,8 +203,8 @@ export declare class HrService {
         errors: string[];
     }>;
     findJornadas(colaboradorId: string, ano?: number): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         mes: number;
         ano: number;
@@ -215,8 +215,8 @@ export declare class HrService {
         fte: Decimal;
     }[]>;
     createJornada(colaboradorId: string, dto: CreateJornadaDto): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         mes: number;
         ano: number;
@@ -227,8 +227,8 @@ export declare class HrService {
         fte: Decimal;
     }>;
     updateJornada(colaboradorId: string, jornadaId: string, dto: UpdateJornadaDto): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         mes: number;
         ano: number;
@@ -244,35 +244,35 @@ export declare class HrService {
         error?: string;
     }[]>;
     findFerias(colaboradorId: string): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         dataInicio: Date;
         dataFim: Date;
         colaboradorId: string;
-        dias: number;
         aprovado: boolean;
+        dias: number;
     }[]>;
     createFerias(colaboradorId: string, dto: CreateFeriasDto): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         dataInicio: Date;
         dataFim: Date;
         colaboradorId: string;
-        dias: number;
         aprovado: boolean;
+        dias: number;
     }>;
     updateFerias(colaboradorId: string, feriasId: string, dto: UpdateFeriasDto): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         dataInicio: Date;
         dataFim: Date;
         colaboradorId: string;
-        dias: number;
         aprovado: boolean;
+        dias: number;
     }>;
     createDesligamento(colaboradorId: string, dto: CreateDesligamentoDto): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         observacoes: string | null;
         colaboradorId: string;
         dataDesligamento: Date;

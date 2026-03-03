@@ -9,12 +9,12 @@ export declare class SindicatoService {
             colaboradores: number;
         };
     } & {
-        createdAt: Date;
-        nome: string;
         id: string;
-        descricao: string | null;
         ativo: boolean;
+        createdAt: Date;
         updatedAt: Date;
+        nome: string;
+        descricao: string | null;
         regiao: string;
         percentualDissidio: Decimal;
         dataDissidio: Date | null;
@@ -22,55 +22,55 @@ export declare class SindicatoService {
     })[]>;
     findById(id: string): Promise<{
         colaboradores: {
-            nome: string;
             id: string;
+            nome: string;
             matricula: string;
             cargo: string;
             taxaHora: Decimal;
         }[];
     } & {
-        createdAt: Date;
-        nome: string;
         id: string;
-        descricao: string | null;
         ativo: boolean;
+        createdAt: Date;
         updatedAt: Date;
+        nome: string;
+        descricao: string | null;
         regiao: string;
         percentualDissidio: Decimal;
         dataDissidio: Date | null;
         regimeTributario: string;
     }>;
     create(dto: CreateSindicatoDto): Promise<{
-        createdAt: Date;
-        nome: string;
         id: string;
-        descricao: string | null;
         ativo: boolean;
+        createdAt: Date;
         updatedAt: Date;
+        nome: string;
+        descricao: string | null;
         regiao: string;
         percentualDissidio: Decimal;
         dataDissidio: Date | null;
         regimeTributario: string;
     }>;
     update(id: string, dto: UpdateSindicatoDto): Promise<{
-        createdAt: Date;
-        nome: string;
         id: string;
-        descricao: string | null;
         ativo: boolean;
+        createdAt: Date;
         updatedAt: Date;
+        nome: string;
+        descricao: string | null;
         regiao: string;
         percentualDissidio: Decimal;
         dataDissidio: Date | null;
         regimeTributario: string;
     }>;
     delete(id: string): Promise<{
-        createdAt: Date;
-        nome: string;
         id: string;
-        descricao: string | null;
         ativo: boolean;
+        createdAt: Date;
         updatedAt: Date;
+        nome: string;
+        descricao: string | null;
         regiao: string;
         percentualDissidio: Decimal;
         dataDissidio: Date | null;

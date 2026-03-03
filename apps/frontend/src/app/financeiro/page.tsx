@@ -160,8 +160,8 @@ export default function FinanceiroPage() {
   const loadResumo = () => {
     setLoading(true);
     let url = `/dashboard/financeiro?ano=${ano}`;
-    if (mes) url += `&mes=${mes}`;
-    if (selectedProjectId) url += `&projectId=${selectedProjectId}`;
+    if (mes && mes !== '') url += `&mes=${mes}`;
+    if (selectedProjectId && selectedProjectId !== '') url += `&projectId=${selectedProjectId}`;
     api
       .get(url)
       .then((r) => setData(r.data))
@@ -176,8 +176,8 @@ export default function FinanceiroPage() {
   const loadDespesas = () => {
     setLoading(true);
     let url = `/financial/despesas?page=${page}&limit=${pageSize}&ano=${ano}`;
-    if (mes) url += `&mes=${mes}`;
-    if (selectedProjectId) url += `&projectId=${selectedProjectId}`;
+    if (mes && mes !== '') url += `&mes=${mes}`;
+    if (selectedProjectId && selectedProjectId !== '') url += `&projectId=${selectedProjectId}`;
     api
       .get(url)
       .then((r) => setDespesas(r.data?.data ?? r.data ?? []))
@@ -188,8 +188,8 @@ export default function FinanceiroPage() {
   const loadReceitas = () => {
     setLoading(true);
     let url = `/financial/receitas?page=${page}&limit=${pageSize}&ano=${ano}`;
-    if (mes) url += `&mes=${mes}`;
-    if (selectedProjectId) url += `&projectId=${selectedProjectId}`;
+    if (mes && mes !== '') url += `&mes=${mes}`;
+    if (selectedProjectId && selectedProjectId !== '') url += `&projectId=${selectedProjectId}`;
     api
       .get(url)
       .then((r) => setReceitas(r.data?.data ?? r.data ?? []))
@@ -361,6 +361,7 @@ export default function FinanceiroPage() {
       payload.objetoContratualId = form.objetoContratualId;
       payload.linhaContratualId = form.linhaContratualId;
       payload.quantidade = Number(form.quantidade);
+      payload.valorRealizado = Number(form.valorRealizado);
       // Backend calcula valorPrevisto = quantidade × valorUnitario
     } else {
       payload.valorPrevisto = Number(form.valorPrevisto);
@@ -945,13 +946,27 @@ export default function FinanceiroPage() {
                       const linhaSel = linhasContratuais.find(l => l.id === form.linhaContratualId);
                       const vlCalc = linhaSel ? Number(form.quantidade) * Number(linhaSel.valorUnitario) : 0;
                       return (
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Valor Previsto (auto)</label>
-                          <div className="w-full px-3 py-2 border border-gray-100 bg-emerald-50 rounded-xl text-sm font-semibold text-emerald-700">
-                            {formatBRL(vlCalc)}
+                        <>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Valor Previsto (auto)</label>
+                            <div className="w-full px-3 py-2 border border-gray-100 bg-emerald-50 rounded-xl text-sm font-semibold text-emerald-700">
+                              {formatBRL(vlCalc)}
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-0.5">= {form.quantidade} × {linhaSel ? formatBRL(Number(linhaSel.valorUnitario)) : ''}</p>
                           </div>
-                          <p className="text-[10px] text-gray-400 mt-0.5">= {form.quantidade} × {linhaSel ? formatBRL(Number(linhaSel.valorUnitario)) : ''}</p>
-                        </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Valor Realizado (Contrato) *</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={form.valorRealizado}
+                              onChange={(e) => setForm({ ...form, valorRealizado: e.target.value })}
+                              placeholder="0.00"
+                              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+                              required
+                            />
+                          </div>
+                        </>
                       );
                     })()}
                   </>

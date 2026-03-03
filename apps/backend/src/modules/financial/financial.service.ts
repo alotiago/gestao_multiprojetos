@@ -66,22 +66,32 @@ export class FinancialService {
     if (filters.mes) where.mes = filters.mes;
     if (filters.ano) where.ano = filters.ano;
 
-    return this.prisma.despesa.findMany({
+    const despesas = await this.prisma.despesa.findMany({
       where,
       orderBy: [{ ano: 'desc' }, { mes: 'desc' }],
     });
+
+    // Converte Decimal para número para o frontend
+    return despesas.map((d) => ({
+      ...d,
+      valor: Number(d.valor),
+    }));
   }
 
   async findDespesaById(id: string) {
     const despesa = await this.prisma.despesa.findUnique({ where: { id } });
     if (!despesa) throw new NotFoundException(`Despesa '${id}' não encontrada`);
-    return despesa;
+    // Converte Decimal para número para o frontend
+    return {
+      ...despesa,
+      valor: Number(despesa.valor),
+    };
   }
 
   async createDespesa(dto: CreateDespesaDto) {
     await this.validateProject(dto.projectId);
 
-    return this.prisma.despesa.create({
+    const despesa = await this.prisma.despesa.create({
       data: {
         projectId: dto.projectId,
         tipo: dto.tipo,
@@ -91,6 +101,12 @@ export class FinancialService {
         ano: dto.ano,
       },
     });
+
+    // Converte Decimal para número para o frontend
+    return {
+      ...despesa,
+      valor: Number(despesa.valor),
+    };
   }
 
   async updateDespesa(id: string, dto: UpdateDespesaDto) {
@@ -103,7 +119,13 @@ export class FinancialService {
     if (dto.mes !== undefined) updateData.mes = dto.mes;
     if (dto.ano !== undefined) updateData.ano = dto.ano;
 
-    return this.prisma.despesa.update({ where: { id }, data: updateData });
+    const despesa = await this.prisma.despesa.update({ where: { id }, data: updateData });
+
+    // Converte Decimal para número para o frontend
+    return {
+      ...despesa,
+      valor: Number(despesa.valor),
+    };
   }
 
   async deleteDespesa(id: string) {

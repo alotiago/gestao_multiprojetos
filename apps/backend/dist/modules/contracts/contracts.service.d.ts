@@ -8,27 +8,27 @@ export declare class ContractsService {
      */
     findAllContratos(page?: number, limit?: number, status?: string): Promise<{
         data: ({
+            _count: {
+                objetos: number;
+                projetos: number;
+            };
             objetos: {
                 id: string;
                 nome: string;
                 valorTotalContratado: Decimal | null;
             }[];
-            _count: {
-                objetos: number;
-                projetos: number;
-            };
         } & {
             id: string;
-            nomeContrato: string;
-            cliente: string;
-            numeroContrato: string;
-            dataInicio: Date;
-            dataFim: Date | null;
             status: string;
-            observacoes: string | null;
             ativo: boolean;
             createdAt: Date;
             updatedAt: Date;
+            cliente: string;
+            dataInicio: Date;
+            dataFim: Date | null;
+            nomeContrato: string;
+            numeroContrato: string;
+            observacoes: string | null;
         })[];
         total: number;
         page: number;
@@ -40,26 +40,26 @@ export declare class ContractsService {
     findContratoById(id: string): Promise<{
         objetos: any[];
         valorTotalContratado: Decimal;
-        projetos: {
-            id: string;
-            nome: string;
-            codigo: string;
-        }[];
         _count: {
             objetos: number;
             projetos: number;
         };
+        projetos: {
+            id: string;
+            codigo: string;
+            nome: string;
+        }[];
         id: string;
-        nomeContrato: string;
-        cliente: string;
-        numeroContrato: string;
-        dataInicio: Date;
-        dataFim: Date | null;
         status: string;
-        observacoes: string | null;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
+        cliente: string;
+        dataInicio: Date;
+        dataFim: Date | null;
+        nomeContrato: string;
+        numeroContrato: string;
+        observacoes: string | null;
     }>;
     /**
      * US 1.3: Criar contrato
@@ -79,16 +79,16 @@ export declare class ContractsService {
         };
     } & {
         id: string;
-        nomeContrato: string;
-        cliente: string;
-        numeroContrato: string;
-        dataInicio: Date;
-        dataFim: Date | null;
         status: string;
-        observacoes: string | null;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
+        cliente: string;
+        dataInicio: Date;
+        dataFim: Date | null;
+        nomeContrato: string;
+        numeroContrato: string;
+        observacoes: string | null;
     }>;
     /**
      * US 1.4: Atualizar contrato
@@ -108,32 +108,32 @@ export declare class ContractsService {
         };
     } & {
         id: string;
-        nomeContrato: string;
-        cliente: string;
-        numeroContrato: string;
-        dataInicio: Date;
-        dataFim: Date | null;
         status: string;
-        observacoes: string | null;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
+        cliente: string;
+        dataInicio: Date;
+        dataFim: Date | null;
+        nomeContrato: string;
+        numeroContrato: string;
+        observacoes: string | null;
     }>;
     /**
      * US 1.5: Deletar contrato (soft delete)
      */
     deleteContrato(id: string): Promise<{
         id: string;
-        nomeContrato: string;
-        cliente: string;
-        numeroContrato: string;
-        dataInicio: Date;
-        dataFim: Date | null;
         status: string;
-        observacoes: string | null;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
+        cliente: string;
+        dataInicio: Date;
+        dataFim: Date | null;
+        nomeContrato: string;
+        numeroContrato: string;
+        observacoes: string | null;
     }>;
     /**
      * US 5.1: Clonar contrato com estrutura completa
@@ -143,26 +143,26 @@ export declare class ContractsService {
     cloneContrato(contratoId: string, novoNome: string, novoNumero: string): Promise<{
         objetos: any[];
         valorTotalContratado: Decimal;
-        projetos: {
-            id: string;
-            nome: string;
-            codigo: string;
-        }[];
         _count: {
             objetos: number;
             projetos: number;
         };
+        projetos: {
+            id: string;
+            codigo: string;
+            nome: string;
+        }[];
         id: string;
-        nomeContrato: string;
-        cliente: string;
-        numeroContrato: string;
-        dataInicio: Date;
-        dataFim: Date | null;
         status: string;
-        observacoes: string | null;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
+        cliente: string;
+        dataInicio: Date;
+        dataFim: Date | null;
+        nomeContrato: string;
+        numeroContrato: string;
+        observacoes: string | null;
     }>;
     /**
      * Helper: Recalcula valorTotalContratado de um objeto
@@ -188,15 +188,15 @@ export declare class ContractsService {
         };
     } & {
         id: string;
-        dataInicio: Date | null;
-        dataFim: Date | null;
-        observacoes: string | null;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
-        contratoId: string;
         nome: string;
+        contratoId: string;
+        dataInicio: Date | null;
+        dataFim: Date | null;
         descricao: string;
+        observacoes: string | null;
         valorTotalContratado: Decimal | null;
     }>;
     /**
@@ -215,15 +215,15 @@ export declare class ContractsService {
         };
     } & {
         id: string;
-        dataInicio: Date | null;
-        dataFim: Date | null;
-        observacoes: string | null;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
-        contratoId: string;
         nome: string;
+        contratoId: string;
+        dataInicio: Date | null;
+        dataFim: Date | null;
         descricao: string;
+        observacoes: string | null;
         valorTotalContratado: Decimal | null;
     }>;
     /**
@@ -231,15 +231,15 @@ export declare class ContractsService {
      */
     deleteObjeto(id: string): Promise<{
         id: string;
-        dataInicio: Date | null;
-        dataFim: Date | null;
-        observacoes: string | null;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
-        contratoId: string;
         nome: string;
+        contratoId: string;
+        dataInicio: Date | null;
+        dataFim: Date | null;
         descricao: string;
+        observacoes: string | null;
         valorTotalContratado: Decimal | null;
     }>;
     /**
@@ -254,20 +254,20 @@ export declare class ContractsService {
     }): Promise<{
         objetoContratual: {
             id: string;
-            contratoId: string;
             nome: string;
+            contratoId: string;
         };
     } & {
         id: string;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
-        descricaoItem: string;
-        unidade: string;
-        quantidadeAnualEstimada: Decimal;
-        valorUnitario: Decimal;
-        valorTotalAnual: Decimal;
         objetoContratualId: string;
+        unidade: string;
+        valorUnitario: Decimal;
+        descricaoItem: string;
+        quantidadeAnualEstimada: Decimal;
+        valorTotalAnual: Decimal;
     }>;
     /**
      * US 3.2: Atualizar linha contratual
@@ -280,20 +280,20 @@ export declare class ContractsService {
     }): Promise<{
         objetoContratual: {
             id: string;
-            contratoId: string;
             nome: string;
+            contratoId: string;
         };
     } & {
         id: string;
         ativo: boolean;
         createdAt: Date;
         updatedAt: Date;
-        descricaoItem: string;
-        unidade: string;
-        quantidadeAnualEstimada: Decimal;
-        valorUnitario: Decimal;
-        valorTotalAnual: Decimal;
         objetoContratualId: string;
+        unidade: string;
+        valorUnitario: Decimal;
+        descricaoItem: string;
+        quantidadeAnualEstimada: Decimal;
+        valorTotalAnual: Decimal;
     }>;
     /**
      * US 3.3: Deletar linha contratual (soft delete)
@@ -304,9 +304,9 @@ export declare class ContractsService {
      */
     findObjetosByProject(projectId: string): Promise<{
         id: string;
+        nome: string;
         dataInicio: Date | null;
         dataFim: Date | null;
-        nome: string;
         descricao: string;
         valorTotalContratado: Decimal | null;
     }[]>;
@@ -315,10 +315,10 @@ export declare class ContractsService {
      */
     findLinhasByObjeto(objetoId: string): Promise<{
         id: string;
-        descricaoItem: string;
         unidade: string;
-        quantidadeAnualEstimada: Decimal;
         valorUnitario: Decimal;
+        descricaoItem: string;
+        quantidadeAnualEstimada: Decimal;
         valorTotalAnual: Decimal;
     }[]>;
     /**
@@ -326,11 +326,11 @@ export declare class ContractsService {
      */
     findContratosDisponíveis(): Promise<{
         id: string;
-        nomeContrato: string;
         cliente: string;
-        numeroContrato: string;
         dataInicio: Date;
         dataFim: Date | null;
+        nomeContrato: string;
+        numeroContrato: string;
     }[]>;
     /**
      * Resumo contratual por projeto

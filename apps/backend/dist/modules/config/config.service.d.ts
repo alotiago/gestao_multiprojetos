@@ -5,59 +5,59 @@ export declare class ConfigService {
     private readonly prisma;
     constructor(prisma: PrismaService);
     findCalendarios(filters: FilterCalendarioDto): Promise<{
-        createdAt: Date;
         id: string;
-        descricao: string;
+        createdAt: Date;
         data: Date;
-        estado: string | null;
+        descricao: string;
         cidade: string | null;
+        estado: string | null;
         tipoFeriado: import(".prisma/client").$Enums.FeriadoType;
-        diaSemana: number;
         nacional: boolean;
+        diaSemana: number;
     }[]>;
     findCalendarioById(id: string): Promise<{
-        createdAt: Date;
         id: string;
-        descricao: string;
+        createdAt: Date;
         data: Date;
-        estado: string | null;
+        descricao: string;
         cidade: string | null;
+        estado: string | null;
         tipoFeriado: import(".prisma/client").$Enums.FeriadoType;
-        diaSemana: number;
         nacional: boolean;
+        diaSemana: number;
     }>;
     createCalendario(dto: CreateCalendarioDto): Promise<{
-        createdAt: Date;
         id: string;
-        descricao: string;
+        createdAt: Date;
         data: Date;
-        estado: string | null;
+        descricao: string;
         cidade: string | null;
+        estado: string | null;
         tipoFeriado: import(".prisma/client").$Enums.FeriadoType;
-        diaSemana: number;
         nacional: boolean;
+        diaSemana: number;
     }>;
     updateCalendario(id: string, dto: UpdateCalendarioDto): Promise<{
-        createdAt: Date;
         id: string;
-        descricao: string;
+        createdAt: Date;
         data: Date;
-        estado: string | null;
+        descricao: string;
         cidade: string | null;
+        estado: string | null;
         tipoFeriado: import(".prisma/client").$Enums.FeriadoType;
-        diaSemana: number;
         nacional: boolean;
+        diaSemana: number;
     }>;
     deleteCalendario(id: string): Promise<{
-        createdAt: Date;
         id: string;
-        descricao: string;
+        createdAt: Date;
         data: Date;
-        estado: string | null;
+        descricao: string;
         cidade: string | null;
+        estado: string | null;
         tipoFeriado: import(".prisma/client").$Enums.FeriadoType;
-        diaSemana: number;
         nacional: boolean;
+        diaSemana: number;
     }>;
     /**
      * Calcula horas previstas de trabalho para um estado/mês/ano
@@ -77,12 +77,12 @@ export declare class ConfigService {
         }[];
     }>;
     findSindicatos(ativo?: boolean): Promise<{
-        createdAt: Date;
-        nome: string;
         id: string;
-        descricao: string | null;
         ativo: boolean;
+        createdAt: Date;
         updatedAt: Date;
+        nome: string;
+        descricao: string | null;
         regiao: string;
         percentualDissidio: import("@prisma/client/runtime/library").Decimal;
         dataDissidio: Date | null;
@@ -90,53 +90,53 @@ export declare class ConfigService {
     }[]>;
     findSindicatoById(id: string): Promise<{
         colaboradores: {
-            nome: string;
             id: string;
+            nome: string;
             cargo: string;
         }[];
     } & {
-        createdAt: Date;
-        nome: string;
         id: string;
-        descricao: string | null;
         ativo: boolean;
+        createdAt: Date;
         updatedAt: Date;
+        nome: string;
+        descricao: string | null;
         regiao: string;
         percentualDissidio: import("@prisma/client/runtime/library").Decimal;
         dataDissidio: Date | null;
         regimeTributario: string;
     }>;
     createSindicato(dto: CreateSindicatoDto): Promise<{
-        createdAt: Date;
-        nome: string;
         id: string;
-        descricao: string | null;
         ativo: boolean;
+        createdAt: Date;
         updatedAt: Date;
+        nome: string;
+        descricao: string | null;
         regiao: string;
         percentualDissidio: import("@prisma/client/runtime/library").Decimal;
         dataDissidio: Date | null;
         regimeTributario: string;
     }>;
     updateSindicato(id: string, dto: UpdateSindicatoDto): Promise<{
-        createdAt: Date;
-        nome: string;
         id: string;
-        descricao: string | null;
         ativo: boolean;
+        createdAt: Date;
         updatedAt: Date;
+        nome: string;
+        descricao: string | null;
         regiao: string;
         percentualDissidio: import("@prisma/client/runtime/library").Decimal;
         dataDissidio: Date | null;
         regimeTributario: string;
     }>;
     deleteSindicato(id: string): Promise<{
-        createdAt: Date;
-        nome: string;
         id: string;
-        descricao: string | null;
         ativo: boolean;
+        createdAt: Date;
         updatedAt: Date;
+        nome: string;
+        descricao: string | null;
         regiao: string;
         percentualDissidio: import("@prisma/client/runtime/library").Decimal;
         dataDissidio: Date | null;
@@ -163,17 +163,17 @@ export declare class ConfigService {
         custoTotal: number;
     }>;
     findIndices(tipo?: string, ano?: number): Promise<{
-        tipo: string;
-        createdAt: Date;
         id: string;
+        createdAt: Date;
+        tipo: string;
         valor: import("@prisma/client/runtime/library").Decimal;
         mesReferencia: number;
         anoReferencia: number;
     }[]>;
     createIndice(tipo: string, valor: number, mesReferencia: number, anoReferencia: number): Promise<{
-        tipo: string;
-        createdAt: Date;
         id: string;
+        createdAt: Date;
+        tipo: string;
         valor: import("@prisma/client/runtime/library").Decimal;
         mesReferencia: number;
         anoReferencia: number;
