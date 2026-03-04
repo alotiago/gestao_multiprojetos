@@ -64,6 +64,10 @@ export class CreateColaboradorDto {
   @IsOptional()
   sindicatoId?: string;
 
+  @IsString()
+  @IsNotEmpty({ message: 'O projeto vinculado é obrigatório' })
+  projectId!: string;
+
   @IsEnum(UserStatus)
   @IsOptional()
   status?: UserStatus;

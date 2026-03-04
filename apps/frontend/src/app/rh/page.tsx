@@ -18,6 +18,8 @@ interface Colaborador {
   email?: string;
   classe?: string;
   sindicatoId?: string;
+  projectId?: string;
+  project?: { id: string; nome: string; codigo: string };
   ativo: boolean;
 }
 
@@ -37,6 +39,7 @@ const statusColors: Record<string, string> = {
 
 export default function RhPage() {
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+  const [projects, setProjects] = useState<{ id: string; nome: string; codigo: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -59,6 +62,7 @@ export default function RhPage() {
     cidade: '',
     estado: 'PR',
     sindicatoId: '',
+    projectId: '',
     status: 'ATIVO',
     dataAdmissao: new Date().toISOString().slice(0, 10),
   });
@@ -72,8 +76,16 @@ export default function RhPage() {
       .finally(() => setLoading(false));
   };
 
+  const loadProjects = () => {
+    api
+      .get('/projects?limit=200')
+      .then((r) => setProjects(r.data?.data ?? r.data ?? []))
+      .catch(() => {});
+  };
+
   useEffect(() => {
     loadColaboradores();
+    loadProjects();
   }, [page, pageSize]);
 
   useEffect(() => {
@@ -103,6 +115,7 @@ export default function RhPage() {
       cidade: '',
       estado: 'PR',
       sindicatoId: '',
+      projectId: '',
       status: 'ATIVO',
       dataAdmissao: new Date().toISOString().slice(0, 10),
     });
@@ -134,6 +147,7 @@ export default function RhPage() {
       cidade: colaborador.cidade,
       estado: colaborador.estado,
       sindicatoId: colaborador.sindicatoId || '',
+      projectId: colaborador.projectId || '',
       status: colaborador.status,
       dataAdmissao: colaborador.dataAdmissao ? colaborador.dataAdmissao.slice(0, 10) : new Date().toISOString().slice(0, 10),
     });
@@ -156,9 +170,16 @@ export default function RhPage() {
       cidade: form.cidade.trim(),
       estado: form.estado.trim().toUpperCase(),
       sindicatoId: form.sindicatoId.trim() || undefined,
+      projectId: form.projectId.trim(),
       status: form.status,
       dataAdmissao: form.dataAdmissao,
     };
+
+    if (!payload.projectId) {
+      setError('Selecione um projeto vinculado.');
+      setSaving(false);
+      return;
+    }
 
     try {
       if (editingId) {
@@ -312,6 +333,7 @@ export default function RhPage() {
                 <th className="px-6 py-4">Nome</th>
                 <th className="px-6 py-4">Cargo</th>
                 <th className="px-6 py-4">Local</th>
+                <th className="px-6 py-4">Projeto</th>
                 <th className="px-6 py-4">Taxa/Hora</th>
                 <th className="px-6 py-4">Admissão</th>
                 <th className="px-6 py-4">Status</th>
@@ -330,6 +352,7 @@ export default function RhPage() {
                   <td className="px-6 py-4 font-medium text-hw1-navy">{c.nome}</td>
                   <td className="px-6 py-4 text-gray-600">{c.cargo}</td>
                   <td className="px-6 py-4 text-gray-500">{c.cidade}/{c.estado}</td>
+                  <td className="px-6 py-4 text-gray-500 text-xs">{c.project ? `${c.project.codigo} – ${c.project.nome}` : '—'}</td>
                   <td className="px-6 py-4 text-gray-600">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(c.taxaHora)}/h
                   </td>
@@ -542,6 +565,23 @@ export default function RhPage() {
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
                     placeholder="Opcional"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Projeto Vinculado *</label>
+                  <select
+                    value={form.projectId}
+                    onChange={(e) => setForm({ ...form, projectId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+                    required
+                  >
+                    <option value="">Selecione um projeto</option>
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.codigo} – {p.nome}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

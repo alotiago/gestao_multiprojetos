@@ -22,6 +22,7 @@ import {
 import {
   BulkImportDespesaDto,
   BulkImportProvisaoDto,
+  BulkUpdateImpostoDto,
   CalculoTributarioSindicatoDto,
 } from './dto/bulk-operations.dto';
 
@@ -63,19 +64,36 @@ export class FinancialService {
     const where: any = {};
     if (filters.projectId) where.projectId = filters.projectId;
     if (filters.tipo) where.tipo = filters.tipo;
-    if (filters.mes) where.mes = filters.mes;
-    if (filters.ano) where.ano = filters.ano;
+    if (filters.mes) where.mes = Number(filters.mes);
+    if (filters.ano) where.ano = Number(filters.ano);
 
-    const despesas = await this.prisma.despesa.findMany({
-      where,
-      orderBy: [{ ano: 'desc' }, { mes: 'desc' }],
-    });
+    const page = filters.page ? Number(filters.page) : 1;
+    const limit = filters.limit ? Number(filters.limit) : 50;
+
+    const [despesas, total] = await Promise.all([
+      this.prisma.despesa.findMany({
+        where,
+        orderBy: [{ ano: 'desc' }, { mes: 'desc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          project: { select: { id: true, codigo: true, nome: true } },
+        },
+      }),
+      this.prisma.despesa.count({ where }),
+    ]);
 
     // Converte Decimal para número para o frontend
-    return despesas.map((d) => ({
-      ...d,
-      valor: Number(d.valor),
-    }));
+    return {
+      data: despesas.map((d) => ({
+        ...d,
+        valor: Number(d.valor),
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findDespesaById(id: string) {
@@ -715,6 +733,150 @@ export class FinancialService {
     };
   }
 
+  // ===================== BULK UPDATE IMPOSTOS =====================
+
+  async atualizarImpostosEmLote(dto: BulkUpdateImpostoDto, userId?: string) {
+    const detalhes: Array<{
+      indice: number;
+      status: string;
+      mensagem: string;
+      entityId?: string;
+    }> = [];
+    let sucessos = 0;
+    let erros = 0;
+    let avisos = 0;
+
+    // Cache de projetos validados
+    const projetosValidados = new Map<string, boolean>();
+
+    for (let i = 0; i < dto.items.length; i++) {
+      const item = dto.items[i];
+      const resultado: { indice: number; status: string; mensagem: string; entityId?: string } = {
+        indice: i + 1,
+        status: 'sucesso',
+        mensagem: '',
+      };
+
+      try {
+        // Validações de campos obrigatórios
+        if (!item.projectId || !item.tipo || item.aliquota === undefined || item.aliquota === null) {
+          resultado.status = 'erro';
+          resultado.mensagem = 'Campos obrigatórios faltando: projectId, tipo, aliquota';
+          erros++;
+          detalhes.push(resultado);
+          continue;
+        }
+
+        // Validar alíquota entre 0-100%
+        if (item.aliquota < 0 || item.aliquota > 100) {
+          resultado.status = 'erro';
+          resultado.mensagem = `Alíquota fora do intervalo: ${item.aliquota}%. Use valor entre 0-100`;
+          erros++;
+          detalhes.push(resultado);
+          continue;
+        }
+
+        // Validar projeto (com cache)
+        if (!projetosValidados.has(item.projectId)) {
+          const project = await this.prisma.project.findUnique({
+            where: { id: item.projectId },
+          });
+          projetosValidados.set(item.projectId, !!project);
+        }
+
+        if (!projetosValidados.get(item.projectId)) {
+          resultado.status = 'erro';
+          resultado.mensagem = `Projeto '${item.projectId}' não encontrado`;
+          erros++;
+          detalhes.push(resultado);
+          continue;
+        }
+
+        // Verificar se imposto existe
+        const impostoExistente = await this.prisma.imposto.findFirst({
+          where: {
+            projectId: item.projectId,
+            tipo: item.tipo,
+            mes: item.mes,
+            ano: item.ano,
+          },
+        });
+
+        if (!impostoExistente) {
+          // Se não existe, criar novo
+          const valor = new Decimal(item.aliquota); // Usar alíquota como valor base (pode ser calculado posteriormente)
+          const imposto = await this.prisma.imposto.create({
+            data: {
+              projectId: item.projectId,
+              tipo: item.tipo,
+              aliquota: new Decimal(item.aliquota),
+              valor,
+              mes: item.mes,
+              ano: item.ano,
+            },
+          });
+
+          resultado.status = 'aviso';
+          resultado.mensagem = `Imposto criado (não existia): ${item.tipo} - ${item.aliquota}%`;
+          resultado.entityId = imposto.id;
+          avisos++;
+        } else {
+          // Atualizar imposto existente
+          const valor = new Decimal(item.aliquota);
+          const imposto = await this.prisma.imposto.update({
+            where: { id: impostoExistente.id },
+            data: {
+              aliquota: new Decimal(item.aliquota),
+              valor,
+            },
+          });
+
+          resultado.status = 'sucesso';
+          resultado.mensagem = `Imposto ${item.tipo} atualizado: alíquota=${item.aliquota}%`;
+          resultado.entityId = imposto.id;
+          sucessos++;
+        }
+      } catch (error: any) {
+        resultado.status = 'erro';
+        resultado.mensagem = `Erro ao atualizar imposto: ${error.message}`;
+        erros++;
+      }
+
+      detalhes.push(resultado);
+    }
+
+    // Log de auditoria
+    if (userId) {
+      try {
+        await this.prisma.historicoCalculo.create({
+          data: {
+            projectId: dto.items[0]?.projectId || 'bulk',
+            tipo: 'bulk_update_impostos',
+            dadosAntes: { motivo: dto.motivo },
+            dadosDepois: {
+              totalProcessado: dto.items.length,
+              sucessos,
+              erros,
+              avisos,
+              descricao: dto.descricaoOperacao || 'Atualização em lote de impostos',
+            },
+            criadoPor: userId,
+          },
+        });
+      } catch {
+        // Log silencioso - não impede a operação
+      }
+    }
+
+    return {
+      totalProcessado: dto.items.length,
+      sucessos,
+      erros,
+      avisos,
+      detalhes,
+    };
+  }
+
   // ===================== IMPACTO TRIBUTÁRIO POR SINDICATO =====================
 
   async calcularImpactoTributarioSindicato(dto: CalculoTributarioSindicatoDto) {
@@ -1013,26 +1175,58 @@ export class FinancialService {
         });
       }
 
-      return this.prisma.receitaMensal.create({
-        data: {
-          projectId,
-          objetoContratualId,
-          linhaContratualId: data.linhaContratualId,
-          mes: data.mes,
-          ano: data.ano,
-          tipoReceita,
-          descricao,
-          unidade: linha.unidade,
-          quantidadePlanejada: new Decimal(quantidade),
-          valorUnitarioPlanejado: new Decimal(valorUnitario),
-          valorPlanejado: new Decimal(valorTotal),
-          quantidade: new Decimal(quantidade),
-          valorUnitario: new Decimal(valorUnitario),
-          valorPrevisto: new Decimal(valorTotal),
-          valorRealizado: data.valorRealizado ? new Decimal(data.valorRealizado) : new Decimal(0),
-          ativo: true,
-        },
-        include: this.receitaInclude,
+      return this.prisma.$transaction(async (tx) => {
+        const receita = await tx.receitaMensal.create({
+          data: {
+            projectId,
+            objetoContratualId,
+            linhaContratualId: data.linhaContratualId,
+            mes: data.mes,
+            ano: data.ano,
+            tipoReceita,
+            descricao,
+            unidade: linha.unidade,
+            quantidadePlanejada: new Decimal(quantidade),
+            valorUnitarioPlanejado: new Decimal(valorUnitario),
+            valorPlanejado: new Decimal(valorTotal),
+            quantidade: new Decimal(quantidade),
+            valorUnitario: new Decimal(valorUnitario),
+            valorPrevisto: new Decimal(valorTotal),
+            // RN-003: Quantidade e Valor Realizado
+            quantidadeRealizada: data.quantidadeRealizada ? new Decimal(data.quantidadeRealizada) : null,
+            valorUnitarioRealizado: data.quantidadeRealizada ? new Decimal(valorUnitario) : null,
+            valorRealizado: data.quantidadeRealizada
+              ? new Decimal(Math.round(Number(data.quantidadeRealizada) * valorUnitario * 100) / 100)
+              : new Decimal(data.valorRealizado || 0),
+            ativo: true,
+          },
+          include: this.receitaInclude,
+        });
+
+        // RN-003.B/C: Deduzir saldo da linha contratual
+        if (data.quantidadeRealizada && Number(data.quantidadeRealizada) > 0) {
+          const qtdReal = Number(data.quantidadeRealizada);
+          const vlReal = Math.round(qtdReal * valorUnitario * 100) / 100;
+          await tx.linhaContratual.update({
+            where: { id: data.linhaContratualId },
+            data: {
+              saldoQuantidade: { decrement: new Decimal(qtdReal) },
+              saldoValor: { decrement: new Decimal(vlReal) },
+            },
+          });
+
+          // RN-001: Deduzir saldo contratual do contrato
+          if (linha.objetoContratual?.contratoId) {
+            await tx.contrato.update({
+              where: { id: linha.objetoContratual.contratoId },
+              data: {
+                saldoContratual: { decrement: new Decimal(vlReal) },
+              },
+            });
+          }
+        }
+
+        return receita;
       });
     }
 

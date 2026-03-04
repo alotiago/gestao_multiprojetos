@@ -42,7 +42,7 @@ export class RelatoriosService {
       // Para cada mês do ano
       for (let mes = 1; mes <= 12; mes++) {
         // ═══════ ANO ATUAL ═══════
-        // Receitas
+        // Receitas (previsto + realizado)
         const receitas = await this.prisma.receitaMensal.aggregate({
           where: {
             projectId: { in: projectIds },
@@ -50,29 +50,32 @@ export class RelatoriosService {
             ano,
             ativo: true,
           },
-          _sum: { valorRealizado: true },
+          _sum: { valorPrevisto: true, valorRealizado: true },
         });
-        const receita = Number(receitas._sum.valorRealizado || 0);
+        const receitaPrevista = Number(receitas._sum.valorPrevisto || 0);
+        const receitaRealizada = Number(receitas._sum.valorRealizado || 0);
+        // Usa realizada se houver, senão usa prevista
+        const receita = receitaRealizada > 0 ? receitaRealizada : receitaPrevista;
 
-        // Custos Fixos
+        // Custos Fixos (facilities, aluguel, amortizacao, rateio)
         const custosFixos = await this.prisma.despesa.aggregate({
           where: {
             projectId: { in: projectIds },
             mes,
             ano,
-            tipo: 'FIXAS',
+            tipo: { in: ['facilities', 'aluguel', 'amortizacao', 'rateio'] },
           },
           _sum: { valor: true },
         });
         const custoFixo = Number(custosFixos._sum.valor || 0);
 
-        // Custos Variáveis
+        // Custos Variáveis (fornecedor, endomarketing, provisao, outros)
         const custosVariaveis = await this.prisma.despesa.aggregate({
           where: {
             projectId: { in: projectIds },
             mes,
             ano,
-            tipo: 'OPEX',
+            tipo: { in: ['fornecedor', 'endomarketing', 'provisao', 'outros'] },
           },
           _sum: { valor: true },
         });
@@ -86,6 +89,8 @@ export class RelatoriosService {
         metricas.push({
           mes,
           receita,
+          receitaPrevista,
+          receitaRealizada,
           custoFixo,
           custoVariavel,
           imposto,
@@ -107,9 +112,11 @@ export class RelatoriosService {
             ano: anoAnterior,
             ativo: true,
           },
-          _sum: { valorRealizado: true },
+          _sum: { valorPrevisto: true, valorRealizado: true },
         });
-        const receitaAnt = Number(receitasAnterior._sum.valorRealizado || 0);
+        const recPrevAnt = Number(receitasAnterior._sum.valorPrevisto || 0);
+        const recRealAnt = Number(receitasAnterior._sum.valorRealizado || 0);
+        const receitaAnt = recRealAnt > 0 ? recRealAnt : recPrevAnt;
 
         const custosTotaisAnterior = await this.prisma.despesa.aggregate({
           where: {
@@ -144,6 +151,17 @@ export class RelatoriosService {
 
       // Objetos Contratuais com valores agregados
       const objetosComValores: any[] = [];
+      // Pré-calcular custo total do contrato (rateado igualmente entre objetos)
+      const despesaTotalContrato = await this.prisma.despesa.aggregate({
+        where: {
+          projectId: { in: projectIds },
+          ano,
+        },
+        _sum: { valor: true },
+      });
+      const custoTotalContrato = Number(despesaTotalContrato._sum.valor || 0);
+      const qtdObjetos = contrato.objetos.length || 1;
+
       for (const objeto of contrato.objetos) {
         const receitas = await this.prisma.receitaMensal.aggregate({
           where: {
@@ -152,18 +170,14 @@ export class RelatoriosService {
             ano,
             ativo: true,
           },
-          _sum: { valorRealizado: true },
+          _sum: { valorPrevisto: true, valorRealizado: true },
         });
-        const receitaObjeto = Number(receitas._sum.valorRealizado || 0);
+        const recPrev = Number(receitas._sum.valorPrevisto || 0);
+        const recReal = Number(receitas._sum.valorRealizado || 0);
+        const receitaObjeto = recReal > 0 ? recReal : recPrev;
 
-        const despesas = await this.prisma.despesa.aggregate({
-          where: {
-            projectId: { in: projectIds },
-            ano,
-          },
-          _sum: { valor: true },
-        });
-        const custoObjeto = Number(despesas._sum.valor || 0);
+        // Ratear custo proporcionalmente entre objetos
+        const custoObjeto = Math.round((custoTotalContrato / qtdObjetos) * 100) / 100;
 
         objetosComValores.push({
           id: objeto.id,

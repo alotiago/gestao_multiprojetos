@@ -16,6 +16,9 @@ const mockPrisma = {
   sindicato: {
     findUnique: jest.fn(),
   },
+  project: {
+    findUnique: jest.fn(),
+  },
   jornada: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
@@ -124,10 +127,12 @@ describe('HrService', () => {
       cidade: 'São Paulo',
       estado: 'SP',
       dataAdmissao: '2024-01-01',
+      projectId: 'proj-001',
     };
 
     it('deve criar colaborador com sucesso', async () => {
       mockPrisma.colaborador.findFirst.mockResolvedValue(null);
+      mockPrisma.project.findUnique.mockResolvedValue({ id: 'proj-001', nome: 'Projeto Teste' });
       mockPrisma.colaborador.create.mockResolvedValue({ ...mockColaborador, ...dto });
 
       const result = await service.create(dto);
@@ -142,6 +147,7 @@ describe('HrService', () => {
 
     it('deve lançar NotFoundException se sindicato não existe', async () => {
       mockPrisma.colaborador.findFirst.mockResolvedValue(null);
+      mockPrisma.project.findUnique.mockResolvedValue({ id: 'proj-001', nome: 'Projeto Teste' });
       mockPrisma.sindicato.findUnique.mockResolvedValue(null);
 
       const dtoComSindicato = { ...dto, sindicatoId: 'sind-999' };

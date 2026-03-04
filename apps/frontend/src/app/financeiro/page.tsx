@@ -180,8 +180,15 @@ export default function FinanceiroPage() {
     if (selectedProjectId && selectedProjectId !== '') url += `&projectId=${selectedProjectId}`;
     api
       .get(url)
-      .then((r) => setDespesas(r.data?.data ?? r.data ?? []))
-      .catch(() => setError('Não foi possível carregar as despesas.'))
+      .then((r) => {
+        const items = r.data?.data ?? r.data ?? [];
+        setDespesas(Array.isArray(items) ? items : []);
+      })
+      .catch((err) => {
+        const msg = err?.response?.data?.message || 'Não foi possível carregar as despesas.';
+        console.error('Erro despesas:', { url, status: err?.response?.status, message: msg });
+        setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      })
       .finally(() => setLoading(false));
   };
 
@@ -192,8 +199,15 @@ export default function FinanceiroPage() {
     if (selectedProjectId && selectedProjectId !== '') url += `&projectId=${selectedProjectId}`;
     api
       .get(url)
-      .then((r) => setReceitas(r.data?.data ?? r.data ?? []))
-      .catch(() => setError('Não foi possível carregar as receitas.'))
+      .then((r) => {
+        const items = r.data?.data ?? r.data ?? [];
+        setReceitas(Array.isArray(items) ? items : []);
+      })
+      .catch((err) => {
+        const msg = err?.response?.data?.message || 'Não foi possível carregar as receitas.';
+        console.error('Erro receitas:', { url, status: err?.response?.status, message: msg });
+        setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      })
       .finally(() => setLoading(false));
   };
 
@@ -361,7 +375,11 @@ export default function FinanceiroPage() {
       payload.objetoContratualId = form.objetoContratualId;
       payload.linhaContratualId = form.linhaContratualId;
       payload.quantidade = Number(form.quantidade);
-      payload.valorRealizado = Number(form.valorRealizado);
+      // RN-003: Quantidade Realizada e Valor Realizado calculado
+      if ((form as any).quantidadeRealizada && Number((form as any).quantidadeRealizada) > 0) {
+        payload.quantidadeRealizada = Number((form as any).quantidadeRealizada);
+      }
+      payload.valorRealizado = Number(form.valorRealizado || 0);
       // Backend calcula valorPrevisto = quantidade × valorUnitario
     } else {
       payload.valorPrevisto = Number(form.valorPrevisto);
@@ -931,7 +949,7 @@ export default function FinanceiroPage() {
                     })()}
 
                     <div>
-                      <label className="block text-xs text-gray-500 mb-1">Quantidade do Período *</label>
+                      <label className="block text-xs text-gray-500 mb-1">Quantidade do Período Previsto *</label>
                       <input
                         type="number"
                         step="0.01"
@@ -955,16 +973,26 @@ export default function FinanceiroPage() {
                             <p className="text-[10px] text-gray-400 mt-0.5">= {form.quantidade} × {linhaSel ? formatBRL(Number(linhaSel.valorUnitario)) : ''}</p>
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-500 mb-1">Valor Realizado (Contrato) *</label>
+                            <label className="block text-xs text-gray-500 mb-1">Quantidade do Período Realizado</label>
                             <input
                               type="number"
                               step="0.01"
-                              value={form.valorRealizado}
-                              onChange={(e) => setForm({ ...form, valorRealizado: e.target.value })}
-                              placeholder="0.00"
+                              value={(form as any).quantidadeRealizada || ''}
+                              onChange={(e) => setForm({ ...form, quantidadeRealizada: e.target.value } as any)}
+                              placeholder="Opcional"
                               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
-                              required
                             />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Valor Realizado (Contrato)</label>
+                            <div className="w-full px-3 py-2 border border-gray-100 bg-blue-50 rounded-xl text-sm font-semibold text-blue-700">
+                              {(form as any).quantidadeRealizada && linhaSel
+                                ? formatBRL(Number((form as any).quantidadeRealizada) * Number(linhaSel.valorUnitario))
+                                : '—'}
+                            </div>
+                            {(form as any).quantidadeRealizada && linhaSel && (
+                              <p className="text-[10px] text-gray-400 mt-0.5">= {(form as any).quantidadeRealizada} × {formatBRL(Number(linhaSel.valorUnitario))}</p>
+                            )}
                           </div>
                         </>
                       );

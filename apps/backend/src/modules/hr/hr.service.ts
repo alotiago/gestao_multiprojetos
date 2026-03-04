@@ -64,6 +64,7 @@ export class HrService {
         orderBy: { [sortBy]: order },
         include: {
           sindicato: { select: { id: true, nome: true, regiao: true } },
+          project: { select: { id: true, nome: true, codigo: true } },
           _count: { select: { jornadas: true, ferias: true, custos: true } },
         },
       }),
@@ -89,6 +90,7 @@ export class HrService {
       },
       include: {
         sindicato: true,
+        project: { select: { id: true, nome: true, codigo: true } },
         jornadas: {
           orderBy: [{ ano: 'desc' }, { mes: 'desc' }],
           take: 12,
@@ -140,6 +142,16 @@ export class HrService {
       }
     }
 
+    // RN-004: Validar vínculo com projeto
+    if (dto.projectId) {
+      const project = await this.prisma.project.findUnique({
+        where: { id: dto.projectId },
+      });
+      if (!project) {
+        throw new NotFoundException(`Projeto '${dto.projectId}' não encontrado`);
+      }
+    }
+
     return this.prisma.colaborador.create({
       data: {
         ...dto,
@@ -149,6 +161,7 @@ export class HrService {
       },
       include: {
         sindicato: { select: { id: true, nome: true } },
+        project: { select: { id: true, nome: true, codigo: true } },
       },
     });
   }
@@ -165,6 +178,16 @@ export class HrService {
       }
     }
 
+    // RN-004: Validar vínculo com projeto
+    if (dto.projectId) {
+      const project = await this.prisma.project.findUnique({
+        where: { id: dto.projectId },
+      });
+      if (!project) {
+        throw new NotFoundException(`Projeto '${dto.projectId}' não encontrado`);
+      }
+    }
+
     const updateData: any = { ...dto };
     if (dto.taxaHora !== undefined) updateData.taxaHora = new Decimal(dto.taxaHora);
 
@@ -173,6 +196,7 @@ export class HrService {
       data: updateData,
       include: {
         sindicato: { select: { id: true, nome: true } },
+        project: { select: { id: true, nome: true, codigo: true } },
       },
     });
   }
@@ -225,6 +249,7 @@ export class HrService {
           cidade: row['cidade'],
           estado: row['estado'],
           sindicatoId: row['sindicatoid'] || undefined,
+          projectId: row['projectid'] || '',
           dataAdmissao: row['dataadmissao'],
         };
 
