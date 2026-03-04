@@ -45,6 +45,23 @@ enum TipoContratacao {
   TERCEIRIZADO
 }
 
+enum TipoRecalculo {
+  IMPOSTO
+  CALENDARIO
+  TAXA_COLABORADOR
+  JORNADA
+  DISSIDIO
+  BULK_UPDATE
+}
+
+enum StatusRecalculo {
+  INICIADO
+  PROCESSANDO
+  CONCLUIDO
+  FALHOU
+  CANCELADO
+}
+
 // ============= MODELS =============
 
 /// Usuários do sistema
@@ -65,6 +82,7 @@ model User {
   // Relations
   projects          ProjectUser[]
   auditLogs         AuditLog[]
+  historicoRecalculos HistoricoRecalculo[]
 
   @@map("users")
   @@index([email])
@@ -136,6 +154,7 @@ model Project {
   impostos          Imposto[]
   provisoes         Provisao[]
   historico         HistoricoCalculo[]
+  colaboradores     Colaborador[]
 
   @@map("projects")
   @@index([unitId])
@@ -173,6 +192,9 @@ model Contrato {
   
   status            String    @default("RASCUNHO") // RASCUNHO, ATIVO, ENCERRADO, CANCELADO
   observacoes       String?
+  
+  // Saldo deduzido automaticamente pelas receitas (RN-001)
+  saldoContratual   Decimal   @db.Decimal(15, 2) @default(0) @map("saldo_contratual")
   
   ativo             Boolean   @default(true)
   createdAt         DateTime  @default(now())
@@ -227,6 +249,10 @@ model LinhaContratual {
   quantidadeAnualEstimada Decimal   @db.Decimal(15, 2)
   valorUnitario           Decimal   @db.Decimal(15, 2)
   valorTotalAnual         Decimal   @db.Decimal(15, 2) // AUTO: qtd × valorUnit
+  
+  // Saldos deduzidos pelas receitas realizadas (RN-003)
+  saldoQuantidade         Decimal   @db.Decimal(15, 2) @default(0) @map("saldo_quantidade")
+  saldoValor              Decimal   @db.Decimal(15, 2) @default(0) @map("saldo_valor")
   
   ativo                   Boolean   @default(true)
   createdAt               DateTime  @default(now())
@@ -304,6 +330,10 @@ model Colaborador {
   sindicatoId       String?
   sindicato         Sindicato? @relation(fields: [sindicatoId], references: [id])
   
+  // Vínculo obrigatório com Projeto (RN-004)
+  projectId         String?   @map("project_id")
+  project           Project?  @relation(fields: [projectId], references: [id])
+  
   status            UserStatus @default(ATIVO)
   dataAdmissao      DateTime
   dataDesligamento  DateTime?
@@ -321,6 +351,7 @@ model Colaborador {
   @@map("colaboradores")
   @@index([status])
   @@index([sindicatoId])
+  @@index([projectId])
 }
 
 /// Jornadas/Horas de Trabalho
@@ -444,15 +475,25 @@ model Imposto {
 model Sindicato {
   id                String    @id @default(cuid())
   nome              String    @unique
-  regiao            String
+  sigla             String?
+  regiao            String    // Ex: "SP", "RJ", "Nacional"
   
+  // Dados trabalhistas
   percentualDissidio Decimal  @db.Decimal(8, 4) @default(0)
   dataDissidio      DateTime?
-  regimeTributario  String    // Ex: "CPRB", "híbrido"
+  regimeTributario  String?   // Ex: "LUCRO_REAL", "LUCRO_PRESUMIDO", "SIMPLES_NACIONAL", "CPRB"
   
+  // Contato
+  contacto          String?
+  telefone          String?
+  email             String?
+  
+  // Observações
   descricao         String?
+  observacoes       String?
   ativo             Boolean   @default(true)
   
+  criadoPor         String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -467,22 +508,34 @@ model Sindicato {
 model Calendario {
   id                String    @id @default(cuid())
   data              DateTime
+  nome              String    // Ex: "Carnaval", "Corpus Christi"
   
   tipoFeriado       FeriadoType
   descricao         String
   
   cidade            String?
-  estado            String?
+  estado            String?   // Ex: "SP", "RJ", null = nacional
   
   diaSemana         Int       // 0-6 (segunda-domingo)
   nacional          Boolean   @default(false)
   
+  // Controles adicionais
+  ehFeriado         Boolean   @default(true)
+  ehRecuperavel     Boolean   @default(false)  // Pont facultativo
+  percentualDesc    Decimal   @db.Decimal(5, 2) @default(100) // 100% = dia inteiro, 50% = meio período
+  
+  observacoes       String?
+  criadoPor         String?
+  ativo             Boolean   @default(true)
+  
   createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@unique([data, tipoFeriado, cidade, estado])
   @@map("calendarios")
   @@index([data])
   @@index([estado])
+  @@index([data, estado])
 }
 
 /// Índices Financeiros
@@ -580,4 +633,34 @@ model RefreshTokenSession {
   @@map("refresh_token_sessions")
   @@index([userId])
   @@index([expiresAt])
+}
+
+/// Histórico de Recálculos em Cascata (Sprint 8)
+model HistoricoRecalculo {
+  id              String    @id @default(cuid())
+  tipo            TipoRecalculo
+  entidadeId      String    // ID da entidade alterada
+  entidadeTipo    String    // "Imposto", "Colaborador", "Calendario", etc
+  
+  usuarioId       String
+  usuario         User      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  
+  dataInicio      DateTime  @default(now())
+  dataFim         DateTime?
+  status          StatusRecalculo
+  
+  totalAfetados   Int       @default(0)
+  processados     Int       @default(0)
+  erros           Int       @default(0)
+  
+  detalhes        Json      // Array de objetos com detalhes das entidades recalculadas
+  mensagemErro    String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("historico_recalculos")
+  @@index([tipo, status])
+  @@index([usuarioId])
+  @@index([createdAt])
 }

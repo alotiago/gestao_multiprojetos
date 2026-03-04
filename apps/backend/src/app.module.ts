@@ -13,6 +13,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { OperationsModule } from './modules/operations/operations.module';
 import { CalendarioModule } from './modules/calendario/calendario.module';
 import { SindicatoModule } from './modules/sindicato/sindicato.module';
+import { RecalculoModule } from './modules/recalculo/recalculo.module';
 import { UnitsModule } from './modules/units/units.module';
 import { ContractsModule } from './modules/contracts/contracts.module';
 import { RelatoriosModule } from './modules/relatorios/relatorios.module';
@@ -39,6 +40,7 @@ import { RelatoriosModule } from './modules/relatorios/relatorios.module';
     OperationsModule,
     CalendarioModule,
     SindicatoModule,
+    RecalculoModule,
     UnitsModule,
     ContractsModule,
     RelatoriosModule,
