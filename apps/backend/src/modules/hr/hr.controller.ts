@@ -14,7 +14,9 @@ import {
   HttpCode,
   HttpStatus,
   Request,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { HrService } from './hr.service';
 import { CreateColaboradorDto } from './dto/create-colaborador.dto';
@@ -82,6 +84,17 @@ export class HrController {
 
   // ===================== IMPORTAÇÃO CSV =====================
 
+  @Get('importar/template')
+  @Permissions(Permission.RESOURCE_LIST)
+  downloadTemplate(@Res() res: Response) {
+    const buffer = this.hrService.gerarTemplateExcel();
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': 'attachment; filename="template_colaboradores.xlsx"',
+    });
+    res.send(buffer);
+  }
+
   @Post('importar/csv')
   @Permissions(Permission.RESOURCE_CREATE)
   @UseInterceptors(FileInterceptor('file'))
@@ -91,6 +104,16 @@ export class HrController {
     }
     const csvContent = file.buffer.toString('utf-8');
     return this.hrService.importarCSV(csvContent);
+  }
+
+  @Post('importar/excel')
+  @Permissions(Permission.RESOURCE_CREATE)
+  @UseInterceptors(FileInterceptor('file'))
+  async importarExcel(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new Error('Arquivo Excel não fornecido');
+    }
+    return this.hrService.importarExcel(file.buffer);
   }
 
   // ===================== JORNADAS =====================

@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { $Enums } from '@prisma/client';
+import * as xlsx from 'xlsx';
 
 @Injectable()
 export class ContractsService {
@@ -94,6 +95,7 @@ export class ContractsService {
       ...contrato,
       objetos: objetosComTotais,
       valorTotalContratado: new Decimal(Math.round(totalContratado * 100) / 100),
+      saldoContratual: Number(contrato.saldoContratual || 0),
     };
   }
 
@@ -303,6 +305,33 @@ export class ContractsService {
   }
 
   /**
+   * Helper RN-001: Recalcula saldoContratual de um contrato
+   * Saldo = soma de todos os saldoValor de todas as linhas contratuais ativas do contrato
+   */
+  private async recalcularSaldoContratual(contratoId: string) {
+    const objetos = await this.prisma.objetoContratual.findMany({
+      where: { contratoId, ativo: true },
+      include: {
+        linhasContratuais: {
+          where: { ativo: true },
+          select: { saldoValor: true },
+        },
+      },
+    });
+
+    let totalSaldo = 0;
+    for (const obj of objetos) {
+      const saldoObjeto = obj.linhasContratuais.reduce((s, l) => s + Number(l.saldoValor), 0);
+      totalSaldo += saldoObjeto;
+    }
+
+    await this.prisma.contrato.update({
+      where: { id: contratoId },
+      data: { saldoContratual: new Decimal(Math.round(totalSaldo * 100) / 100) },
+    });
+  }
+
+  /**
    * US 2.1: Criar objeto contratual
    */
   async createObjeto(data: {
@@ -454,6 +483,9 @@ export class ContractsService {
         quantidadeAnualEstimada: qtd,
         valorUnitario: vUnit,
         valorTotalAnual,
+        // RN-003: Inicializar saldos com valores totais
+        saldoQuantidade: qtd,
+        saldoValor: valorTotalAnual,
         ativo: true,
       },
       include: {
@@ -465,6 +497,9 @@ export class ContractsService {
 
     // Recalcular total do objeto
     await this.recalcularTotalObjeto(data.objetoContratualId);
+
+    // RN-001: Recalcular saldo contratual do contrato
+    await this.recalcularSaldoContratual(created.objetoContratual.contratoId);
 
     return created;
   }
@@ -514,6 +549,9 @@ export class ContractsService {
 
     // Recalcular total do objeto
     await this.recalcularTotalObjeto(linha.objetoContratualId);
+
+    // RN-001: Recalcular saldo contratual do contrato
+    await this.recalcularSaldoContratual(updated.objetoContratual.contratoId);
 
     // US 4.2: Se mudou valor unitário, recalcular receitas futuras
     if (data.valorUnitario !== undefined) {
@@ -696,5 +734,386 @@ export class ContractsService {
       valorTotalContratado: totalContratado,
       objetos,
     };
+  }
+
+  // ═══════════════════════════════════════════
+  //  IMPORTAÇÃO EXCEL (US-044)
+  // ═══════════════════════════════════════════
+
+  /**
+   * US-044: Gerar template Excel com 3 abas + exemplos
+   */
+  gerarTemplateExcel(): Buffer {
+    const wb = xlsx.utils.book_new();
+
+    const wsContratos = xlsx.utils.json_to_sheet([
+      {
+        numeroContrato: 'CTR-2026-001',
+        nomeContrato: 'Contrato Exemplo',
+        cliente: 'Cliente S.A.',
+        dataInicio: '01/01/2026',
+        dataFim: '31/12/2026',
+        observacoes: '',
+      },
+    ]);
+    xlsx.utils.book_append_sheet(wb, wsContratos, 'Contratos');
+
+    const wsObjetos = xlsx.utils.json_to_sheet([
+      {
+        numeroContrato: 'CTR-2026-001',
+        nomeObjeto: 'Objeto 1',
+        descricao: 'Primeiro lote de entregas',
+        dataInicio: '01/01/2026',
+        dataFim: '30/06/2026',
+        observacoes: '',
+      },
+    ]);
+    xlsx.utils.book_append_sheet(wb, wsObjetos, 'Objetos');
+
+    const wsLinhas = xlsx.utils.json_to_sheet([
+      {
+        numeroContrato: 'CTR-2026-001',
+        nomeObjeto: 'Objeto 1',
+        descricaoItem: 'Horas de consultoria',
+        unidade: 'HORA',
+        quantidadeAnualEstimada: 1000,
+        valorUnitario: 150.0,
+      },
+    ]);
+    xlsx.utils.book_append_sheet(wb, wsLinhas, 'Linhas');
+
+    return xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+  }
+
+  /**
+   * US-044: Importar contratos completos via Excel
+   * Planilha com 3 abas: Contratos, Objetos, Linhas
+   */
+  async importarExcel(
+    buffer: Buffer,
+  ): Promise<{ imported: number; skipped: number; totalObjetos: number; totalLinhas: number; errors: string[]; warnings: string[] }> {
+    const workbook = xlsx.read(buffer, { type: 'buffer' });
+
+    // RN-EP1-044.2: Validar abas obrigatórias
+    const abaContratos = workbook.Sheets['Contratos'];
+    const abaObjetos = workbook.Sheets['Objetos'];
+    const abaLinhas = workbook.Sheets['Linhas'];
+
+    if (!abaContratos || !abaObjetos || !abaLinhas) {
+      throw new BadRequestException(
+        'Planilha deve conter as 3 abas obrigatórias: Contratos, Objetos, Linhas',
+      );
+    }
+
+    // Parse + normalizar headers (case-insensitive)
+    const parseSheet = (sheet: xlsx.WorkSheet) => {
+      const raw: Record<string, any>[] = xlsx.utils.sheet_to_json(sheet, { defval: '' });
+      return raw.map((row) => {
+        const normalized: Record<string, any> = {};
+        for (const key of Object.keys(row)) {
+          normalized[key.trim().toLowerCase()] = row[key];
+        }
+        return normalized;
+      });
+    };
+
+    const contratos = parseSheet(abaContratos);
+    const objetos = parseSheet(abaObjetos);
+    const linhas = parseSheet(abaLinhas);
+
+    // RN-EP1-044.3: Validar headers obrigatórios
+    if (contratos.length === 0) {
+      throw new BadRequestException('Aba Contratos está vazia');
+    }
+
+    const UNIDADES_VALIDAS = [
+      'BIRÔ/MÊS', 'CAIXA-20KG', 'CONSULTA/MÊS', 'DIÁRIA', 'DOCUMENTO',
+      'GB/MÊS', 'HORA', 'HORA DE ASSESSORIA', 'IMAGEM',
+      'KM (LIMITADO A 500 CAIXAS)', 'LICENÇA MENSAL', 'MÊS', 'MES',
+      'METRO LINEAR', 'PACOTE', 'PESSOA', 'PROJETO', 'SERVIÇO',
+      'UND', 'UNIDADE', 'UNIDADE DOCUMENTAL (UP)',
+      'UNIDADES DE ARQUIVAMENTO (UA)', 'USUÁRIO POR MÊS', 'OUTRO',
+    ];
+
+    let imported = 0;
+    let skipped = 0;
+    let totalObjetos = 0;
+    let totalLinhas = 0;
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Debug: informar quantas linhas foram lidas em cada aba
+    if (objetos.length === 0) {
+      warnings.push('⚠ Aba "Objetos" está vazia — nenhum objeto será importado');
+    }
+    if (linhas.length === 0) {
+      warnings.push('⚠ Aba "Linhas" está vazia — nenhuma linha contratual será importada');
+    } else {
+      // Verificar se headers esperados existem na aba Linhas
+      const primeiraLinha = linhas[0];
+      const keysLinhas = Object.keys(primeiraLinha);
+      const headersEsperados = ['numerocontrato', 'nomeobjeto', 'descricaoitem', 'unidade', 'quantidadeanualestimada', 'valorunitario'];
+      const headersFaltando = headersEsperados.filter(h => !keysLinhas.includes(h));
+      if (headersFaltando.length > 0) {
+        warnings.push(`⚠ Aba "Linhas": colunas não encontradas: ${headersFaltando.join(', ')}. Colunas existentes: ${keysLinhas.join(', ')}`);
+      }
+    }
+
+    // RN-EP1-044.11: Processamento transacional por contrato
+    for (let i = 0; i < contratos.length; i++) {
+      const row = contratos[i];
+      const rowNum = i + 2; // Linha na planilha (1-indexed + header)
+      const numContrato = String(row['numerocontrato'] || '').trim();
+
+      if (!numContrato) {
+        skipped++;
+        errors.push(`Contratos linha ${rowNum}: campo 'numeroContrato' vazio`);
+        continue;
+      }
+
+      const nomeContrato = String(row['nomecontrato'] || '').trim();
+      const cliente = String(row['cliente'] || '').trim();
+      const dataInicioRaw = row['datainicio'];
+
+      if (!nomeContrato || !cliente || !dataInicioRaw) {
+        skipped++;
+        errors.push(
+          `Contratos linha ${rowNum} (${numContrato}): campos obrigatórios faltando (nomeContrato, cliente, dataInicio)`,
+        );
+        continue;
+      }
+
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          // RN-EP1-044.5: Verificar duplicidade
+          const exists = await tx.contrato.findFirst({
+            where: { numeroContrato: numContrato, ativo: true },
+          });
+          if (exists) {
+            throw new ConflictException(
+              `Contrato '${numContrato}' já existe`,
+            );
+          }
+
+          const dataInicio = this.parseExcelDate(dataInicioRaw);
+          const dataFimRaw = row['datafim'];
+          const dataFim = dataFimRaw ? this.parseExcelDate(dataFimRaw) : null;
+          const obs = String(row['observacoes'] || '').substring(0, 500) || null;
+
+          // RN-EP1-044.10: Status sempre RASCUNHO
+          const contrato = await tx.contrato.create({
+            data: {
+              nomeContrato,
+              cliente,
+              numeroContrato: numContrato,
+              dataInicio,
+              dataFim,
+              observacoes: obs,
+              status: 'RASCUNHO',
+              ativo: true,
+            },
+          });
+
+          // Objetos deste contrato
+          const objetosDoContrato = objetos.filter(
+            (o) => String(o['numerocontrato'] || '').trim() === numContrato,
+          );
+
+          for (let j = 0; j < objetosDoContrato.length; j++) {
+            const objRow = objetosDoContrato[j];
+            const nomeObjeto = String(objRow['nomeobjeto'] || '').trim();
+            const descricao = String(objRow['descricao'] || '').trim();
+
+            if (!nomeObjeto || !descricao) {
+              throw new BadRequestException(
+                `Objeto '${nomeObjeto || '(vazio)'}': campos obrigatórios faltando (nomeObjeto, descricao)`,
+              );
+            }
+
+            // RN-EP1-044.7: Nome duplicado dentro do contrato
+            const objDup = await tx.objetoContratual.findFirst({
+              where: { contratoId: contrato.id, nome: nomeObjeto, ativo: true },
+            });
+            if (objDup) {
+              throw new ConflictException(
+                `Objeto '${nomeObjeto}' duplicado no contrato '${numContrato}'`,
+              );
+            }
+
+            const objDataInicio = objRow['datainicio']
+              ? this.parseExcelDate(objRow['datainicio'])
+              : null;
+            const objDataFim = objRow['datafim']
+              ? this.parseExcelDate(objRow['datafim'])
+              : null;
+
+            const objeto = await tx.objetoContratual.create({
+              data: {
+                contratoId: contrato.id,
+                nome: nomeObjeto,
+                descricao,
+                dataInicio: objDataInicio,
+                dataFim: objDataFim,
+                observacoes: String(objRow['observacoes'] || '') || null,
+                ativo: true,
+              },
+            });
+
+            totalObjetos++;
+
+            // Linhas deste objeto
+            const linhasDoObjeto = linhas.filter(
+              (l) =>
+                String(l['numerocontrato'] || '').trim().toLowerCase() === numContrato.toLowerCase() &&
+                String(l['nomeobjeto'] || '').trim().toLowerCase() === nomeObjeto.toLowerCase(),
+            );
+
+            if (linhasDoObjeto.length === 0 && linhas.length > 0) {
+              warnings.push(
+                `⚠ Objeto '${nomeObjeto}' (contrato '${numContrato}'): nenhuma linha encontrada na aba Linhas`,
+              );
+            }
+
+            for (let k = 0; k < linhasDoObjeto.length; k++) {
+              const linRow = linhasDoObjeto[k];
+              const descItem = String(linRow['descricaoitem'] || '').trim();
+              const unidadeRaw = String(linRow['unidade'] || '').trim().toUpperCase();
+              const qtdRaw = Number(linRow['quantidadeanualestimada']);
+              const valUnitRaw = Number(linRow['valorunitario']);
+
+              if (!descItem) {
+                throw new BadRequestException(
+                  `Linha do objeto '${nomeObjeto}': campo 'descricaoItem' vazio`,
+                );
+              }
+
+              // RN-EP1-044.9: Validar unidade
+              const unidade = unidadeRaw === 'MES' ? 'MÊS' : unidadeRaw;
+              if (!UNIDADES_VALIDAS.includes(unidade)) {
+                throw new BadRequestException(
+                  `Linha '${descItem}': unidade inválida '${unidadeRaw}'. Valores: ${UNIDADES_VALIDAS.join(', ')}`,
+                );
+              }
+
+              if (!qtdRaw || qtdRaw <= 0) {
+                throw new BadRequestException(
+                  `Linha '${descItem}': quantidadeAnualEstimada deve ser > 0`,
+                );
+              }
+              if (isNaN(valUnitRaw) || valUnitRaw < 0) {
+                throw new BadRequestException(
+                  `Linha '${descItem}': valorUnitario inválido`,
+                );
+              }
+
+              // RN-EP1-044.8: Cálculo automático
+              const qtd = new Decimal(qtdRaw);
+              const valUnit = new Decimal(valUnitRaw);
+              const valorTotal = qtd.mul(valUnit);
+
+              await tx.linhaContratual.create({
+                data: {
+                  objetoContratualId: objeto.id,
+                  descricaoItem: descItem,
+                  unidade,
+                  quantidadeAnualEstimada: qtd,
+                  valorUnitario: valUnit,
+                  valorTotalAnual: valorTotal,
+                  saldoQuantidade: qtd,
+                  saldoValor: valorTotal,
+                  ativo: true,
+                },
+              });
+              totalLinhas++;
+            }
+
+            // Recalcular total do objeto
+            const linhasObj = await tx.linhaContratual.findMany({
+              where: { objetoContratualId: objeto.id, ativo: true },
+              select: { valorTotalAnual: true },
+            });
+            const totalObj = linhasObj.reduce(
+              (s, l) => s + Number(l.valorTotalAnual),
+              0,
+            );
+            await tx.objetoContratual.update({
+              where: { id: objeto.id },
+              data: {
+                valorTotalContratado: new Decimal(
+                  Math.round(totalObj * 100) / 100,
+                ),
+              },
+            });
+          }
+
+          // RN-EP1-044.8: Recalcular saldo do contrato
+          const todosObjetos = await tx.objetoContratual.findMany({
+            where: { contratoId: contrato.id, ativo: true },
+            include: {
+              linhasContratuais: {
+                where: { ativo: true },
+                select: { saldoValor: true },
+              },
+            },
+          });
+          let totalSaldo = 0;
+          for (const obj of todosObjetos) {
+            totalSaldo += obj.linhasContratuais.reduce(
+              (s, l) => s + Number(l.saldoValor),
+              0,
+            );
+          }
+          await tx.contrato.update({
+            where: { id: contrato.id },
+            data: {
+              saldoContratual: new Decimal(
+                Math.round(totalSaldo * 100) / 100,
+              ),
+            },
+          });
+        });
+
+        imported++;
+      } catch (err: any) {
+        skipped++;
+        errors.push(
+          `Contratos linha ${rowNum} (${numContrato}): ${err.message || String(err)}`,
+        );
+      }
+    }
+
+    return { imported, skipped, totalObjetos, totalLinhas, errors, warnings };
+  }
+
+  /**
+   * Helper: Parse data do Excel (DD/MM/AAAA, ISO, ou serial number)
+   */
+  private parseExcelDate(value: any): Date {
+    if (value instanceof Date) return value;
+
+    if (typeof value === 'number') {
+      // Excel serial number
+      const epoch = new Date(1899, 11, 30);
+      return new Date(epoch.getTime() + value * 86400000);
+    }
+
+    const str = String(value).trim();
+
+    // DD/MM/AAAA
+    const brMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (brMatch) {
+      return new Date(
+        Number(brMatch[3]),
+        Number(brMatch[2]) - 1,
+        Number(brMatch[1]),
+      );
+    }
+
+    // ISO or other parseable format
+    const parsed = new Date(str);
+    if (isNaN(parsed.getTime())) {
+      throw new BadRequestException(`Data inválida: '${str}'`);
+    }
+    return parsed;
   }
 }

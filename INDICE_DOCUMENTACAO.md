@@ -16,6 +16,12 @@
   → Guia prático com tarefas específicas para Sprint 5-10
   → Inclui templates reutilizáveis de código
 
+### Bugs & Regras de Negócio
+- [Bugs e Regras de Negócio — 03/03/2026](docs/BUGS_REGRAS_NEGOCIO_03_03_2026.md) 🐛 **ACHADOS DE TESTE**  
+  → 7 defeitos/requisitos em Relatórios, Contratos e Financeiro
+  → BUG-001 a BUG-004 + RN-001 a RN-003
+  → Impacto em modelos Prisma e endpoints
+
 ### Status & Progresso
 - [Sumário Executivo](SUMARIO_EXECUTIVO.md) 🎯 **RESUMO ATUAL**  
   → Melhor para entender o estado atual do projeto

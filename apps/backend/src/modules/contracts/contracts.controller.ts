@@ -7,11 +7,17 @@ import {
   Param,
   Body,
   Query,
+  Res,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Response } from 'express';
 import { ContractsService } from './contracts.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -192,6 +198,38 @@ export class ContractsController {
   @ApiOperation({ summary: 'Desativar linha contratual - US 3.3' })
   async deleteLinha(@Param('id') id: string) {
     return this.contractsService.deleteLinha(id);
+  }
+
+  // ═══════════════════════════════════════════
+  //  IMPORTAÇÃO EXCEL (US-044)
+  // ═══════════════════════════════════════════
+
+  @Get('import/template')
+  @ApiOperation({ summary: 'Download template Excel para importação de contratos - US 044' })
+  async downloadTemplate(@Res() res: Response) {
+    const buffer = this.contractsService.gerarTemplateExcel();
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': 'attachment; filename=template_contratos.xlsx',
+    });
+    res.send(buffer);
+  }
+
+  @Post('import/excel')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Importar contratos via Excel (.xlsx) - US 044' })
+  @UseInterceptors(FileInterceptor('file'))
+  async importarExcel(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('Arquivo não fornecido');
+    }
+    if (!file.originalname.toLowerCase().endsWith('.xlsx')) {
+      throw new BadRequestException('Apenas arquivos .xlsx são aceitos');
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      throw new BadRequestException('Arquivo excede o tamanho máximo de 5 MB');
+    }
+    return this.contractsService.importarExcel(file.buffer);
   }
 
   // ═══════════════════════════════════════════

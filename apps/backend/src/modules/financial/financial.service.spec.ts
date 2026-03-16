@@ -15,9 +15,32 @@ const mockPrisma = {
     update: jest.fn(),
     delete: jest.fn(),
   },
+  receitaMensal: {
+    findMany: jest.fn(),
+    findFirst: jest.fn(),
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    count: jest.fn(),
+  },
+  linhaContratual: {
+    findUnique: jest.fn(),
+    update: jest.fn(),
+  },
+  contrato: {
+    update: jest.fn(),
+  },
+  aliquotaRegime: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  },
   imposto: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
@@ -90,6 +113,14 @@ describe('FinancialService', () => {
 
     service = module.get<FinancialService>(FinancialService);
     jest.clearAllMocks();
+    mockPrisma.aliquotaRegime.findMany.mockResolvedValue([]);
+    mockPrisma.$transaction.mockImplementation(async (input: any) => {
+      if (typeof input === 'function') {
+        return input(mockPrisma);
+      }
+
+      return Promise.all(input);
+    });
   });
 
   // ===================== DESPESAS =====================
@@ -125,6 +156,75 @@ describe('FinancialService', () => {
           ano: 2026,
         }),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('deve replicar despesa para os meses seguintes com virada de ano', async () => {
+      mockPrisma.project.findUnique.mockResolvedValue(mockProject);
+      mockPrisma.despesa.create
+        .mockResolvedValueOnce({ ...mockDespesa, id: 'desp-011', mes: 11, ano: 2026 })
+        .mockResolvedValueOnce({ ...mockDespesa, id: 'desp-012', mes: 12, ano: 2026 })
+        .mockResolvedValueOnce({ ...mockDespesa, id: 'desp-013', mes: 1, ano: 2027 });
+
+      const result = await service.createDespesa({
+        projectId: 'proj-001',
+        tipo: TipoDespesa.FACILITIES,
+        descricao: 'Licença recorrente',
+        valor: 5000,
+        mes: 11,
+        ano: 2026,
+        mesesAdicionais: 2,
+      });
+
+      expect(result.totalCriados).toBe(3);
+      expect(result.competenciaInicial).toBe('11/2026');
+      expect(result.competenciaFinal).toBe('01/2027');
+      expect(result.items).toHaveLength(3);
+    });
+  });
+
+  describe('createReceita', () => {
+    it('deve replicar receita manual para os meses seguintes', async () => {
+      mockPrisma.project.findUnique.mockResolvedValue(mockProject);
+      mockPrisma.receitaMensal.findFirst.mockResolvedValue(null);
+      mockPrisma.receitaMensal.create
+        .mockResolvedValueOnce({ id: 'rec-001', mes: 11, ano: 2026, valorPrevisto: 1500, valorRealizado: 1000 })
+        .mockResolvedValueOnce({ id: 'rec-002', mes: 12, ano: 2026, valorPrevisto: 1500, valorRealizado: 1000 })
+        .mockResolvedValueOnce({ id: 'rec-003', mes: 1, ano: 2027, valorPrevisto: 1500, valorRealizado: 1000 });
+
+      const result = await service.createReceita({
+        projectId: 'proj-001',
+        tipoReceita: 'Serviços',
+        descricao: 'Receita recorrente',
+        valorPrevisto: 1500,
+        valorRealizado: 1000,
+        mes: 11,
+        ano: 2026,
+        mesesAdicionais: 2,
+      });
+
+      expect('totalCriados' in result && result.totalCriados).toBe(3);
+      expect('competenciaFinal' in result && result.competenciaFinal).toBe('01/2027');
+      expect('items' in result && result.items).toHaveLength(3);
+    });
+
+    it('deve bloquear replicação quando já existir receita em um dos meses', async () => {
+      mockPrisma.project.findUnique.mockResolvedValue(mockProject);
+      mockPrisma.receitaMensal.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'rec-existente', mes: 12, ano: 2026 });
+
+      await expect(
+        service.createReceita({
+          projectId: 'proj-001',
+          tipoReceita: 'Serviços',
+          descricao: 'Receita recorrente',
+          valorPrevisto: 1500,
+          valorRealizado: 1000,
+          mes: 11,
+          ano: 2026,
+          mesesAdicionais: 1,
+        }),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
@@ -488,6 +588,124 @@ describe('FinancialService', () => {
       });
 
       expect(result.erros).toBe(1);
+    });
+  });
+
+  // ===================== BULK UPDATE IMPOSTOS =====================
+
+  describe('atualizarImpostosEmLote', () => {
+    it('deve atualizar múltiplos impostos com sucesso', async () => {
+      mockPrisma.project.findUnique.mockResolvedValue(mockProject);
+      mockPrisma.imposto.findFirst.mockResolvedValue(mockImposto);
+      mockPrisma.imposto.update.mockResolvedValue({
+        ...mockImposto,
+        aliquota: 0.08,
+      });
+      mockPrisma.historicoCalculo.create.mockResolvedValue({});
+
+      const result = await service.atualizarImpostosEmLote({
+        items: [
+          {
+            projectId: 'proj-001',
+            tipo: TipoImposto.ISS,
+            aliquota: 8,
+            mes: 1,
+            ano: 2026,
+          },
+        ],
+        motivo: 'Ajuste de alíquota ISS',
+      }, 'user-001');
+
+      expect(result.totalProcessado).toBe(1);
+      expect(result.sucessos).toBe(1);
+      expect(result.erros).toBe(0);
+    });
+
+    it('deve validar alíquota entre 0-100%', async () => {
+      mockPrisma.project.findUnique.mockResolvedValue(mockProject);
+
+      const result = await service.atualizarImpostosEmLote({
+        items: [
+          {
+            projectId: 'proj-001',
+            tipo: TipoImposto.ISS,
+            aliquota: 150,
+            mes: 1,
+            ano: 2026,
+          },
+        ],
+      });
+
+      expect(result.erros).toBe(1);
+      expect(result.detalhes[0].mensagem).toContain('fora do intervalo');
+    });
+
+    it('deve criar novo imposto se não existir', async () => {
+      mockPrisma.project.findUnique.mockResolvedValue(mockProject);
+      mockPrisma.imposto.findFirst.mockResolvedValue(null);
+      mockPrisma.imposto.create.mockResolvedValue({
+        id: 'imp-novo',
+        projectId: 'proj-001',
+        tipo: TipoImposto.IRPJ,
+        aliquota: 0.15,
+        valor: 0.15,
+        mes: 1,
+        ano: 2026,
+      });
+      mockPrisma.historicoCalculo.create.mockResolvedValue({});
+
+      const result = await service.atualizarImpostosEmLote({
+        items: [
+          {
+            projectId: 'proj-001',
+            tipo: TipoImposto.IRPJ,
+            aliquota: 15,
+            mes: 1,
+            ano: 2026,
+          },
+        ],
+      }, 'user-001');
+
+      expect(result.avisos).toBe(1);
+      expect(result.detalhes[0].mensagem).toContain('criado');
+    });
+
+    it('deve reportar erro para alíquota inválida (vazia)', async () => {
+      mockPrisma.project.findUnique.mockResolvedValue(mockProject);
+
+      const result = await service.atualizarImpostosEmLote({
+        items: [
+          {
+            projectId: 'proj-001',
+            tipo: TipoImposto.ISS,
+            aliquota: null as any,
+            mes: 1,
+            ano: 2026,
+          },
+        ],
+      });
+
+      expect(result.erros).toBe(1);
+      expect(result.detalhes[0].mensagem).toContain('obrigatórios');
+    });
+
+    it('deve reportar erro para projeto inexistente', async () => {
+      mockPrisma.project.findUnique.mockResolvedValue(null);
+
+      const result = await service.atualizarImpostosEmLote({
+        items: [
+          {
+            projectId: 'nao-existe',
+            tipo: TipoImposto.ISS,
+            aliquota: 5,
+            mes: 1,
+            ano: 2026,
+          },
+        ],
+      });
+
+      expect(result.erros).toBe(1);
+      expect(result.detalhes[0].mensagem).toContain('não encontrado');
     });
   });
 

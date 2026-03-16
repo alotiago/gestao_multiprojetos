@@ -50,6 +50,13 @@ export class CreateDespesaDto {
   @Max(2100)
   @Type(() => Number)
   ano!: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(36)
+  @IsOptional()
+  @Type(() => Number)
+  mesesAdicionais?: number;
 }
 
 export class UpdateDespesaDto {
@@ -100,4 +107,14 @@ export class FilterDespesaDto {
   @IsOptional()
   @Type(() => Number)
   ano?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  page?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  limit?: number;
 }

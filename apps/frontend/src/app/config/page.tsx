@@ -1,9 +1,34 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import api from '@/services/api';
+
+interface ProjectInfo {
+  id: string;
+  nome: string;
+  codigo: string;
+}
 
 export default function ConfigPage() {
   const router = useRouter();
+  const [projects, setProjects] = useState<ProjectInfo[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoadingProjects(true);
+    api.get('/projects')
+      .then((res) => setProjects(Array.isArray(res.data) ? res.data : res.data?.data ?? []))
+      .catch(() => setProjects([]))
+      .finally(() => setLoadingProjects(false));
+  }, []);
+
+  const copyToClipboard = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   return (
     <div className="space-y-6">
@@ -12,7 +37,7 @@ export default function ConfigPage() {
         <p className="text-sm text-gray-500 mt-0.5">Calendários, sindicatos e índices financeiros</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           {
             title: 'Calendário de Feriados',
@@ -35,6 +60,27 @@ export default function ConfigPage() {
             color: '#35277D',
             href: '/config/indices',
           },
+          {
+            title: 'Usuários e Acessos',
+            description: 'CRUD completo de usuários com níveis de acesso e status.',
+            icon: '🔐',
+            color: '#E52287',
+            href: '/config/usuarios',
+          },
+          {
+            title: 'Impostos',
+            description: 'Cadastro e cálculo de tributos por projeto: ISS, PIS, COFINS, IRPJ, CSLL e mais.',
+            icon: '🧾',
+            color: '#F97316',
+            href: '/config/impostos',
+          },
+          {
+            title: 'Alíquotas por Regime',
+            description: 'Configure alíquotas de PIS, COFINS, IRPJ, CSLL, ISS por regime tributário.',
+            icon: '⚖️',
+            color: '#8B5CF6',
+            href: '/config/aliquotas',
+          },
         ].map((item) => (
           <button
             key={item.title}
@@ -56,6 +102,49 @@ export default function ConfigPage() {
             </div>
           </button>
         ))}
+      </div>
+
+      {/* Consulta de IDs de Projetos */}
+      <div className="hw1-card">
+        <h2 className="font-heading font-semibold text-hw1-navy mb-1">Projetos Cadastrados</h2>
+        <p className="text-sm text-gray-500 mb-4">Consulte o ID dos projetos para uso em importações e integrações.</p>
+        {loadingProjects ? (
+          <p className="text-sm text-gray-400">Carregando projetos...</p>
+        ) : projects.length === 0 ? (
+          <p className="text-sm text-gray-400">Nenhum projeto cadastrado.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 text-left text-xs text-gray-500 uppercase">
+                  <th className="py-2 pr-4">Código</th>
+                  <th className="py-2 pr-4">Nome</th>
+                  <th className="py-2 pr-4">ID (projectId)</th>
+                  <th className="py-2 w-20">Copiar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projects.map((p) => (
+                  <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-2 pr-4 font-mono text-hw1-blue font-semibold">{p.codigo}</td>
+                    <td className="py-2 pr-4 text-gray-700">{p.nome}</td>
+                    <td className="py-2 pr-4">
+                      <code className="text-xs bg-gray-100 px-2 py-1 rounded select-all">{p.id}</code>
+                    </td>
+                    <td className="py-2">
+                      <button
+                        onClick={() => copyToClipboard(p.id)}
+                        className="text-xs px-3 py-1 rounded-lg bg-hw1-blue text-white hover:bg-hw1-navy transition-colors"
+                      >
+                        {copiedId === p.id ? '✓ Copiado' : '📋 Copiar'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="hw1-card">

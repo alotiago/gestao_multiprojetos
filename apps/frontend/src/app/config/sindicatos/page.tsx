@@ -16,9 +16,9 @@ interface Sindicato {
 
 interface SimulacaoResult {
   salarioBase: number;
-  encargos: Record<string, { percentual: number; valor: number }>;
+  encargos: Array<{ tipo: string; percentual: number; valor: number }>;
   totalEncargos: number;
-  custoTotal: number;
+  custoTotalMensal: number;
   percentualEncargos: number;
   dissidio?: { percentual: number; salarioReajustado: number };
   custoHora?: number;
@@ -35,7 +35,7 @@ interface RegiaoRelatorio {
 const formatBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-const formatPct = (v: number) => `${v.toFixed(2)}%`;
+const formatPct = (v: number | string) => `${Number(v || 0).toFixed(2)}%`;
 
 /* â”€â”€ componente â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export default function SindicatosPage() {
@@ -81,7 +81,15 @@ export default function SindicatosPage() {
     setLoading(true);
     api
       .get('/sindicatos')
-      .then((r) => setSindicatos(r.data?.data ?? r.data ?? []))
+      .then((r) => {
+        const items = r.data?.data ?? r.data ?? [];
+        const normalized = (Array.isArray(items) ? items : []).map((s: any) => ({
+          ...s,
+          percentualDissidio: Number(s?.percentualDissidio ?? 0),
+          regimeTributario: s?.regimeTributario || 'LUCRO_PRESUMIDO',
+        }));
+        setSindicatos(normalized);
+      })
       .catch(() => setError('NÃ£o foi possÃ­vel carregar os sindicatos.'))
       .finally(() => setLoading(false));
   }, []);
@@ -172,10 +180,11 @@ export default function SindicatosPage() {
     try {
       const res = await api.post('/sindicatos/simulacao/impacto-financeiro', {
         salarioBase: parseFloat(simForm.salarioBase),
-        cargaHoraria: parseInt(simForm.cargaHoraria),
+        cargaHorariaMensal: parseInt(simForm.cargaHoraria),
         sindicatoId: simForm.sindicatoId || undefined,
       });
-      setSimResult(res.data);
+      const sim = res.data?.simulacao ?? res.data;
+      setSimResult(sim);
     } catch {
       setError('Erro ao executar simulaÃ§Ã£o.');
     } finally {
@@ -187,7 +196,14 @@ export default function SindicatosPage() {
   const handleLoadRegioes = async () => {
     try {
       const res = await api.get('/sindicatos/relatorio/regioes');
-      setRegioes(res.data?.data ?? res.data ?? []);
+      const payload = res.data?.data ?? res.data ?? {};
+      const entries = Object.entries(payload?.regioes ?? {}).map(([regiao, info]: [string, any]) => ({
+        regiao,
+        totalSindicatos: Number(info?.sindicatos ?? 0),
+        mediaPercentualDissidio: Number(info?.mediaDissidio ?? 0),
+        sindicatos: [],
+      }));
+      setRegioes(entries);
       setShowRegioes(true);
     } catch {
       setError('Erro ao carregar relatÃ³rio por regiÃµes.');
@@ -339,7 +355,7 @@ export default function SindicatosPage() {
                 </div>
                 <div className="rounded-xl p-3 text-center bg-hw1-blue text-white">
                   <p className="text-xs text-white/70 mb-1">Custo Total</p>
-                  <p className="text-lg font-heading font-semibold">{formatBRL(simResult.custoTotal)}</p>
+                  <p className="text-lg font-heading font-semibold">{formatBRL(simResult.custoTotalMensal)}</p>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-3 text-center">
                   <p className="text-xs text-gray-500 mb-1">% Encargos</p>
@@ -350,10 +366,10 @@ export default function SindicatosPage() {
                 <div className="bg-gray-50 rounded-xl p-4">
                   <p className="text-xs text-gray-500 mb-2 font-semibold uppercase">Detalhamento de Encargos</p>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-                    {Object.entries(simResult.encargos).map(([key, val]) => (
-                      <div key={key} className="flex justify-between px-2">
-                        <span className="text-gray-600">{key}</span>
-                        <span className="font-medium text-hw1-navy">{formatBRL(val.valor)} <span className="text-xs text-gray-400">({formatPct(val.percentual)})</span></span>
+                    {simResult.encargos.map((encargo) => (
+                      <div key={encargo.tipo} className="flex justify-between px-2">
+                        <span className="text-gray-600">{encargo.tipo}</span>
+                        <span className="font-medium text-hw1-navy">{formatBRL(Number(encargo.valor || 0))} <span className="text-xs text-gray-400">({formatPct(encargo.percentual)})</span></span>
                       </div>
                     ))}
                   </div>
@@ -427,7 +443,7 @@ export default function SindicatosPage() {
                   <td className="px-6 py-4">
                     <span className="hw1-badge-blue">{formatPct(s.percentualDissidio)}</span>
                   </td>
-                  <td className="px-6 py-4 text-gray-500 text-xs">{s.regimeTributario.replace(/_/g, ' ')}</td>
+                  <td className="px-6 py-4 text-gray-500 text-xs">{String(s.regimeTributario || '').replace(/_/g, ' ')}</td>
                   <td className="px-6 py-4 text-gray-600">{s._count?.colaboradores ?? 'â€”'}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex justify-center gap-3">

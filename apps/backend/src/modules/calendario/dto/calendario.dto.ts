@@ -7,6 +7,7 @@ import {
   IsInt,
   IsBoolean,
   IsArray,
+  IsNumber,
   ValidateNested,
   ArrayMinSize,
   Min,
@@ -23,6 +24,10 @@ export enum TipoFeriado {
 export class CreateCalendarioDto {
   @IsDateString()
   data!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  nome!: string; // Ex: "Carnaval", "Corpus Christi"
 
   @IsEnum(TipoFeriado)
   tipoFeriado!: TipoFeriado;
@@ -48,9 +53,36 @@ export class CreateCalendarioDto {
   @IsBoolean()
   @IsOptional()
   nacional?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  ehFeriado?: boolean; // true = feriado oficial, false = pont facultativo
+
+  @IsBoolean()
+  @IsOptional()
+  ehRecuperavel?: boolean; // true = pont recuperável
+
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @IsOptional()
+  @Type(() => Number)
+  percentualDesc?: number; // 100 = dia inteiro, 50 = meio período
+
+  @IsString()
+  @IsOptional()
+  observacoes?: string;
+
+  @IsString()
+  @IsOptional()
+  criadoPor?: string;
 }
 
 export class UpdateCalendarioDto {
+  @IsString()
+  @IsOptional()
+  nome?: string;
+
   @IsString()
   @IsOptional()
   descricao?: string;
@@ -66,6 +98,25 @@ export class UpdateCalendarioDto {
   @IsString()
   @IsOptional()
   estado?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  ehFeriado?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  ehRecuperavel?: boolean;
+
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @IsOptional()
+  @Type(() => Number)
+  percentualDesc?: number;
+
+  @IsString()
+  @IsOptional()
+  observacoes?: string;
 }
 
 export class FilterCalendarioDto {
@@ -115,6 +166,10 @@ export class BulkFeriadoItemDto {
   @IsDateString()
   data!: string;
 
+  @IsString()
+  @IsNotEmpty()
+  nome!: string;
+
   @IsEnum(TipoFeriado)
   tipoFeriado!: TipoFeriado;
 
@@ -139,6 +194,25 @@ export class BulkFeriadoItemDto {
   @IsBoolean()
   @IsOptional()
   nacional?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  ehFeriado?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  ehRecuperavel?: boolean;
+
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @IsOptional()
+  @Type(() => Number)
+  percentualDesc?: number;
+
+  @IsString()
+  @IsOptional()
+  observacoes?: string;
 }
 
 export class BulkImportFeriadoDto {

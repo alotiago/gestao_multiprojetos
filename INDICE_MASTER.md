@@ -71,8 +71,9 @@ docs/SPRINT_2_RBAC_IMPLEMENTATION_GUIDE.md ← 💡 How-to guide (15 min)
 | 8 | **STATUS_SPRINT_2.md** | 500 | Métricas + status |
 | 9 | **SESSAO_01_03_2026.md** | 400 | Session report |
 | 10 | **FASE_2_SPRINT_2_PROGRESSO.md** | ~350 | Progress details |
+| 11 | **BUGS_REGRAS_NEGOCIO_03_03_2026.md** | ~350 | 🐛 Bugs e regras de negócio (7 achados) |
 
-**Total `/docs/`**: 10 docs | 4400 linhas
+**Total `/docs/`**: 11 docs | 4750 linhas
 
 ### Código & Configuração (4 arquivos novos)
 

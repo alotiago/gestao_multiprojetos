@@ -59,6 +59,10 @@ export class UpdateColaboradorDto {
   @IsOptional()
   sindicatoId?: string;
 
+  @IsString()
+  @IsOptional()
+  projectId?: string;
+
   @IsEnum(UserStatus)
   @IsOptional()
   status?: UserStatus;

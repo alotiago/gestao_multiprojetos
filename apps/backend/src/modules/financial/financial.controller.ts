@@ -11,7 +11,13 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  UseInterceptors,
+  UploadedFile,
+  Res,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import { FinancialService } from './financial.service';
 import { CreateDespesaDto, UpdateDespesaDto, FilterDespesaDto } from './dto/despesa.dto';
 import {
@@ -26,8 +32,10 @@ import { CreateReceitaDto, UpdateReceitaDto } from './dto/receita.dto';
 import {
   BulkImportDespesaDto,
   BulkImportProvisaoDto,
+  BulkUpdateImpostoDto,
   CalculoTributarioSindicatoDto,
 } from './dto/bulk-operations.dto';
+import { CreateAliquotaRegimeDto, UpdateAliquotaRegimeDto } from './dto/aliquota-regime.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions/permissions.guard';
 import { Permissions } from '../auth/permissions/permissions.decorator';
@@ -41,6 +49,43 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagg
 export class FinancialController {
   constructor(private readonly financialService: FinancialService) {}
 
+  // ===================== ALÍQUOTAS POR REGIME =====================
+
+  @Get('aliquotas-regime')
+  @ApiOperation({ summary: 'Listar alíquotas por regime tributário' })
+  @Permissions(Permission.FINANCIAL_READ)
+  findAliquotasRegime(@Query('regime') regime?: string) {
+    return this.financialService.findAliquotasRegime(regime);
+  }
+
+  @Post('aliquotas-regime')
+  @ApiOperation({ summary: 'Criar alíquota para um regime' })
+  @Permissions(Permission.FINANCIAL_CREATE)
+  createAliquotaRegime(@Body() dto: CreateAliquotaRegimeDto) {
+    return this.financialService.createAliquotaRegime(dto);
+  }
+
+  @Put('aliquotas-regime/:id')
+  @ApiOperation({ summary: 'Atualizar alíquota' })
+  @Permissions(Permission.FINANCIAL_UPDATE)
+  updateAliquotaRegime(@Param('id') id: string, @Body() dto: UpdateAliquotaRegimeDto) {
+    return this.financialService.updateAliquotaRegime(id, dto);
+  }
+
+  @Delete('aliquotas-regime/:id')
+  @ApiOperation({ summary: 'Excluir alíquota' })
+  @Permissions(Permission.FINANCIAL_DELETE)
+  deleteAliquotaRegime(@Param('id') id: string) {
+    return this.financialService.deleteAliquotaRegime(id);
+  }
+
+  @Post('aliquotas-regime/seed')
+  @ApiOperation({ summary: 'Seed alíquotas padrão', description: 'Popula tabela com valores padrão (idempotente)' })
+  @Permissions(Permission.FINANCIAL_CREATE)
+  seedAliquotasRegime() {
+    return this.financialService.seedAliquotasRegime();
+  }
+
   // ===================== DESPESAS =====================
 
   @Get('despesas')
@@ -48,6 +93,42 @@ export class FinancialController {
   @Permissions(Permission.FINANCIAL_LIST)
   findDespesas(@Query() filters: FilterDespesaDto) {
     return this.financialService.findDespesas(filters);
+  }
+
+  @Get('despesas/template')
+  @ApiOperation({ summary: 'Baixar template Excel para importação de despesas' })
+  @Permissions(Permission.FINANCIAL_LIST)
+  baixarTemplateDespesas(@Res() res: Response) {
+    const buffer = this.financialService.gerarTemplateDespesas();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="template_despesas.xlsx"');
+    res.setHeader('Content-Length', buffer.length.toString());
+    res.send(buffer);
+  }
+
+  @Post('despesas/upload')
+  @ApiOperation({ 
+    summary: 'Importar despesas via upload de planilha Excel',
+    description: 'Upload de arquivo .xlsx/.xls com validação (máx 5MB, 1000 linhas). Retorna erros por linha.'
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(HttpStatus.OK)
+  @Permissions(Permission.FINANCIAL_CREATE)
+  @ApiResponse({ status: 200, description: 'Importação concluída com sucesso' })
+  @ApiResponse({ status: 400, description: 'Arquivo inválido ou erros de validação' })
+  uploadDespesas(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Arquivo não enviado. Selecione um .xlsx/.xls para importar.');
+    }
+
+    return this.financialService.importarDespesasViaExcel(
+      file.buffer,
+      file.originalname,
+      req.user?.sub,
+    );
   }
 
   @Get('despesas/:id')
@@ -221,6 +302,14 @@ export class FinancialController {
   @Permissions(Permission.FINANCIAL_CREATE)
   importarProvisoesEmLote(@Body() dto: BulkImportProvisaoDto, @Req() req: any) {
     return this.financialService.importarProvisoesEmLote(dto, req.user?.sub);
+  }
+
+  @Post('impostos/bulk-update')
+  @ApiOperation({ summary: 'Atualizar impostos em lote', description: 'Bulk update com validação de alíquota 0-100% e detecção de novos' })
+  @HttpCode(HttpStatus.OK)
+  @Permissions(Permission.FINANCIAL_UPDATE)
+  atualizarImpostosEmLote(@Body() dto: BulkUpdateImpostoDto, @Req() req: any) {
+    return this.financialService.atualizarImpostosEmLote(dto, req.user?.sub);
   }
 
   // ===================== IMPACTO TRIBUTÁRIO =====================

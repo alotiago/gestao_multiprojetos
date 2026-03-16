@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CreateStatusReportDto, UpdateStatusReportDto, CreateGoLiveDto, UpdateGoLiveDto } from './dto/cockpit.dto';
 
 @Injectable()
 export class DashboardService {
@@ -459,5 +460,324 @@ export class DashboardService {
         margem: Number(margem.toFixed(2)),
       };
     });
+  }
+
+  // =============================================================
+  // COCKPIT DO SÓCIO — Agregação C-Level
+  // =============================================================
+
+  async getCockpitData(ano: number) {
+    const projetos = await this.prisma.project.findMany({
+      where: { ativo: true },
+      include: {
+        receitas: { where: { ano, ativo: true } },
+        custos: { where: { ano } },
+        despesas: { where: { ano } },
+        impostos: { where: { ano } },
+        statusReports: { where: { vigente: true }, take: 1 },
+      },
+    });
+
+    // ── Big Numbers ──
+    let totalReceitaRealizada = 0;
+    let totalReceitaPrevista = 0;
+    let totalCustos = 0;
+    let receitaEmRisco = 0;
+    let projetosEmRisco = 0;
+
+    const portfolioItems = projetos.map((p) => {
+      const recPrev = p.receitas.reduce((s, r) => s + Number(r.valorPrevisto), 0);
+      const recReal = p.receitas.reduce((s, r) => s + Number(r.valorRealizado), 0);
+      const custoPessoal = p.custos.reduce((s, c) => s + Number(c.custoFixo) + Number(c.custoVariavel), 0);
+      const despesas = p.despesas.reduce((s, d) => s + Number(d.valor), 0);
+      const impostos = p.impostos.reduce((s, i) => s + Number(i.valor), 0);
+      const custoTotal = custoPessoal + despesas + impostos;
+      const margem = recReal > 0 ? ((recReal - custoTotal) / recReal) * 100 : 0;
+
+      totalReceitaRealizada += recReal;
+      totalReceitaPrevista += recPrev;
+      totalCustos += custoTotal;
+
+      const sr = p.statusReports[0];
+      const statusHealth = sr?.status || (margem >= 30 ? 'green' : margem >= 15 ? 'yellow' : 'red');
+
+      if (statusHealth === 'red' || statusHealth === 'yellow') {
+        receitaEmRisco += recPrev;
+        projetosEmRisco++;
+      }
+
+      return {
+        id: p.id,
+        nome: `${p.cliente} — ${p.nome}`,
+        status: statusHealth,
+        margem: Number(margem.toFixed(1)),
+        gargalo: sr?.gargalo || (statusHealth === 'green' ? '—' : 'Sem report cadastrado'),
+        acaoCLevel: sr?.acaoCLevel || (statusHealth === 'green' ? 'Nenhuma ação necessária' : 'Cadastrar Status Report'),
+        detalheGargalo: sr?.detalheGargalo || '',
+      };
+    });
+
+    // Sort: red → yellow → green
+    const statusOrder: Record<string, number> = { red: 0, yellow: 1, green: 2 };
+    portfolioItems.sort((a, b) => (statusOrder[a.status] ?? 2) - (statusOrder[b.status] ?? 2));
+
+    const margemGlobal = totalReceitaRealizada > 0
+      ? ((totalReceitaRealizada - totalCustos) / totalReceitaRealizada) * 100
+      : 0;
+
+    // ── Economia OPEX (despesas mês atual vs mês anterior) ──
+    const mesAtual = new Date().getMonth() + 1;
+    const despesasMesAtual = projetos.reduce((s, p) =>
+      s + p.despesas.filter((d) => d.mes === mesAtual).reduce((ss, d) => ss + Number(d.valor), 0), 0);
+    const despesasMesAnterior = projetos.reduce((s, p) =>
+      s + p.despesas.filter((d) => d.mes === mesAtual - 1).reduce((ss, d) => ss + Number(d.valor), 0), 0);
+    const economiaOpex = despesasMesAnterior - despesasMesAtual;
+
+    // ── Big Numbers formatados ──
+    const bigNumbers = [
+      {
+        id: 'faturamento',
+        label: 'Faturamento',
+        value: totalReceitaRealizada,
+        formattedValue: this.formatCurrency(totalReceitaRealizada),
+        meta: `Meta: ${this.formatCurrency(totalReceitaPrevista)}`,
+        type: 'currency',
+        variant: 'default',
+        icon: '💰',
+      },
+      {
+        id: 'margem',
+        label: 'Margem Líquida',
+        value: Number(margemGlobal.toFixed(1)),
+        formattedValue: `${margemGlobal.toFixed(1)}%`,
+        meta: 'Meta: ≥ 30%',
+        type: 'percent',
+        variant: margemGlobal >= 30 ? 'success' : 'danger',
+        icon: '📈',
+      },
+      {
+        id: 'receita-risco',
+        label: 'Receita em Risco',
+        value: receitaEmRisco,
+        formattedValue: this.formatCurrency(receitaEmRisco),
+        meta: `${projetosEmRisco} projeto(s) impactado(s)`,
+        type: 'currency',
+        variant: receitaEmRisco > 0 ? 'danger' : 'success',
+        icon: '⚠️',
+      },
+      {
+        id: 'economia-opex',
+        label: 'Economia OPEX',
+        value: economiaOpex,
+        formattedValue: this.formatCurrency(Math.abs(economiaOpex)),
+        meta: economiaOpex >= 0 ? 'vs. mês anterior' : 'aumento vs. mês anterior',
+        type: 'currency',
+        variant: economiaOpex >= 0 ? 'success' : 'warning',
+        icon: '💎',
+      },
+    ];
+
+    // ── Status Updates (últimos 3 reports por projeto) ──
+    const portfolioWithUpdates = await Promise.all(
+      portfolioItems.map(async (item) => {
+        const updates = await this.prisma.projectStatusReport.findMany({
+          where: { projectId: item.id },
+          orderBy: { dataReport: 'desc' },
+          take: 3,
+          select: { dataReport: true, gargalo: true, status: true },
+        });
+        return {
+          ...item,
+          statusUpdates: updates.map((u) => ({
+            date: u.dataReport.toISOString().split('T')[0],
+            text: u.gargalo || `Status: ${u.status}`,
+          })),
+        };
+      }),
+    );
+
+    // ── Burn Rate (receita vs custos por mês, últimos 4 + projeção 2) ──
+    const burnRate = await this.calcBurnRate(ano, projetos);
+
+    // ── Go-Live Pipeline ──
+    const goLiveData = await this.getGoLivePipeline();
+
+    return {
+      bigNumbers,
+      portfolio: portfolioWithUpdates,
+      burnRate,
+      goLive: goLiveData,
+    };
+  }
+
+  private async calcBurnRate(ano: number, projetos: any[]) {
+    const mesAtual = new Date().getMonth() + 1;
+
+    const pontos: { mes: string; receita: number; custos: number; projetado: boolean }[] = [];
+    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+    // Últimos 4 meses realizados
+    for (let offset = 3; offset >= 0; offset--) {
+      let m = mesAtual - offset;
+      let a = ano;
+      if (m <= 0) { m += 12; a--; }
+
+      const receita = projetos.reduce(
+        (s, p) => s + p.receitas.filter((r: any) => r.mes === m && r.ano === a).reduce((ss: number, r: any) => ss + Number(r.valorRealizado), 0), 0,
+      );
+      const custos = projetos.reduce(
+        (s, p) => {
+          const cp = p.custos.filter((c: any) => c.mes === m && c.ano === a).reduce((ss: number, c: any) => ss + Number(c.custoFixo) + Number(c.custoVariavel), 0);
+          const dp = p.despesas.filter((d: any) => d.mes === m && d.ano === a).reduce((ss: number, d: any) => ss + Number(d.valor), 0);
+          const ip = p.impostos.filter((i: any) => i.mes === m && i.ano === a).reduce((ss: number, i: any) => ss + Number(i.valor), 0);
+          return s + cp + dp + ip;
+        }, 0,
+      );
+
+      pontos.push({ mes: `${meses[m - 1]}/${String(a).slice(2)}`, receita, custos, projetado: false });
+    }
+
+    // Projeção 2 meses (média simples dos últimos 3)
+    const lastN = pontos.slice(-3);
+    const avgReceita = lastN.reduce((s, p) => s + p.receita, 0) / (lastN.length || 1);
+    const avgCustos = lastN.reduce((s, p) => s + p.custos, 0) / (lastN.length || 1);
+    for (let offset = 1; offset <= 2; offset++) {
+      let m = mesAtual + offset;
+      let a = ano;
+      if (m > 12) { m -= 12; a++; }
+      pontos.push({
+        mes: `${meses[m - 1]}/${String(a).slice(2)}`,
+        receita: Math.round(avgReceita * (1 + 0.03 * offset)),
+        custos: Math.round(avgCustos * (1 + 0.01 * offset)),
+        projetado: true,
+      });
+    }
+
+    return pontos;
+  }
+
+  private async getGoLivePipeline() {
+    const hoje = new Date();
+    const em30 = new Date();
+    em30.setDate(em30.getDate() + 30);
+    const em60 = new Date();
+    em60.setDate(em60.getDate() + 60);
+
+    const goLives = await this.prisma.projectGoLive.findMany({
+      where: { concluido: false },
+      include: { project: { select: { nome: true, cliente: true } } },
+      orderBy: { dataGoLive: 'asc' },
+    });
+
+    const proximos30 = goLives
+      .filter((g) => g.dataGoLive <= em30)
+      .map((g) => ({
+        id: g.id,
+        cliente: `${g.project.cliente} — ${g.descricao || g.project.nome}`,
+        dataGoLive: g.dataGoLive.toISOString().split('T')[0],
+        atrasado: g.dataGoLive < hoje,
+      }));
+
+    const proximos60 = goLives
+      .filter((g) => g.dataGoLive > em30 && g.dataGoLive <= em60)
+      .map((g) => ({
+        id: g.id,
+        cliente: `${g.project.cliente} — ${g.descricao || g.project.nome}`,
+        dataGoLive: g.dataGoLive.toISOString().split('T')[0],
+        atrasado: g.dataGoLive < hoje,
+      }));
+
+    return { proximos30, proximos60 };
+  }
+
+  private formatCurrency(value: number): string {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      maximumFractionDigits: 2,
+    }).format(value);
+  }
+
+  // =============================================================
+  // CRUD — Status Reports
+  // =============================================================
+
+  async findStatusReports(projectId?: string) {
+    return this.prisma.projectStatusReport.findMany({
+      where: projectId ? { projectId } : {},
+      include: { project: { select: { id: true, nome: true, cliente: true, codigo: true } } },
+      orderBy: { dataReport: 'desc' },
+    });
+  }
+
+  async createStatusReport(dto: CreateStatusReportDto) {
+    // Desativar report vigente anterior do mesmo projeto
+    await this.prisma.projectStatusReport.updateMany({
+      where: { projectId: dto.projectId, vigente: true },
+      data: { vigente: false },
+    });
+
+    return this.prisma.projectStatusReport.create({
+      data: {
+        projectId: dto.projectId,
+        status: dto.status,
+        gargalo: dto.gargalo,
+        detalheGargalo: dto.detalheGargalo,
+        acaoCLevel: dto.acaoCLevel,
+        responsavel: dto.responsavel,
+        vigente: true,
+      },
+      include: { project: { select: { id: true, nome: true, cliente: true } } },
+    });
+  }
+
+  async updateStatusReport(id: string, dto: UpdateStatusReportDto) {
+    return this.prisma.projectStatusReport.update({
+      where: { id },
+      data: dto,
+      include: { project: { select: { id: true, nome: true, cliente: true } } },
+    });
+  }
+
+  async deleteStatusReport(id: string) {
+    return this.prisma.projectStatusReport.delete({ where: { id } });
+  }
+
+  // =============================================================
+  // CRUD — Go-Live Pipeline
+  // =============================================================
+
+  async findGoLives(projectId?: string) {
+    return this.prisma.projectGoLive.findMany({
+      where: projectId ? { projectId } : {},
+      include: { project: { select: { id: true, nome: true, cliente: true, codigo: true } } },
+      orderBy: { dataGoLive: 'asc' },
+    });
+  }
+
+  async createGoLive(dto: CreateGoLiveDto) {
+    return this.prisma.projectGoLive.create({
+      data: {
+        projectId: dto.projectId,
+        dataGoLive: new Date(dto.dataGoLive),
+        descricao: dto.descricao,
+      },
+      include: { project: { select: { id: true, nome: true, cliente: true } } },
+    });
+  }
+
+  async updateGoLive(id: string, dto: UpdateGoLiveDto) {
+    return this.prisma.projectGoLive.update({
+      where: { id },
+      data: {
+        ...dto,
+        dataGoLive: dto.dataGoLive ? new Date(dto.dataGoLive) : undefined,
+      },
+      include: { project: { select: { id: true, nome: true, cliente: true } } },
+    });
+  }
+
+  async deleteGoLive(id: string) {
+    return this.prisma.projectGoLive.delete({ where: { id } });
   }
 }

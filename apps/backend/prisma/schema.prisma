@@ -140,6 +140,7 @@ model Project {
   
   descricao         String?
   ativo             Boolean   @default(true)
+  regimeTributario  String?   @default("SIMPLES_NACIONAL")
 
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -155,6 +156,8 @@ model Project {
   provisoes         Provisao[]
   historico         HistoricoCalculo[]
   colaboradores     Colaborador[]
+  statusReports     ProjectStatusReport[]
+  goLives           ProjectGoLive[]
 
   @@map("projects")
   @@index([unitId])
@@ -591,6 +594,20 @@ model Provisao {
   @@index([projectId, ano])
 }
 
+/// Alíquotas por Regime Tributário (configuráveis)
+model AliquotaRegime {
+  id        String   @id @default(cuid())
+  regime    String   // LUCRO_REAL, LUCRO_PRESUMIDO, SIMPLES_NACIONAL, CPRB
+  tipo      String   // PIS, COFINS, IRPJ, CSLL, ISS, SIMPLES, CPRB
+  aliquota  Decimal  @db.Decimal(8, 6) // Fração decimal (ex: 0.0165 = 1.65%)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([regime, tipo])
+  @@map("aliquotas_regime")
+}
+
 /// Logs de Auditoria
 model AuditLog {
   id                String    @id @default(cuid())
@@ -663,4 +680,47 @@ model HistoricoRecalculo {
   @@index([tipo, status])
   @@index([usuarioId])
   @@index([createdAt])
+}
+
+// ============= COCKPIT DO SÓCIO =============
+
+/// Status Report de Projeto — alimenta o Semáforo de Portfólio
+model ProjectStatusReport {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  status          String    // green | yellow | red
+  gargalo         String?   // Descrição curta do gargalo
+  detalheGargalo  String?   // Descrição técnica detalhada
+  acaoCLevel      String?   // Ação recomendada para C-Level
+  responsavel     String?   // Quem reportou
+
+  vigente         Boolean   @default(true) // Apenas 1 vigente por projeto
+  dataReport      DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("project_status_reports")
+  @@index([projectId, vigente])
+  @@index([status])
+  @@index([dataReport])
+}
+
+/// Pipeline de Go-Live — datas de entrada em produção
+model ProjectGoLive {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  dataGoLive      DateTime  // Data prevista do go-live
+  descricao       String?   // Ex: "Módulo de NFS-e" ou fase específica
+  concluido       Boolean   @default(false)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("project_go_lives")
+  @@index([projectId])
+  @@index([dataGoLive])
 }

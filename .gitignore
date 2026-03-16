@@ -10,8 +10,8 @@ coverage/
 
 # Production
 /build
-/dist
-/.next/
+dist/
+.next/
 out/
 
 # Environment variables

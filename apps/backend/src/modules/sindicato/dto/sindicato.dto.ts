@@ -18,6 +18,10 @@ export class CreateSindicatoDto {
   nome!: string;
 
   @IsString()
+  @IsOptional()
+  sigla?: string;
+
+  @IsString()
   @IsNotEmpty()
   regiao!: string;
 
@@ -38,12 +42,36 @@ export class CreateSindicatoDto {
   @IsString()
   @IsOptional()
   descricao?: string;
+
+  @IsString()
+  @IsOptional()
+  contacto?: string;
+
+  @IsString()
+  @IsOptional()
+  telefone?: string;
+
+  @IsString()
+  @IsOptional()
+  email?: string;
+
+  @IsString()
+  @IsOptional()
+  observacoes?: string;
+
+  @IsString()
+  @IsOptional()
+  criadoPor?: string;
 }
 
 export class UpdateSindicatoDto {
   @IsString()
   @IsOptional()
   nome?: string;
+
+  @IsString()
+  @IsOptional()
+  sigla?: string;
 
   @IsString()
   @IsOptional()
@@ -66,6 +94,22 @@ export class UpdateSindicatoDto {
   @IsString()
   @IsOptional()
   descricao?: string;
+
+  @IsString()
+  @IsOptional()
+  contacto?: string;
+
+  @IsString()
+  @IsOptional()
+  telefone?: string;
+
+  @IsString()
+  @IsOptional()
+  email?: string;
+
+  @IsString()
+  @IsOptional()
+  observacoes?: string;
 
   @IsBoolean()
   @IsOptional()

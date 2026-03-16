@@ -66,6 +66,7 @@ export class SindicatoService {
     return this.prisma.sindicato.create({
       data: {
         nome: dto.nome,
+        sigla: dto.sigla,
         regiao: dto.regiao,
         percentualDissidio: dto.percentualDissidio
           ? new Decimal(dto.percentualDissidio)
@@ -73,6 +74,11 @@ export class SindicatoService {
         dataDissidio: dto.dataDissidio ? new Date(dto.dataDissidio) : null,
         regimeTributario: dto.regimeTributario,
         descricao: dto.descricao,
+        contacto: dto.contacto,
+        telefone: dto.telefone,
+        email: dto.email,
+        observacoes: dto.observacoes,
+        criadoPor: dto.criadoPor,
       },
     });
   }
@@ -82,6 +88,7 @@ export class SindicatoService {
 
     const updateData: any = {};
     if (dto.nome !== undefined) updateData.nome = dto.nome;
+    if (dto.sigla !== undefined) updateData.sigla = dto.sigla;
     if (dto.regiao !== undefined) updateData.regiao = dto.regiao;
     if (dto.percentualDissidio !== undefined)
       updateData.percentualDissidio = new Decimal(dto.percentualDissidio);
@@ -90,6 +97,10 @@ export class SindicatoService {
     if (dto.regimeTributario !== undefined)
       updateData.regimeTributario = dto.regimeTributario;
     if (dto.descricao !== undefined) updateData.descricao = dto.descricao;
+    if (dto.contacto !== undefined) updateData.contacto = dto.contacto;
+    if (dto.telefone !== undefined) updateData.telefone = dto.telefone;
+    if (dto.email !== undefined) updateData.email = dto.email;
+    if (dto.observacoes !== undefined) updateData.observacoes = dto.observacoes;
     if (dto.ativo !== undefined) updateData.ativo = dto.ativo;
 
     return this.prisma.sindicato.update({ where: { id }, data: updateData });

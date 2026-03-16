@@ -52,6 +52,7 @@ export class ConfigService {
 
     return this.prisma.calendario.create({
       data: {
+        nome: dto.descricao,
         data,
         tipoFeriado: dto.tipoFeriado as any,
         descricao: dto.descricao,

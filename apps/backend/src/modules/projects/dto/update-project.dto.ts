@@ -9,6 +9,7 @@ import {
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ProjectStatus } from '@prisma/client';
+import { RegimeTributario } from '../../financial/dto/imposto.dto';
 
 export class UpdateProjectDto {
   @ApiPropertyOptional()
@@ -60,4 +61,12 @@ export class UpdateProjectDto {
   @IsOptional()
   @IsBoolean()
   ativo?: boolean;
+
+  @ApiPropertyOptional({
+    enum: RegimeTributario,
+    description: 'Regime tributário do projeto',
+  })
+  @IsOptional()
+  @IsEnum(RegimeTributario, { message: 'Regime tributário inválido' })
+  regimeTributario?: RegimeTributario;
 }

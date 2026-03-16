@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { Fragment, useState, useEffect, useRef } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -19,6 +19,18 @@ interface ContratoMetrica {
     custoTotal: number;
     margemBruta: number;
     margemLiquida: number;
+    detalhamento?: Array<{
+      id: string;
+      nome: string;
+      descricao: string;
+      receita: number;
+      linhas: Array<{
+        id: string;
+        descricaoItem: string;
+        unidade: string;
+        receita: number;
+      }>;
+    }>;
   }>;
   metricasAnterior: Array<{
     mes: number;
@@ -50,6 +62,17 @@ interface ContratoMetrica {
     custo: number;
     lucro: number;
     margem: number;
+    linhas?: Array<{
+      id: string;
+      descricaoItem: string;
+      unidade: string;
+      valorTotalAnual: number;
+      saldoValor: number;
+      receita: number;
+      custo: number;
+      lucro: number;
+      margem: number;
+    }>;
   }>;
 }
 
@@ -71,6 +94,10 @@ function formatPercentDelta(valor: number): string {
   return `${sinal}${(valor * 100).toFixed(1)}%`;
 }
 
+function getImpostoValor(item: any): number {
+  return Number(item?.imposto ?? item?.impostos ?? 0);
+}
+
 export default function ContratosDashboard() {
   const [dados, setDados] = useState<ContratoMetrica[]>([]);
   const [ano, setAno] = useState(2026);
@@ -79,6 +106,8 @@ export default function ContratosDashboard() {
   const [chartTipo, setChartTipo] = useState('receita');
   const [mostrarComparacao, setMostrarComparacao] = useState(false);
   const [mostrarObjetos, setMostrarObjetos] = useState(false);
+  const [objetoExpandido, setObjetoExpandido] = useState<string | null>(null);
+  const [mesExpandido, setMesExpandido] = useState<number | null>(null);
   const dashboardRef = useRef<HTMLDivElement>(null);
 
   async function loadDados() {
@@ -115,7 +144,7 @@ export default function ContratosDashboard() {
     mes: MESES[idx],
     receita: m.receita,
     custoTotal: m.custoTotal,
-    lucro: m.receita - m.custoTotal - m.imposto,
+    lucro: Number(m.receita || 0) - Number(m.custoTotal || 0) - getImpostoValor(m),
     margemBruta: m.margemBruta * 100,
     margemLiquida: m.margemLiquida * 100,
   })) || [];
@@ -144,12 +173,12 @@ export default function ContratosDashboard() {
         m.custoFixo,
         m.custoVariavel,
         m.custoTotal,
-        m.imposto,
+        getImpostoValor(m),
         (m.margemBruta * 100).toFixed(2),
         (m.margemLiquida * 100).toFixed(2),
       ]),
       [],
-      ['TOTAL', contratoAtual.totais.receita, contratoAtual.totais.custoFixo, contratoAtual.totais.custoVariavel, contratoAtual.totais.custoTotal, contratoAtual.totais.imposto, (contratoAtual.totais.margemBruta * 100).toFixed(2), (contratoAtual.totais.margemLiquida * 100).toFixed(2)],
+      ['TOTAL', contratoAtual.totais.receita, contratoAtual.totais.custoFixo, contratoAtual.totais.custoVariavel, contratoAtual.totais.custoTotal, getImpostoValor(contratoAtual.totais), (contratoAtual.totais.margemBruta * 100).toFixed(2), (contratoAtual.totais.margemLiquida * 100).toFixed(2)],
     ]);
 
     ws['!cols'] = [
@@ -184,20 +213,39 @@ export default function ContratosDashboard() {
         format: 'a4',
       });
 
-      const imgWidth = pdf.internal.pageSize.getWidth();
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const marginX = 10;
+      const marginY = 14;
+      const headerH = 12;
+      const contentWidth = pageWidth - marginX * 2;
+      const contentHeightPerPage = pageHeight - marginY * 2 - headerH;
+      const imgHeight = (canvas.height * contentWidth) / canvas.width;
       let heightLeft = imgHeight;
       let position = 0;
 
       const imgData = canvas.toDataURL('image/png');
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdf.internal.pageSize.getHeight();
+
+      const drawHeader = () => {
+        pdf.setFillColor(5, 4, 57);
+        pdf.rect(marginX, marginY - 8, contentWidth, 8, 'F');
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(9);
+        pdf.text('HW1', marginX + 3, marginY - 3);
+        pdf.setFontSize(8);
+        pdf.text(`Dashboard Financeiro - ${contratoAtual?.contratoNome || ''} - ${ano}`, marginX + 18, marginY - 3);
+      };
+
+      drawHeader();
+      pdf.addImage(imgData, 'PNG', marginX, marginY, contentWidth, imgHeight);
+      heightLeft -= contentHeightPerPage;
 
       while (heightLeft > 0) {
         position = heightLeft - imgHeight;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdf.internal.pageSize.getHeight();
+        drawHeader();
+        pdf.addImage(imgData, 'PNG', marginX, marginY + position, contentWidth, imgHeight);
+        heightLeft -= contentHeightPerPage;
       }
 
       pdf.save(`dashboard-${contratoAtual?.contratoNome}-${ano}.pdf`);
@@ -349,7 +397,7 @@ export default function ContratosDashboard() {
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">📈 Tendência Mensal</h2>
                 <ResponsiveContainer width="100%" height={350}>
-                  {chartTipo === 'receita' && (
+                  {chartTipo === 'receita' ? (
                     <BarChart data={dadosTendencia}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="mes" />
@@ -360,8 +408,7 @@ export default function ContratosDashboard() {
                       <Bar dataKey="custoTotal" fill="#ef4444" name="Custo Total" />
                       <Bar dataKey="lucro" fill="#3b82f6" name="Lucro" />
                     </BarChart>
-                  )}
-                  {chartTipo === 'margens' && (
+                  ) : chartTipo === 'margens' ? (
                     <LineChart data={dadosTendencia}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="mes" />
@@ -371,8 +418,7 @@ export default function ContratosDashboard() {
                       <Line type="monotone" dataKey="margemBruta" stroke="#10b981" name="Margem Bruta %" strokeWidth={2} />
                       <Line type="monotone" dataKey="margemLiquida" stroke="#3b82f6" name="Margem Líquida %" strokeWidth={2} />
                     </LineChart>
-                  )}
-                  {chartTipo === 'lucro' && (
+                  ) : (
                     <LineChart data={dadosTendencia}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="mes" />
@@ -417,25 +463,75 @@ export default function ContratosDashboard() {
                           <th className="px-4 py-2 text-right font-semibold text-gray-700">Custo</th>
                           <th className="px-4 py-2 text-right font-semibold text-gray-700">Lucro</th>
                           <th className="px-4 py-2 text-right font-semibold text-gray-700">Margem</th>
+                          <th className="px-4 py-2 text-center font-semibold text-gray-700">Drill-down</th>
                         </tr>
                       </thead>
                       <tbody>
                         {contratoAtual.objetos.map((obj, idx) => (
-                          <tr key={obj.id} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                            <td className="px-4 py-2 text-gray-900">{obj.nome}</td>
-                            <td className="px-4 py-2 text-right text-emerald-600 font-medium">
-                              {formatBRL(obj.receita)}
-                            </td>
-                            <td className="px-4 py-2 text-right text-red-600 font-medium">
-                              {formatBRL(obj.custo)}
-                            </td>
-                            <td className="px-4 py-2 text-right text-blue-600 font-medium">
-                              {formatBRL(obj.lucro)}
-                            </td>
-                            <td className="px-4 py-2 text-right text-purple-600 font-medium">
-                              {formatPercent(obj.margem)}
-                            </td>
-                          </tr>
+                          <Fragment key={obj.id}>
+                            <tr className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                              <td className="px-4 py-2 text-gray-900">{obj.nome}</td>
+                              <td className="px-4 py-2 text-right text-emerald-600 font-medium">
+                                {formatBRL(obj.receita)}
+                              </td>
+                              <td className="px-4 py-2 text-right text-red-600 font-medium">
+                                {formatBRL(obj.custo)}
+                              </td>
+                              <td className="px-4 py-2 text-right text-blue-600 font-medium">
+                                {formatBRL(obj.lucro)}
+                              </td>
+                              <td className="px-4 py-2 text-right text-purple-600 font-medium">
+                                {formatPercent(obj.margem)}
+                              </td>
+                              <td className="px-4 py-2 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setObjetoExpandido(objetoExpandido === obj.id ? null : obj.id)}
+                                  className="px-2 py-1 text-xs rounded border border-gray-300 hover:bg-gray-100"
+                                >
+                                  {objetoExpandido === obj.id ? 'Ocultar' : 'Ver linhas'}
+                                </button>
+                              </td>
+                            </tr>
+                            {objetoExpandido === obj.id && (
+                              <tr className="bg-white">
+                                <td colSpan={6} className="px-4 py-3 border-t border-gray-200">
+                                  {!obj.linhas || obj.linhas.length === 0 ? (
+                                    <div className="text-xs text-gray-500">Sem linhas contratuais para este objeto.</div>
+                                  ) : (
+                                    <div className="overflow-x-auto">
+                                      <table className="w-full text-xs">
+                                        <thead className="bg-gray-100">
+                                          <tr>
+                                            <th className="px-2 py-1 text-left">Linha Contratual</th>
+                                            <th className="px-2 py-1 text-left">Unidade</th>
+                                            <th className="px-2 py-1 text-right">Valor Contratado</th>
+                                            <th className="px-2 py-1 text-right">Saldo</th>
+                                            <th className="px-2 py-1 text-right">Receita</th>
+                                            <th className="px-2 py-1 text-right">Custo</th>
+                                            <th className="px-2 py-1 text-right">Lucro</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {obj.linhas.map((linha) => (
+                                            <tr key={linha.id} className="border-t border-gray-100">
+                                              <td className="px-2 py-1">{linha.descricaoItem}</td>
+                                              <td className="px-2 py-1">{linha.unidade}</td>
+                                              <td className="px-2 py-1 text-right">{formatBRL(Number(linha.valorTotalAnual || 0))}</td>
+                                              <td className="px-2 py-1 text-right text-emerald-700">{formatBRL(Number(linha.saldoValor || 0))}</td>
+                                              <td className="px-2 py-1 text-right">{formatBRL(Number(linha.receita || 0))}</td>
+                                              <td className="px-2 py-1 text-right text-red-600">{formatBRL(Number(linha.custo || 0))}</td>
+                                              <td className="px-2 py-1 text-right text-blue-600">{formatBRL(Number(linha.lucro || 0))}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
                         ))}
                       </tbody>
                     </table>
@@ -450,6 +546,7 @@ export default function ContratosDashboard() {
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 sticky top-0">
                       <tr>
+                        <th className="px-4 py-2 text-center font-semibold text-gray-700">Detalhe</th>
                         <th className="px-4 py-2 text-left font-semibold text-gray-700">Mês</th>
                         <th className="px-4 py-2 text-right font-semibold text-gray-700">Receita</th>
                         <th className="px-4 py-2 text-right font-semibold text-gray-700">Custo Fixo</th>
@@ -462,24 +559,79 @@ export default function ContratosDashboard() {
                     </thead>
                     <tbody>
                       {contratoAtual.metricas.map((m, idx) => (
-                        <tr key={m.mes} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                          <td className="px-4 py-2 font-medium text-gray-900">{MESES[m.mes - 1]}</td>
-                          <td className="px-4 py-2 text-right text-emerald-600 font-medium">{formatBRL(m.receita)}</td>
-                          <td className="px-4 py-2 text-right text-red-600 font-medium">{formatBRL(m.custoFixo)}</td>
-                          <td className="px-4 py-2 text-right text-orange-600 font-medium">{formatBRL(m.custoVariavel)}</td>
-                          <td className="px-4 py-2 text-right text-red-700 font-medium">{formatBRL(m.custoTotal)}</td>
-                          <td className="px-4 py-2 text-right text-gray-600 font-medium">{formatBRL(m.imposto)}</td>
-                          <td className="px-4 py-2 text-right text-purple-600 font-medium">{formatPercent(m.margemBruta)}</td>
-                          <td className="px-4 py-2 text-right text-blue-600 font-medium">{formatPercent(m.margemLiquida)}</td>
-                        </tr>
+                        <Fragment key={m.mes}>
+                          <tr className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                            <td className="px-4 py-2 text-center">
+                              <button
+                                type="button"
+                                onClick={() => setMesExpandido(mesExpandido === m.mes ? null : m.mes)}
+                                className="px-2 py-1 text-xs rounded border border-gray-300 hover:bg-gray-100"
+                              >
+                                {mesExpandido === m.mes ? 'Ocultar' : 'Ver'}
+                              </button>
+                            </td>
+                            <td className="px-4 py-2 font-medium text-gray-900">{MESES[m.mes - 1]}</td>
+                            <td className="px-4 py-2 text-right text-emerald-600 font-medium">{formatBRL(m.receita)}</td>
+                            <td className="px-4 py-2 text-right text-red-600 font-medium">{formatBRL(m.custoFixo)}</td>
+                            <td className="px-4 py-2 text-right text-orange-600 font-medium">{formatBRL(m.custoVariavel)}</td>
+                            <td className="px-4 py-2 text-right text-red-700 font-medium">{formatBRL(m.custoTotal)}</td>
+                            <td className="px-4 py-2 text-right text-gray-600 font-medium">{formatBRL(getImpostoValor(m))}</td>
+                            <td className="px-4 py-2 text-right text-purple-600 font-medium">{formatPercent(m.margemBruta)}</td>
+                            <td className="px-4 py-2 text-right text-blue-600 font-medium">{formatPercent(m.margemLiquida)}</td>
+                          </tr>
+                          {mesExpandido === m.mes && (
+                            <tr className="bg-white">
+                              <td colSpan={9} className="px-4 py-3 border-t border-gray-200">
+                                {!m.detalhamento || m.detalhamento.length === 0 ? (
+                                  <div className="text-xs text-gray-500">Sem detalhamento por objeto/linha para este mês.</div>
+                                ) : (
+                                  <div className="space-y-3">
+                                    {m.detalhamento.map((obj) => (
+                                      <div key={obj.id} className="border border-gray-200 rounded-lg p-3">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <div>
+                                            <p className="text-sm font-semibold text-hw1-navy">{obj.nome}</p>
+                                            <p className="text-xs text-gray-500">{obj.descricao}</p>
+                                          </div>
+                                          <p className="text-sm font-semibold text-emerald-700">{formatBRL(Number(obj.receita || 0))}</p>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                          <table className="w-full text-xs">
+                                            <thead className="bg-gray-100">
+                                              <tr>
+                                                <th className="px-2 py-1 text-left">Linha</th>
+                                                <th className="px-2 py-1 text-left">Unidade</th>
+                                                <th className="px-2 py-1 text-right">Receita</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {obj.linhas.map((linha) => (
+                                                <tr key={linha.id} className="border-t border-gray-100">
+                                                  <td className="px-2 py-1">{linha.descricaoItem}</td>
+                                                  <td className="px-2 py-1">{linha.unidade}</td>
+                                                  <td className="px-2 py-1 text-right">{formatBRL(Number(linha.receita || 0))}</td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       ))}
                       <tr className="bg-gray-100 border-t-2 border-gray-300 font-bold">
+                        <td className="px-4 py-2 text-gray-900">-</td>
                         <td className="px-4 py-2 text-gray-900">TOTAL</td>
                         <td className="px-4 py-2 text-right text-emerald-700">{formatBRL(contratoAtual.totais.receita)}</td>
                         <td className="px-4 py-2 text-right text-red-700">{formatBRL(contratoAtual.totais.custoFixo)}</td>
                         <td className="px-4 py-2 text-right text-orange-700">{formatBRL(contratoAtual.totais.custoVariavel)}</td>
                         <td className="px-4 py-2 text-right text-red-900">{formatBRL(contratoAtual.totais.custoTotal)}</td>
-                        <td className="px-4 py-2 text-right text-gray-700">{formatBRL(contratoAtual.totais.imposto)}</td>
+                        <td className="px-4 py-2 text-right text-gray-700">{formatBRL(getImpostoValor(contratoAtual.totais))}</td>
                         <td className="px-4 py-2 text-right text-purple-700">{formatPercent(contratoAtual.totais.margemBruta)}</td>
                         <td className="px-4 py-2 text-right text-blue-700">{formatPercent(contratoAtual.totais.margemLiquida)}</td>
                       </tr>

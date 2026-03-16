@@ -10,6 +10,7 @@ interface Project {
   cliente: string;
   status: 'ATIVO' | 'SUSPENSO' | 'ENCERRADO';
   tipo: string;
+  regimeTributario?: string;
   unitId?: string;
   contratoId?: string;
   dataInicio: string;
@@ -74,6 +75,7 @@ export default function ProjetosPage() {
     unitId: '',
     contratoId: '',
     status: 'ATIVO',
+    regimeTributario: 'SIMPLES_NACIONAL',
     dataInicio: new Date().toISOString().slice(0, 10),
     dataFim: '',
     descricao: '',
@@ -130,6 +132,7 @@ export default function ProjetosPage() {
       unitId: '',
       contratoId: '',
       status: 'ATIVO',
+      regimeTributario: 'SIMPLES_NACIONAL',
       dataInicio: new Date().toISOString().slice(0, 10),
       dataFim: '',
       descricao: '',
@@ -158,6 +161,7 @@ export default function ProjetosPage() {
       unitId: project.unitId || project.unit?.id || '',
       contratoId: project.contratoId || project.contrato?.id || '',
       status: project.status,
+      regimeTributario: project.regimeTributario || 'SIMPLES_NACIONAL',
       dataInicio: project.dataInicio ? project.dataInicio.slice(0, 10) : '',
       dataFim: project.dataFim ? project.dataFim.slice(0, 10) : '',
       descricao: project.descricao || '',
@@ -170,14 +174,13 @@ export default function ProjetosPage() {
     setSaving(true);
     setError('');
 
-    const payload = {
-      codigo: form.codigo.trim().toUpperCase(),
+    const basePayload = {
       nome: form.nome.trim(),
       cliente: form.cliente.trim(),
       tipo: form.tipo.trim(),
       unitId: form.unitId.trim(),
-      contratoId: form.contratoId.trim() || undefined,
       status: form.status,
+      regimeTributario: form.regimeTributario || undefined,
       dataInicio: form.dataInicio,
       dataFim: form.dataFim || undefined,
       descricao: form.descricao.trim() || undefined,
@@ -185,10 +188,15 @@ export default function ProjetosPage() {
 
     try {
       if (editingProjectId) {
-        await api.put(`/projects/${editingProjectId}`, payload);
+        await api.put(`/projects/${editingProjectId}`, basePayload);
         setSuccessMsg('Projeto atualizado com sucesso!');
       } else {
-        await api.post('/projects', payload);
+        const createPayload = {
+          ...basePayload,
+          codigo: form.codigo.trim().toUpperCase(),
+          contratoId: form.contratoId.trim() || undefined,
+        };
+        await api.post('/projects', createPayload);
         setSuccessMsg('Projeto criado com sucesso!');
       }
 
@@ -405,6 +413,7 @@ export default function ProjetosPage() {
                     placeholder="PROJ-2026-001"
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
                     required
+                    disabled={!!editingProjectId}
                   />
                 </div>
 
@@ -450,7 +459,8 @@ export default function ProjetosPage() {
                     value={form.contratoId}
                     onChange={(e) => setForm({ ...form, contratoId: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
-                    required
+                    required={!editingProjectId}
+                    disabled={!!editingProjectId}
                   >
                     <option value="">Selecione um contrato...</option>
                     {contratos.map((c) => (
@@ -500,6 +510,20 @@ export default function ProjetosPage() {
                     <option value="ATIVO">Ativo</option>
                     <option value="SUSPENSO">Suspenso</option>
                     <option value="ENCERRADO">Encerrado</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Regime Tributário</label>
+                  <select
+                    value={form.regimeTributario}
+                    onChange={(e) => setForm({ ...form, regimeTributario: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+                  >
+                    <option value="SIMPLES_NACIONAL">Simples Nacional</option>
+                    <option value="LUCRO_PRESUMIDO">Lucro Presumido</option>
+                    <option value="LUCRO_REAL">Lucro Real</option>
+                    <option value="CPRB">CPRB</option>
                   </select>
                 </div>
 

@@ -48,6 +48,7 @@ export default function RhPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingExcel, setUploadingExcel] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [form, setForm] = useState({
@@ -78,9 +79,15 @@ export default function RhPage() {
 
   const loadProjects = () => {
     api
-      .get('/projects?limit=200')
-      .then((r) => setProjects(r.data?.data ?? r.data ?? []))
-      .catch(() => {});
+      .get('/projects?limit=100&page=1')
+      .then((r) => {
+        const items = r.data?.data ?? r.data ?? [];
+        setProjects(Array.isArray(items) ? items : []);
+      })
+      .catch(() => {
+        setProjects([]);
+        setError('Não foi possível carregar os projetos para vincular colaborador.');
+      });
   };
 
   useEffect(() => {
@@ -222,6 +229,59 @@ export default function RhPage() {
     }
   };
 
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await api.get('/hr/colaboradores/importar/template', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'template_colaboradores.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError('Erro ao baixar template.');
+    }
+  };
+
+  const handleImportExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.xlsx') && !file.name.toLowerCase().endsWith('.xls')) {
+      setError('Selecione um arquivo Excel (.xlsx ou .xls).');
+      return;
+    }
+
+    setUploadingExcel(true);
+    setError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/hr/colaboradores/importar/excel', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const imported = Number(res.data?.imported ?? 0);
+      const errors = Array.isArray(res.data?.errors) ? res.data.errors : [];
+      if (imported > 0) {
+        setSuccessMsg(`${imported} colaborador(es) importado(s) com sucesso.`);
+        loadColaboradores();
+      }
+      if (errors.length > 0) {
+        setError(errors.slice(0, 3).join(' | '));
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message;
+      setError(Array.isArray(msg) ? msg[0] : msg || 'Erro ao importar planilha de colaboradores.');
+    } finally {
+      setUploadingExcel(false);
+    }
+  };
+
   const filtered = colaboradores.filter((c) => {
     const matchSearch =
       c.nome.toLowerCase().includes(search.toLowerCase()) ||
@@ -256,6 +316,16 @@ export default function RhPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue w-64"
           />
+          <button
+            onClick={handleDownloadTemplate}
+            className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
+          >
+            📥 Template Excel
+          </button>
+          <label className={`px-4 py-2 rounded-xl text-sm font-medium cursor-pointer ${uploadingExcel ? 'bg-gray-300 text-gray-500' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}>
+            {uploadingExcel ? 'Importando...' : 'Importar Excel'}
+            <input type="file" accept=".xlsx,.xls" onChange={handleImportExcel} className="hidden" disabled={uploadingExcel} />
+          </label>
           <button onClick={openCreateModal} className="hw1-btn-primary text-sm">
             + Novo Colaborador
           </button>

@@ -574,7 +574,7 @@ export class OperationsService {
   // ===================== RECÁLCULO EM RANGE DE MESES =====================
 
   async recalculoCascataRange(dto: RecalculoRangeDto) {
-    const results = [];
+    const results: Record<string, any>[] = [];
 
     for (let mes = dto.mesInicio; mes <= dto.mesFim; mes++) {
       const resultado = await this.recalculoCascata({

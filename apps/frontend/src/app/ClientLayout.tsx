@@ -6,6 +6,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 
 const navItems = [
+  { href: '/cockpit', label: 'Cockpit do Sócio', icon: '🎯' },
+  { href: '/cockpit/status-reports', label: 'Status Reports', icon: '🚦', sub: true },
+  { href: '/cockpit/go-lives', label: 'Pipeline Go-Live', icon: '🚀', sub: true },
   { href: '/dashboard', label: 'Dashboard', icon: '📊' },
   { href: '/projetos', label: 'Projetos', icon: '📁' },
   { href: '/contratos', label: 'Contratos', icon: '📑' },
@@ -64,22 +67,25 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         {/* Nav links */}
         <nav className="flex-1 py-4 overflow-y-auto">
           {navItems.map((item) => {
-            const active = pathname.startsWith(item.href);
+            const isSub = 'sub' in item && (item as any).sub;
+            const active = isSub
+              ? pathname === item.href
+              : pathname === item.href || (pathname.startsWith(item.href + '/') && !navItems.some(n => n !== item && n.href.startsWith(item.href + '/') && pathname.startsWith(n.href)));
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 mx-2 rounded-xl mb-1 transition-all duration-150 group ${
+                className={`flex items-center gap-3 ${isSub ? 'px-4 pl-8' : 'px-4'} py-2.5 mx-2 rounded-xl mb-0.5 transition-all duration-150 group ${
                   active
                     ? 'text-white'
                     : 'text-white/60 hover:text-white hover:bg-white/10'
                 }`}
-                style={active ? { background: 'rgba(30, 22, 160, 0.8)' } : {}}
+                style={active ? { background: isSub ? 'rgba(30, 22, 160, 0.5)' : 'rgba(30, 22, 160, 0.8)' } : {}}
                 title={!sidebarOpen ? item.label : undefined}
               >
-                <span className="text-base flex-shrink-0">{item.icon}</span>
+                <span className={`${isSub ? 'text-sm' : 'text-base'} flex-shrink-0`}>{item.icon}</span>
                 {sidebarOpen && (
-                  <span className="text-sm font-medium truncate">{item.label}</span>
+                  <span className={`${isSub ? 'text-xs' : 'text-sm'} font-medium truncate`}>{item.label}</span>
                 )}
               </Link>
             );

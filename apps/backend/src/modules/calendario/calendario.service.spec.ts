@@ -42,6 +42,7 @@ describe('CalendarioService', () => {
 
       const result = await service.create({
         data: '2026-01-01',
+        nome: 'Confraternização Universal',
         tipoFeriado: 'NACIONAL' as any,
         descricao: 'Confraternização Universal',
         diaSemana: 4,
@@ -66,6 +67,7 @@ describe('CalendarioService', () => {
 
       const result = await service.create({
         data: '2026-07-09',
+        nome: 'Revolução Constitucionalista',
         tipoFeriado: 'ESTADUAL' as any,
         descricao: 'Revolução Constitucionalista',
         estado: 'SP',
@@ -177,6 +179,7 @@ describe('CalendarioService', () => {
         items: [
           {
             data: '2026-12-25',
+            nome: 'Natal',
             tipoFeriado: 'NACIONAL' as any,
             descricao: 'Natal',
             diaSemana: 5,
@@ -196,6 +199,7 @@ describe('CalendarioService', () => {
         items: [
           {
             data: '2026-12-25',
+            nome: 'Natal',
             tipoFeriado: 'NACIONAL' as any,
             descricao: 'Natal',
             diaSemana: 5,
@@ -209,7 +213,7 @@ describe('CalendarioService', () => {
     it('deve reportar erro para campos faltando', async () => {
       const result = await service.importarFeriadosEmLote({
         items: [
-          { data: '', tipoFeriado: '' as any, descricao: '', diaSemana: 0 },
+          { data: '', nome: '', tipoFeriado: '' as any, descricao: '', diaSemana: 0 },
         ],
       });
 
@@ -235,6 +239,136 @@ describe('CalendarioService', () => {
 
       expect(result.existentes).toBe(12);
       expect(result.criados).toBe(0);
+    });
+  });
+
+  describe('Novos campos Sprint 6', () => {
+    it('deve criar feriado com campo nome obrigatório', async () => {
+      const mockFeriado = {
+        id: 'fer-nome',
+        data: new Date('2026-06-11'),
+        nome: 'Corpus Christi',
+        descricao: 'Corpus Christi',
+        ehFeriado: true,
+      };
+      mockPrisma.calendario.create.mockResolvedValue(mockFeriado);
+
+      const result = await service.create({
+        data: '2026-06-11',
+        nome: 'Corpus Christi',
+        tipoFeriado: 'NACIONAL' as any,
+        descricao: 'Corpus Christi',
+        diaSemana: 4,
+      });
+
+      expect(result.nome).toBe('Corpus Christi');
+      expect(mockPrisma.calendario.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ nome: 'Corpus Christi' }),
+        }),
+      );
+    });
+
+    it('deve criar feriado com ehFeriado = false (ponto facultativo)', async () => {
+      const mockPonto = {
+        id: 'fer-facultativo',
+        nome: 'Quarta de Cinzas',
+        ehFeriado: false,
+        ehRecuperavel: true,
+      };
+      mockPrisma.calendario.create.mockResolvedValue(mockPonto);
+
+      const result = await service.create({
+        data: '2026-02-18',
+        nome: 'Quarta de Cinzas',
+        tipoFeriado: 'NACIONAL' as any,
+        descricao: 'Quarta de Cinzas (ponto facultativo)',
+        diaSemana: 3,
+        ehFeriado: false,
+        ehRecuperavel: true,
+      });
+
+      expect(result.ehFeriado).toBe(false);
+      expect(result.ehRecuperavel).toBe(true);
+    });
+
+    it('deve criar feriado com percentualDesc customizado (50%)', async () => {
+      const mockFeriado = {
+        id: 'fer-parcial',
+        nome: 'Black Friday',
+        percentualDesc: 50,
+      };
+      mockPrisma.calendario.create.mockResolvedValue(mockFeriado);
+
+      const result = await service.create({
+        data: '2026-11-27',
+        nome: 'Black Friday',
+        tipoFeriado: 'MUNICIPAL' as any,
+        descricao: 'Black Friday - expediente até meio-dia',
+        diaSemana: 5,
+        percentualDesc: 50,
+      });
+
+      expect(result.percentualDesc).toBe(50);
+      expect(mockPrisma.calendario.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ percentualDesc: 50 }),
+        }),
+      );
+    });
+
+    it('deve aplicar valores default para campos opcionais', async () => {
+      mockPrisma.calendario.create.mockResolvedValue({
+        id: 'fer-defaults',
+        ehFeriado: true,
+        ehRecuperavel: false,
+        percentualDesc: 100,
+      });
+
+      await service.create({
+        data: '2026-05-01',
+        nome: 'Dia do Trabalho',
+        tipoFeriado: 'NACIONAL' as any,
+        descricao: 'Dia Mundial do Trabalho',
+        diaSemana: 5,
+      });
+
+      expect(mockPrisma.calendario.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            ehFeriado: true,
+            ehRecuperavel: false,
+            percentualDesc: 100,
+          }),
+        }),
+      );
+    });
+
+    it('deve atualizar feriado com novos campos', async () => {
+      mockPrisma.calendario.findUnique.mockResolvedValue({
+        id: 'fer-upd',
+        nome: 'Feriado Local',
+      });
+      mockPrisma.calendario.update.mockResolvedValue({
+        id: 'fer-upd',
+        nome: 'Feriado Local Atualizado',
+        ehRecuperavel: true,
+      });
+
+      await service.update('fer-upd', {
+        nome: 'Feriado Local Atualizado',
+        ehRecuperavel: true,
+        observacoes: 'Atualizado com recuperação obrigatória',
+      });
+
+      expect(mockPrisma.calendario.update).toHaveBeenCalledWith({
+        where: { id: 'fer-upd' },
+        data: {
+          nome: 'Feriado Local Atualizado',
+          ehRecuperavel: true,
+          observacoes: 'Atualizado com recuperação obrigatória',
+        },
+      });
     });
   });
 });

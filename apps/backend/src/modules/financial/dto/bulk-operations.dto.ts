@@ -15,6 +15,7 @@ import {
 import { Type } from 'class-transformer';
 import { TipoDespesa } from './despesa.dto';
 import { TipoProvisao } from './provisao.dto';
+import { TipoImposto } from './imposto.dto';
 
 // ===================== BULK IMPORT DESPESAS =====================
 
@@ -98,6 +99,55 @@ export class BulkImportProvisaoDto {
   @ArrayMinSize(1)
   @Type(() => BulkProvisaoItemDto)
   items!: BulkProvisaoItemDto[];
+
+  @IsString()
+  @IsOptional()
+  descricaoOperacao?: string;
+}
+
+// ===================== BULK UPDATE IMPOSTOS =====================
+
+export class BulkImpostoItemUpdateDto {
+  @IsString()
+  @IsNotEmpty()
+  projectId!: string;
+
+  @IsEnum(TipoImposto)
+  tipo!: TipoImposto;
+
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @Type(() => Number)
+  aliquota!: number; // 0-100 (percentual)
+
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  @Type(() => Number)
+  mes!: number;
+
+  @IsInt()
+  @Min(2020)
+  @Max(2100)
+  @Type(() => Number)
+  ano!: number;
+
+  @IsString()
+  @IsOptional()
+  descricao?: string;
+}
+
+export class BulkUpdateImpostoDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @ArrayMinSize(1)
+  @Type(() => BulkImpostoItemUpdateDto)
+  items!: BulkImpostoItemUpdateDto[];
+
+  @IsString()
+  @IsOptional()
+  motivo?: string;
 
   @IsString()
   @IsOptional()

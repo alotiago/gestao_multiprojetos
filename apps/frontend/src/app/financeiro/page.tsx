@@ -32,6 +32,7 @@ interface Receita {
   objetoContratualId?: string;
   linhaContratualId?: string;
   quantidade?: number;
+  quantidadeRealizada?: number; // RN-003
   valorUnitario?: number;
   unidade?: string;
   project?: {
@@ -59,6 +60,9 @@ interface ProjetoFinanceiro {
   status: string;
   receitaPrevista: number;
   receitaRealizada: number;
+  custoPessoal: number;
+  despesas: number;
+  impostos: number;
   totalCustos: number;
   margem: number;
 }
@@ -106,6 +110,98 @@ interface LinhaContratualSelect {
   valorTotalAnual: number;
 }
 
+interface ImportResultUI {
+  success: boolean;
+  message: string;
+  validas: number;
+  erros: Array<{ linha: number; erros: string[] }>;
+  despesasCriadas?: any[];
+}
+
+const toErrorText = (value: unknown, fallback = 'Erro inesperado'): string => {
+  if (typeof value === 'string') return value;
+
+  if (Array.isArray(value)) {
+    const joined = value
+      .map((item) => (typeof item === 'string' ? item : JSON.stringify(item)))
+      .join(', ')
+      .trim();
+    return joined || fallback;
+  }
+
+  if (value && typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.message === 'string') return obj.message;
+    if (typeof obj.mensagem === 'string') return obj.mensagem;
+    if (Array.isArray(obj.message)) return toErrorText(obj.message, fallback);
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return fallback;
+    }
+  }
+
+  return fallback;
+};
+
+const extractApiErrorMessage = (err: any, fallback: string): string => {
+  const data = err?.response?.data;
+  return toErrorText(
+    data?.message ?? data?.mensagem ?? data?.detalhes ?? err?.message,
+    fallback,
+  );
+};
+
+const normalizeImportResult = (payload: any): ImportResultUI => {
+  const validationErrors = Array.isArray(payload?.erros)
+    ? payload.erros.map((item: any) => ({
+        linha: Number(item?.linha ?? 0),
+        erros: Array.isArray(item?.erros)
+          ? item.erros.map((msg: unknown) => toErrorText(msg, 'Erro de validação'))
+          : [toErrorText(item?.motivo ?? item?.mensagem ?? item, 'Erro de validação')],
+      }))
+    : Array.isArray(payload?.errosValidacao)
+      ? payload.errosValidacao.map((item: any) => ({
+          linha: Number(item?.linha ?? 0),
+          erros: [toErrorText(item?.motivo ?? item?.mensagem ?? item, 'Erro de validação')],
+        }))
+      : [];
+
+  const importErrors = Array.isArray(payload?.importacao?.detalhes)
+    ? payload.importacao.detalhes
+        .filter((item: any) => String(item?.status ?? '').toUpperCase() === 'ERRO')
+        .map((item: any) => ({
+          linha: Number(item?.indice ?? 0),
+          erros: [toErrorText(item?.mensagem, 'Erro na importação')],
+        }))
+    : [];
+
+  const erros = [...validationErrors, ...importErrors];
+
+  return {
+    success: typeof payload?.success === 'boolean' ? payload.success : erros.length === 0,
+    message: toErrorText(payload?.message ?? payload?.mensagem, 'Importação concluída'),
+    validas: Number(payload?.validas ?? payload?.totalLinhasValidas ?? 0),
+    erros,
+    despesasCriadas: Array.isArray(payload?.despesasCriadas) ? payload.despesasCriadas : [],
+  };
+};
+
+const getImportSuccessCount = (payload: any, normalized: ImportResultUI): number => {
+  const importacao = payload?.importacao ?? {};
+  const explicitSuccess = Number(importacao.totalSucesso ?? importacao.sucessos ?? NaN);
+  if (!Number.isNaN(explicitSuccess)) return explicitSuccess;
+
+  const details = Array.isArray(importacao.detalhes)
+    ? importacao.detalhes
+    : [];
+  if (details.length > 0) {
+    return details.filter((item: any) => String(item?.status ?? '').toUpperCase() === 'SUCESSO').length;
+  }
+
+  return Number(normalized?.despesasCriadas?.length ?? 0);
+};
+
 export default function FinanceiroPage() {
   const [data, setData] = useState<FinanceiroData | null>(null);
   const [despesas, setDespesas] = useState<Despesa[]>([]);
@@ -137,10 +233,17 @@ export default function FinanceiroPage() {
     valorRealizado: '',
     mes: '',
     ano: currentYear,
+    mesesAdicionais: '0',
     objetoContratualId: '',
     linhaContratualId: '',
     quantidade: '',
+    quantidadeRealizada: '', // RN-003
   });
+
+  // Estados para importação de despesas via Excel
+  const [uploading, setUploading] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResultUI | null>(null);
 
   const loadProjetos = () => {
     api
@@ -168,26 +271,32 @@ export default function FinanceiroPage() {
       .catch((err) => {
         const msg = err?.response?.data?.message || 'Não foi possível carregar os dados financeiros.';
         console.error('Erro ao carregar resumo:', { url, status: err?.response?.status, message: msg });
-        setError(msg);
+        setError(toErrorText(msg, 'Não foi possível carregar os dados financeiros.'));
       })
       .finally(() => setLoading(false));
   };
 
   const loadDespesas = () => {
     setLoading(true);
+    setError(''); // Limpa erro anterior
     let url = `/financial/despesas?page=${page}&limit=${pageSize}&ano=${ano}`;
     if (mes && mes !== '') url += `&mes=${mes}`;
     if (selectedProjectId && selectedProjectId !== '') url += `&projectId=${selectedProjectId}`;
+    
+    console.log('[DESPESAS] Carregando:', { url, selectedProjectId, mes, ano, page, pageSize });
+    
     api
       .get(url)
       .then((r) => {
+        console.log('[DESPESAS] Resposta:', r.data);
         const items = r.data?.data ?? r.data ?? [];
         setDespesas(Array.isArray(items) ? items : []);
       })
       .catch((err) => {
         const msg = err?.response?.data?.message || 'Não foi possível carregar as despesas.';
-        console.error('Erro despesas:', { url, status: err?.response?.status, message: msg });
+        console.error('Erro despesas:', { url, status: err?.response?.status, message: msg, erro: err });
         setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+        setDespesas([]); // Garante lista vazia em caso de erro
       })
       .finally(() => setLoading(false));
   };
@@ -242,6 +351,84 @@ export default function FinanceiroPage() {
     }
   }, [successMsg]);
 
+  // Função para baixar template Excel
+  const handleBaixarTemplate = async () => {
+    try {
+      const response = await api.get('/financial/despesas/template', {
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `template_despesas_${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      setSuccessMsg('Template baixado com sucesso!');
+    } catch (err: any) {
+      setError(extractApiErrorMessage(err, 'Erro ao baixar template'));
+    }
+  };
+
+  // Função para fazer upload do arquivo Excel
+  const handleImportarExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const inputEl = event.currentTarget;
+    const file = inputEl.files?.[0];
+    if (!file) return;
+
+    // Validação básica do arquivo
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      setError('Por favor, selecione um arquivo Excel (.xlsx ou .xls)');
+      inputEl.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB
+      setError('Arquivo muito grande. Tamanho máximo: 5MB');
+      inputEl.value = '';
+      return;
+    }
+
+    setUploading(true);
+    setError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await api.post('/financial/despesas/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const normalizedResult = normalizeImportResult(response.data);
+      setImportResult(normalizedResult);
+      setShowImportModal(true);
+
+      // Se teve sucesso, recarrega a lista de despesas
+      const totalSucesso = getImportSuccessCount(response.data, normalizedResult);
+      if (totalSucesso > 0) {
+        setTimeout(() => {
+          loadDespesas();
+        }, 1000);
+      }
+    } catch (err: any) {
+      setError(extractApiErrorMessage(err, 'Erro ao importar arquivo'));
+    } finally {
+      setUploading(false);
+      // Limpa o input para permitir upload do mesmo arquivo novamente
+      if (inputEl) inputEl.value = '';
+    }
+  };
+
+  useEffect(() => {
+  }, [successMsg]);
+
   useEffect(() => {
     if (error) {
       const t = setTimeout(() => setError(''), 5000);
@@ -260,9 +447,11 @@ export default function FinanceiroPage() {
       valorRealizado: '',
       mes: '',
       ano: currentYear,
+      mesesAdicionais: '0',
       objetoContratualId: '',
       linhaContratualId: '',
       quantidade: '',
+      quantidadeRealizada: '', // RN-003
     });
     setObjetosContratuais([]);
     setLinhasContratuais([]);
@@ -294,9 +483,11 @@ export default function FinanceiroPage() {
       valorRealizado: '',
       mes: String(despesa.mes),
       ano: despesa.ano,
+      mesesAdicionais: '0',
       objetoContratualId: '',
       linhaContratualId: '',
       quantidade: '',
+      quantidadeRealizada: '', // RN-003
     });
     setEditingId(despesa.id);
     setShowModal(true);
@@ -313,14 +504,21 @@ export default function FinanceiroPage() {
         valor: Number(form.valor),
         mes: Number(form.mes),
         ano: Number(form.ano),
+        mesesAdicionais: Number(form.mesesAdicionais || 0),
       };
 
       if (editingId) {
-        await api.put(`/financial/despesas/${editingId}`, payload);
+        const { projectId, ...updatePayload } = payload;
+        await api.put(`/financial/despesas/${editingId}`, updatePayload);
         setSuccessMsg('Despesa atualizada com sucesso!');
       } else {
-        await api.post('/financial/despesas', payload);
-        setSuccessMsg('Despesa criada com sucesso!');
+        const response = await api.post('/financial/despesas', payload);
+        const totalCriados = Number(response.data?.totalCriados ?? 1);
+        setSuccessMsg(
+          totalCriados > 1
+            ? `${totalCriados} despesas criadas com sucesso!`
+            : 'Despesa criada com sucesso!',
+        );
       }
 
       closeModal();
@@ -369,6 +567,7 @@ export default function FinanceiroPage() {
       descricao: form.descricao,
       mes: Number(form.mes),
       ano: Number(form.ano),
+      mesesAdicionais: Number(form.mesesAdicionais || 0),
     };
 
     if (isContrato) {
@@ -376,10 +575,18 @@ export default function FinanceiroPage() {
       payload.linhaContratualId = form.linhaContratualId;
       payload.quantidade = Number(form.quantidade);
       // RN-003: Quantidade Realizada e Valor Realizado calculado
-      if ((form as any).quantidadeRealizada && Number((form as any).quantidadeRealizada) > 0) {
-        payload.quantidadeRealizada = Number((form as any).quantidadeRealizada);
+      if (form.quantidadeRealizada && Number(form.quantidadeRealizada) > 0) {
+        payload.quantidadeRealizada = Number(form.quantidadeRealizada);
       }
-      payload.valorRealizado = Number(form.valorRealizado || 0);
+      // Calcula valorRealizado a partir de quantidadeRealizada × valorUnitario da linha
+      if (form.quantidadeRealizada && Number(form.quantidadeRealizada) > 0) {
+        const linhaSel = linhasContratuais.find(l => l.id === form.linhaContratualId);
+        payload.valorRealizado = linhaSel
+          ? Math.round(Number(form.quantidadeRealizada) * Number(linhaSel.valorUnitario) * 100) / 100
+          : Number(form.valorRealizado || 0);
+      } else {
+        payload.valorRealizado = Number(form.valorRealizado || 0);
+      }
       // Backend calcula valorPrevisto = quantidade × valorUnitario
     } else {
       payload.valorPrevisto = Number(form.valorPrevisto);
@@ -388,13 +595,32 @@ export default function FinanceiroPage() {
 
     try {
       if (editingId) {
-        const updatePayload = { ...payload };
-        delete updatePayload.tipoReceita;
+        // UpdateReceitaDto só aceita: valorPrevisto, valorRealizado, descricao, tipoReceita, quantidade, quantidadeRealizada, objetoContratualId, linhaContratualId
+        const updatePayload: any = {};
+        if (isContrato) {
+          updatePayload.quantidade = Number(form.quantidade);
+          updatePayload.descricao = form.descricao;
+          if (form.quantidadeRealizada && Number(form.quantidadeRealizada) > 0) {
+            updatePayload.quantidadeRealizada = Number(form.quantidadeRealizada);
+          }
+          if (Number(form.valorRealizado || 0) > 0) {
+            updatePayload.valorRealizado = Number(form.valorRealizado);
+          }
+        } else {
+          updatePayload.valorPrevisto = Number(form.valorPrevisto);
+          updatePayload.valorRealizado = Number(form.valorRealizado);
+          updatePayload.descricao = form.descricao;
+        }
         await api.put(`/financial/receitas/${editingId}`, updatePayload);
         setSuccessMsg('Receita atualizada com sucesso!');
       } else {
-        await api.post('/financial/receitas', payload);
-        setSuccessMsg('Receita criada com sucesso!');
+        const response = await api.post('/financial/receitas', payload);
+        const totalCriados = Number(response.data?.totalCriados ?? 1);
+        setSuccessMsg(
+          totalCriados > 1
+            ? `${totalCriados} receitas criadas com sucesso!`
+            : 'Receita criada com sucesso!',
+        );
       }
 
       closeModal();
@@ -455,6 +681,8 @@ export default function FinanceiroPage() {
       objetoContratualId: receita.objetoContratualId || '',
       linhaContratualId: receita.linhaContratualId || '',
       quantidade: receita.quantidade ? String(receita.quantidade) : '',
+      mesesAdicionais: '0',
+      quantidadeRealizada: receita.quantidadeRealizada ? String(receita.quantidadeRealizada) : '', // RN-003
     });
     if (receita.projectId) loadObjetosByProject(receita.projectId);
     if (receita.objetoContratualId) loadLinhasByObjeto(receita.objetoContratualId);
@@ -505,9 +733,27 @@ export default function FinanceiroPage() {
             </select>
           </div>
           {view === 'despesas' && (
-            <button onClick={openCreateModal} className="hw1-btn-primary text-sm">
-              + Nova Despesa
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={handleBaixarTemplate} 
+                className="px-4 py-2 bg-white border border-hw1-blue text-hw1-blue rounded-xl text-sm font-medium hover:bg-blue-50 transition-all"
+              >
+                📥 Baixar Template
+              </button>
+              <label className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-all cursor-pointer">
+                {uploading ? '⏳ Importando...' : '📤 Importar Excel'}
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleImportarExcel}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+              <button onClick={openCreateModal} className="hw1-btn-primary text-sm">
+                + Nova Despesa
+              </button>
+            </div>
           )}
           {view === 'receitas' && (
             <button onClick={openCreateReceitaModal} className="hw1-btn-primary text-sm">
@@ -591,6 +837,7 @@ export default function FinanceiroPage() {
                     <th className="px-6 py-4 text-right">Rec. Prevista</th>
                     <th className="px-6 py-4 text-right">Rec. Realizada</th>
                     <th className="px-6 py-4 text-right">Custos</th>
+                    <th className="px-6 py-4 text-right">Impostos</th>
                     <th className="px-6 py-4 text-right">Margem</th>
                   </tr>
                 </thead>
@@ -607,6 +854,7 @@ export default function FinanceiroPage() {
                       <td className="px-6 py-4 text-right text-gray-600">{formatBRL(p.receitaPrevista)}</td>
                       <td className="px-6 py-4 text-right text-gray-600">{formatBRL(p.receitaRealizada)}</td>
                       <td className="px-6 py-4 text-right text-red-600">{formatBRL(p.totalCustos)}</td>
+                      <td className="px-6 py-4 text-right text-orange-600">{formatBRL(p.impostos ?? 0)}</td>
                       <td className="px-6 py-4 text-right">
                         <span
                           className={`font-semibold ${
@@ -977,8 +1225,8 @@ export default function FinanceiroPage() {
                             <input
                               type="number"
                               step="0.01"
-                              value={(form as any).quantidadeRealizada || ''}
-                              onChange={(e) => setForm({ ...form, quantidadeRealizada: e.target.value } as any)}
+                              value={form.quantidadeRealizada || ''}
+                              onChange={(e) => setForm({ ...form, quantidadeRealizada: e.target.value })}
                               placeholder="Opcional"
                               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
                             />
@@ -986,12 +1234,12 @@ export default function FinanceiroPage() {
                           <div>
                             <label className="block text-xs text-gray-500 mb-1">Valor Realizado (Contrato)</label>
                             <div className="w-full px-3 py-2 border border-gray-100 bg-blue-50 rounded-xl text-sm font-semibold text-blue-700">
-                              {(form as any).quantidadeRealizada && linhaSel
-                                ? formatBRL(Number((form as any).quantidadeRealizada) * Number(linhaSel.valorUnitario))
+                              {form.quantidadeRealizada && linhaSel
+                                ? formatBRL(Number(form.quantidadeRealizada) * Number(linhaSel.valorUnitario))
                                 : '—'}
                             </div>
-                            {(form as any).quantidadeRealizada && linhaSel && (
-                              <p className="text-[10px] text-gray-400 mt-0.5">= {(form as any).quantidadeRealizada} × {formatBRL(Number(linhaSel.valorUnitario))}</p>
+                            {form.quantidadeRealizada && linhaSel && (
+                              <p className="text-[10px] text-gray-400 mt-0.5">= {form.quantidadeRealizada} × {formatBRL(Number(linhaSel.valorUnitario))}</p>
                             )}
                           </div>
                         </>
@@ -1118,6 +1366,25 @@ export default function FinanceiroPage() {
                     ))}
                   </select>
                 </div>
+
+                {!editingId && (
+                  <div className="md:col-span-2">
+                    <label className="block text-xs text-gray-500 mb-1">Replicar para mais meses</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="number"
+                        min="0"
+                        max="36"
+                        value={form.mesesAdicionais}
+                        onChange={(e) => setForm({ ...form, mesesAdicionais: e.target.value })}
+                        className="w-32 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+                      />
+                      <p className="text-xs text-gray-500">
+                        0 = somente a competência informada. Valores maiores replicam para os próximos meses, inclusive virando o ano.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 pt-4 border-t">
@@ -1137,6 +1404,130 @@ export default function FinanceiroPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Resultado da Importação */}
+      {showImportModal && importResult && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-heading font-bold text-hw1-navy">
+                {importResult.success ? '✅ Importação Concluída' : '⚠️ Importação com Erros'}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportResult(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {/* Resumo */}
+              <div className={`p-4 rounded-xl mb-4 ${
+                importResult.success 
+                  ? 'bg-emerald-50 border border-emerald-200' 
+                  : 'bg-yellow-50 border border-yellow-200'
+              }`}>
+                <p className={`font-medium ${
+                  importResult.success ? 'text-emerald-700' : 'text-yellow-700'
+                }`}>
+                  {importResult.message}
+                </p>
+                <div className="mt-2 text-sm text-gray-600">
+                  <p>✓ Linhas válidas: <strong>{importResult.validas}</strong></p>
+                  <p>✗ Linhas com erro: <strong>{importResult.erros.length}</strong></p>
+                  {importResult.despesasCriadas && importResult.despesasCriadas.length > 0 && (
+                    <p>💾 Despesas criadas: <strong>{importResult.despesasCriadas.length}</strong></p>
+                  )}
+                </div>
+              </div>
+
+              {/* Lista de Erros */}
+              {importResult.erros.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Erros Encontrados:</h4>
+                  <div className="space-y-2">
+                    {importResult.erros.map((erro, idx) => (
+                      <div key={idx} className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-sm font-medium text-red-700 mb-1">
+                          Linha {erro.linha}:
+                        </p>
+                        <ul className="text-xs text-red-600 list-disc list-inside space-y-0.5">
+                          {erro.erros.map((msg, i) => (
+                            <li key={i}>{msg}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Despesas Criadas com Sucesso */}
+              {importResult.despesasCriadas && importResult.despesasCriadas.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Despesas Importadas:</h4>
+                  <div className="space-y-2">
+                    {importResult.despesasCriadas
+                      .filter((item) => item && typeof item === 'object')
+                      .slice(0, 10)
+                      .map((despesa, idx) => (
+                      <div key={idx} className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                        <div className="flex justify-between items-start text-xs">
+                          <div>
+                            <p className="font-medium text-emerald-700">{despesa.descricao}</p>
+                            <p className="text-gray-600">
+                              {TipoDespesa[despesa.tipo as keyof typeof TipoDespesa]} • 
+                              {String(despesa.mes).padStart(2, '0')}/{despesa.ano}
+                            </p>
+                          </div>
+                          <p className="font-semibold text-emerald-700">
+                            {formatBRL(despesa.valor)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {importResult.despesasCriadas.length > 10 && (
+                      <p className="text-xs text-gray-500 text-center pt-2">
+                        + {importResult.despesasCriadas.length - 10} despesa(s) a mais...
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Instruções em caso de erro */}
+              {!importResult.success && (
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                  <h4 className="text-sm font-semibold text-blue-700 mb-2">💡 Dicas:</h4>
+                  <ul className="text-xs text-blue-600 space-y-1 list-disc list-inside">
+                    <li>Corrija os erros listados acima no arquivo Excel</li>
+                    <li>Verifique se os IDs de projetos estão corretos</li>
+                    <li>Certifique-se de que os valores numéricos estão no formato correto</li>
+                    <li>O tipo de despesa deve ser um dos valores válidos: facilities, fornecedor, aluguel, etc.</li>
+                    <li>Baixe o template atualizado se tiver dúvidas sobre o formato</li>
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportResult(null);
+                }}
+                className="hw1-btn-primary text-sm"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}

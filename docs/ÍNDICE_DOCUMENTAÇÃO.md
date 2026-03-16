@@ -420,11 +420,15 @@ Day 3+:
 - [proposta_tecnica_scrum.md](./proposta_tecnica_scrum.md) - Original
 - [requisitos.md](./requisitos.md) - Requisitos
 
+### **Correções e Evoluções Pós Go-Live (Sprint 11)**
+- 🐛 [BUGS_REGRAS_NEGOCIO_03_03_2026.md](./BUGS_REGRAS_NEGOCIO_03_03_2026.md) — Bugs e regras de negócio encontrados em teste
+- 📋 [../SPRINT_11_PLANEJAMENTO.md](../SPRINT_11_PLANEJAMENTO.md) — Planejamento e tarefas da sprint corretiva
+
 ---
 
-**Última Atualização**: 01/03/2026  
-**Status**: ✅ Complete  
-**Versão**: 1.0 - Production Ready
+**Última Atualização**: 03/03/2026  
+**Status**: Sprint 11 — Correções Pós Go-Live em Planejamento  
+**Versão**: 1.1
 
 ---
 

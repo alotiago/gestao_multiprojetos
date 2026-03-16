@@ -206,4 +206,93 @@ describe('SindicatoService', () => {
       expect(result.regioes['RJ'].colaboradores).toBe(5);
     });
   });
+
+  describe('Novos campos Sprint 6', () => {
+    it('deve criar sindicato com todos os novos campos', async () => {
+      mockPrisma.sindicato.findUnique.mockResolvedValue(null);
+      mockPrisma.sindicato.create.mockResolvedValue({
+        id: 'sind-novo',
+        nome: 'Sindicato dos Metalúrgicos do ABC',
+        sigla: 'SMABC',
+        regiao: 'SP',
+        contacto: 'João Silva',
+        telefone: '(11) 98765-4321',
+        email: 'contato@smabc.org.br',
+        observacoes: 'Sindicato com histórico de 50 anos',
+        criadoPor: 'user-admin',
+      });
+
+      const result = await service.create({
+        nome: 'Sindicato dos Metalúrgicos do ABC',
+        sigla: 'SMABC',
+        regiao: 'SP',
+        regimeTributario: 'LUCRO_PRESUMIDO',
+        contacto: 'João Silva',
+        telefone: '(11) 98765-4321',
+        email: 'contato@smabc.org.br',
+        observacoes: 'Sindicato com histórico de 50 anos',
+        criadoPor: 'user-admin',
+      });
+
+      expect(result.sigla).toBe('SMABC');
+      expect(result.contacto).toBe('João Silva');
+      expect(result.telefone).toBe('(11) 98765-4321');
+      expect(result.email).toBe('contato@smabc.org.br');
+      expect(result.observacoes).toContain('50 anos');
+      expect(result.criadoPor).toBe('user-admin');
+    });
+
+    it('deve atualizar sindicato com novos campos de contato', async () => {
+      mockPrisma.sindicato.findUnique.mockResolvedValue({
+        id: 'sind-001',
+        nome: 'Sindicato TI SP',
+      });
+      mockPrisma.sindicato.update.mockResolvedValue({
+        id: 'sind-001',
+        contacto: 'Maria Santos',
+        telefone: '(11) 91111-2222',
+        email: 'maria@sindicatosp.org',
+      });
+
+      await service.update('sind-001', {
+        contacto: 'Maria Santos',
+        telefone: '(11) 91111-2222',
+        email: 'maria@sindicatosp.org',
+        observacoes: 'Atualizado contato principal',
+      });
+
+      expect(mockPrisma.sindicato.update).toHaveBeenCalledWith({
+        where: { id: 'sind-001' },
+        data: {
+          contacto: 'Maria Santos',
+          telefone: '(11) 91111-2222',
+          email: 'maria@sindicatosp.org',
+          observacoes: 'Atualizado contato principal',
+        },
+      });
+    });
+
+    it('deve criar sindicato sem campos opcionais', async () => {
+      mockPrisma.sindicato.findUnique.mockResolvedValue(null);
+      mockPrisma.sindicato.create.mockResolvedValue({
+        id: 'sind-minimo',
+        nome: 'Sindicato Básico',
+        regiao: 'RJ',
+        sigla: undefined,
+        contacto: undefined,
+        telefone: undefined,
+        email: undefined,
+      });
+
+      const result = await service.create({
+        nome: 'Sindicato Básico',
+        regiao: 'RJ',
+        regimeTributario: 'SIMPLES_NACIONAL',
+      });
+
+      expect(result.nome).toBe('Sindicato Básico');
+      expect(result.sigla).toBeUndefined();
+      expect(result.contacto).toBeUndefined();
+    });
+  });
 });

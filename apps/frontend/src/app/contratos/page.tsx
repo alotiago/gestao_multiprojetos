@@ -14,6 +14,7 @@ interface Contrato {
   observacoes?: string;
   ativo: boolean;
   createdAt: string;
+  saldoContratual?: number;
   _count?: { objetos: number; projetos: number };
   objetos?: ObjetoContratual[];
 }
@@ -40,13 +41,35 @@ interface LinhaContratual {
   quantidadeAnualEstimada: number;
   valorUnitario: number;
   valorTotalAnual: number;
+  saldoValor?: number;
 }
 
 const formatBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('pt-BR') : '-';
-const UNIDADES = ['hora', 'mês', 'pacote', 'serviço', 'diária', 'unidade', 'projeto'];
+const UNIDADES = [
+  'Birô/Mês',
+  'Caixa-20kg',
+  'Consulta/Mês',
+  'Diária',
+  'Documento',
+  'GB/Mês',
+  'Hora',
+  'Hora de Assessoria',
+  'Imagem',
+  'Km (limitado a 500 caixas)',
+  'Licença mensal',
+  'Mês',
+  'Metro Linear',
+  'Pacote',
+  'Projeto',
+  'Serviço',
+  'Unidade',
+  'Unidade documental (UP)',
+  'Unidades de Arquivamento (UA)',
+  'Usuário por mês',
+];
 const STATUS_OPTIONS = ['RASCUNHO', 'VIGENTE', 'ENCERRADO', 'CANCELADO'];
 
 export default function ContratosPage() {
@@ -72,6 +95,8 @@ export default function ContratosPage() {
   const [saving, setSaving] = useState(false);
   const [contratoParaClonar, setContratoParaClonar] = useState<Contrato | null>(null);
   const [cloneForm, setCloneForm] = useState({ novoNome: '', novoNumero: '' });
+  const [uploading, setUploading] = useState(false);
+  const [showImportResult, setShowImportResult] = useState<{ imported: number; skipped: number; totalObjetos?: number; totalLinhas?: number; errors: string[]; warnings?: string[] } | null>(null);
 
   // Forms
   const [contratoForm, setContratoForm] = useState({
@@ -208,6 +233,65 @@ export default function ContratosPage() {
     }
   };
 
+  // ══════════════ Importação Excel (US-044) ══════════════
+  const handleDownloadTemplate = async () => {
+    try {
+      const response = await api.get('/contracts/import/template', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'template_contratos.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError('Erro ao baixar template.');
+    }
+  };
+
+  const handleImportExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.xlsx')) {
+      setError('Apenas arquivos .xlsx são aceitos.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Arquivo excede o tamanho máximo de 5 MB.');
+      return;
+    }
+
+    setUploading(true);
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/contracts/import/excel', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setShowImportResult(res.data);
+      if (res.data.imported > 0) {
+        setSuccessMsg(`${res.data.imported} contrato(s) importado(s) com sucesso!`);
+        setPage(1);
+        loadContratos();
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message;
+      if (Array.isArray(msg)) {
+        setError(msg.join('; '));
+      } else if (msg) {
+        setError(String(msg));
+      } else {
+        setError('Erro ao importar planilha.');
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
   // ══════════════ CRUD Objetos ══════════════
   const openCreateObjeto = (contratoId: string) => {
     setEditingId(null);
@@ -337,9 +421,24 @@ export default function ContratosPage() {
           <h1 className="text-2xl font-heading font-semibold text-hw1-navy">Contratos</h1>
           <p className="text-sm text-gray-500 mt-0.5">Gestão completa de Contratos, Objetos e Linhas Contratuais</p>
         </div>
-        <button onClick={openCreateContrato} className="hw1-btn-primary text-sm">
-          + Novo Contrato
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleDownloadTemplate} className="px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50" title="Baixar template Excel">
+            📥 Template
+          </button>
+          <label className={`px-3 py-2 text-sm rounded-lg font-medium cursor-pointer ${uploading ? 'bg-gray-300 text-gray-500' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}>
+            {uploading ? '⏳ Importando...' : '📤 Importar Excel'}
+            <input
+              type="file"
+              accept=".xlsx"
+              onChange={handleImportExcel}
+              disabled={uploading}
+              className="hidden"
+            />
+          </label>
+          <button onClick={openCreateContrato} className="hw1-btn-primary text-sm">
+            + Novo Contrato
+          </button>
+        </div>
       </div>
 
       {/* Mensagens */}
@@ -385,6 +484,21 @@ export default function ContratosPage() {
                       <div><span className="text-gray-500">Fim:</span> {formatDate(contrato.dataFim)}</div>
                       <div><span className="text-gray-500">Objetos:</span> <span className="font-semibold">{contrato._count?.objetos ?? 0}</span></div>
                       <div><span className="text-gray-500">Projetos:</span> <span className="font-semibold">{contrato._count?.projetos ?? 0}</span></div>
+                      {contrato.saldoContratual !== undefined && (
+                        <div className="col-span-2">
+                          <span className="text-gray-500">Saldo Contratual:</span>{' '}
+                          <span 
+                            className={`font-semibold ${
+                              (contrato.saldoContratual ?? 0) <= 0 
+                                ? 'text-red-600' 
+                                : 'text-green-600'
+                            }`}
+                            title="Valor disponível restante do contrato"
+                          >
+                            {Number(contrato.saldoContratual).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     {contrato.observacoes && <p className="text-xs text-gray-600 mt-2 italic">{contrato.observacoes}</p>}
                   </div>
@@ -506,6 +620,7 @@ export default function ContratosPage() {
                                         <th className="text-right px-2 py-1.5 font-medium text-gray-700">Qtd.  Anual</th>
                                         <th className="text-right px-2 py-1.5 font-medium text-gray-700">Vl. Unitário</th>
                                         <th className="text-right px-2 py-1.5 font-medium text-gray-700">Vl. Total</th>
+                                        <th className="text-right px-2 py-1.5 font-medium text-gray-700">Saldo</th>
                                         <th className="text-center px-2 py-1.5 font-medium text-gray-700">Ações</th>
                                       </tr>
                                     </thead>
@@ -517,6 +632,7 @@ export default function ContratosPage() {
                                           <td className="px-2 py-1.5 text-right">{linha.quantidadeAnualEstimada}</td>
                                           <td className="px-2 py-1.5 text-right">{formatBRL(linha.valorUnitario)}</td>
                                           <td className="px-2 py-1.5 text-right font-semibold">{formatBRL(linha.valorTotalAnual)}</td>
+                                          <td className="px-2 py-1.5 text-right font-semibold text-emerald-700">{formatBRL(Number(linha.saldoValor || 0))}</td>
                                           <td className="px-2 py-1.5 text-center">
                                             <div className="flex justify-center gap-2">
                                               <button
@@ -895,6 +1011,65 @@ export default function ContratosPage() {
                 disabled={saving}
               >
                 {saving ? 'Clonando...' : 'Clonar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Resultado da Importação */}
+      {showImportResult && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-hw1-navy">Resultado da Importação</h2>
+            </div>
+            <div className="px-6 py-4 space-y-4 overflow-y-auto">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-green-700">{showImportResult.imported}</p>
+                  <p className="text-xs text-green-600">Contratos</p>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-blue-700">{showImportResult.totalObjetos ?? 0}</p>
+                  <p className="text-xs text-blue-600">Objetos</p>
+                </div>
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-indigo-700">{showImportResult.totalLinhas ?? 0}</p>
+                  <p className="text-xs text-indigo-600">Linhas</p>
+                </div>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-yellow-700">{showImportResult.skipped}</p>
+                  <p className="text-xs text-yellow-600">Ignorados</p>
+                </div>
+              </div>
+              {(showImportResult.warnings?.length ?? 0) > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-yellow-800 mb-2">⚠ Avisos ({showImportResult.warnings!.length}):</h3>
+                  <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 max-h-36 overflow-y-auto">
+                    {showImportResult.warnings!.map((w, i) => (
+                      <p key={i} className="text-xs text-yellow-800 mb-1">{w}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {showImportResult.errors.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-red-800 mb-2">❌ Erros ({showImportResult.errors.length}):</h3>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 max-h-48 overflow-y-auto">
+                    {showImportResult.errors.map((err, i) => (
+                      <p key={i} className="text-xs text-red-700 mb-1">• {err}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setShowImportResult(null)}
+                className="px-4 py-2 bg-hw1-blue text-white rounded-lg hover:bg-hw1-blue/90"
+              >
+                Fechar
               </button>
             </div>
           </div>

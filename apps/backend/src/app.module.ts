@@ -1,3 +1,4 @@
+import { MulterModule } from '@nestjs/platform-express';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -30,6 +31,7 @@ import { RelatoriosModule } from './modules/relatorios/relatorios.module';
       limit: 200,   // 200 req/min por IP (global)
     }]),
     PrismaModule,
+      MulterModule,
     AuthModule,
     UsersModule,
     ProjectsModule,

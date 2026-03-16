@@ -49,12 +49,18 @@ export class CalendarioService {
     return this.prisma.calendario.create({
       data: {
         data,
+        nome: dto.nome,
         tipoFeriado: dto.tipoFeriado as any,
         descricao: dto.descricao,
         cidade: dto.cidade,
         estado: dto.estado,
         diaSemana: dto.diaSemana,
         nacional: dto.nacional ?? (dto.tipoFeriado === TipoFeriado.NACIONAL),
+        ehFeriado: dto.ehFeriado ?? true,
+        ehRecuperavel: dto.ehRecuperavel ?? false,
+        percentualDesc: dto.percentualDesc ?? 100,
+        observacoes: dto.observacoes,
+        criadoPor: dto.criadoPor,
       },
     });
   }
@@ -62,10 +68,15 @@ export class CalendarioService {
   async update(id: string, dto: UpdateCalendarioDto) {
     await this.findById(id);
     const updateData: any = {};
+    if (dto.nome !== undefined) updateData.nome = dto.nome;
     if (dto.descricao !== undefined) updateData.descricao = dto.descricao;
     if (dto.tipoFeriado !== undefined) updateData.tipoFeriado = dto.tipoFeriado;
     if (dto.cidade !== undefined) updateData.cidade = dto.cidade;
     if (dto.estado !== undefined) updateData.estado = dto.estado;
+    if (dto.ehFeriado !== undefined) updateData.ehFeriado = dto.ehFeriado;
+    if (dto.ehRecuperavel !== undefined) updateData.ehRecuperavel = dto.ehRecuperavel;
+    if (dto.percentualDesc !== undefined) updateData.percentualDesc = dto.percentualDesc;
+    if (dto.observacoes !== undefined) updateData.observacoes = dto.observacoes;
 
     return this.prisma.calendario.update({ where: { id }, data: updateData });
   }
@@ -201,9 +212,9 @@ export class CalendarioService {
       };
 
       try {
-        if (!item.data || !item.descricao || !item.tipoFeriado) {
+        if (!item.data || !item.nome || !item.descricao || !item.tipoFeriado) {
           resultado.status = 'erro';
-          resultado.mensagem = 'Campos obrigatórios: data, descricao, tipoFeriado';
+          resultado.mensagem = 'Campos obrigatórios: data, nome, descricao, tipoFeriado';
           erros++;
           detalhes.push(resultado);
           continue;
@@ -214,16 +225,21 @@ export class CalendarioService {
         const feriado = await this.prisma.calendario.create({
           data: {
             data,
+            nome: item.nome,
             tipoFeriado: item.tipoFeriado as any,
             descricao: item.descricao,
             cidade: item.cidade,
             estado: item.estado,
             diaSemana: item.diaSemana,
             nacional: item.nacional ?? (item.tipoFeriado === TipoFeriado.NACIONAL),
+            ehFeriado: item.ehFeriado ?? true,
+            ehRecuperavel: item.ehRecuperavel ?? false,
+            percentualDesc: item.percentualDesc ?? 100,
+            observacoes: item.observacoes,
           },
         });
 
-        resultado.mensagem = `Feriado '${item.descricao}' criado para ${item.data}`;
+        resultado.mensagem = `Feriado '${item.nome}' criado para ${item.data}`;
         resultado.entityId = feriado.id;
         sucessos++;
       } catch (error: any) {
@@ -254,18 +270,18 @@ export class CalendarioService {
 
   async seedFeriadosNacionais(ano: number) {
     const feriadosNacionais = [
-      { mes: 1, dia: 1, descricao: 'Confraternização Universal' },
-      { mes: 2, dia: 28, descricao: 'Carnaval' }, // Aproximado
-      { mes: 3, dia: 1, descricao: 'Carnaval (terça)' },
-      { mes: 4, dia: 18, descricao: 'Sexta-feira Santa' }, // Aproximado para 2026
-      { mes: 4, dia: 21, descricao: 'Tiradentes' },
-      { mes: 5, dia: 1, descricao: 'Dia do Trabalho' },
-      { mes: 6, dia: 4, descricao: 'Corpus Christi' }, // Aproximado para 2026
-      { mes: 9, dia: 7, descricao: 'Independência do Brasil' },
-      { mes: 10, dia: 12, descricao: 'Nossa Sra. Aparecida' },
-      { mes: 11, dia: 2, descricao: 'Finados' },
-      { mes: 11, dia: 15, descricao: 'Proclamação da República' },
-      { mes: 12, dia: 25, descricao: 'Natal' },
+      { mes: 1, dia: 1, nome: 'Confraterni Order', descricao: 'Confraternização Universal' },
+      { mes: 2, dia: 28, nome: 'Carnaval', descricao: 'Carnaval' }, // Aproximado
+      { mes: 3, dia: 1, nome: 'Carnaval (terça)', descricao: 'Carnaval (terça-feira)' },
+      { mes: 4, dia: 18, nome: 'Sexta-feira Santa', descricao: 'Paixão de Cristo' }, // Aproximado para 2026
+      { mes: 4, dia: 21, nome: 'Tiradentes', descricao: 'Dia de Tiradentes' },
+      { mes: 5, dia: 1, nome: 'Dia do Trabalho', descricao: 'Dia Mundial do Trabalho' },
+      { mes: 6, dia: 4, nome: 'Corpus Christi', descricao: 'Corpus Christi' }, // Aproximado para 2026
+      { mes: 9, dia: 7, nome: 'Independência', descricao: 'Independência do Brasil' },
+      { mes: 10, dia: 12, nome: 'Nossa Senhora Aparecida', descricao: 'Padroeira do Brasil' },
+      { mes: 11, dia: 2, nome: 'Finados', descricao: 'Dia de Finados' },
+      { mes: 11, dia: 15, nome: 'Proclamação da República', descricao: 'Proclamação da República' },
+      { mes: 12, dia: 25, nome: 'Natal', descricao: 'Natal' },
     ];
 
     let criados = 0;
@@ -279,10 +295,14 @@ export class CalendarioService {
         await this.prisma.calendario.create({
           data: {
             data,
+            nome: feriado.nome,
             tipoFeriado: 'NACIONAL' as any,
             descricao: feriado.descricao,
             diaSemana,
             nacional: true,
+            ehFeriado: true,
+            ehRecuperavel: false,
+            percentualDesc: 100,
           },
         });
         criados++;

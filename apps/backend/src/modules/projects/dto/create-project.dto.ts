@@ -10,6 +10,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ProjectStatus } from '@prisma/client';
+import { RegimeTributario } from '../../financial/dto/imposto.dto';
 
 export class CreateProjectDto {
   @ApiProperty({ example: 'PROJ-2026-001', description: 'Código único do projeto' })
@@ -67,4 +68,13 @@ export class CreateProjectDto {
   @IsString()
   @MaxLength(1000)
   descricao?: string;
+
+  @ApiPropertyOptional({
+    enum: RegimeTributario,
+    default: RegimeTributario.SIMPLES_NACIONAL,
+    description: 'Regime tributário do projeto',
+  })
+  @IsOptional()
+  @IsEnum(RegimeTributario, { message: 'Regime tributário inválido' })
+  regimeTributario?: RegimeTributario;
 }

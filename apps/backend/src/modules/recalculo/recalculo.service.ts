@@ -96,7 +96,7 @@ export class RecalculoService {
         select: { id: true, codigo: true, nome: true },
       });
 
-      const resultados = [];
+      const resultados: Record<string, any>[] = [];
       for (const projeto of projetos) {
         const { mes, ano } = this.getMesAnoAtual();
         const custo = await this.financialService.calcularCustoTotalCompleto(projeto.id, mes, ano);
@@ -174,7 +174,7 @@ export class RecalculoService {
         select: { id: true, matricula: true, nome: true, estado: true },
       });
 
-      const resultados = [];
+      const resultados: Record<string, any>[] = [];
       for (const colab of colaboradores) {
         const { mes, ano } = this.getMesAnoAtual();
         const custo = await this.hrService.calcularCustoIndividual(colab.id, mes, ano);
@@ -343,7 +343,7 @@ export class RecalculoService {
       }
 
       const percentualReajuste = sindicato.percentualDissidio.toNumber();
-      const resultados = [];
+      const resultados: Record<string, any>[] = [];
       const projetosAfetados = new Set<string>();
       const { mes, ano } = this.getMesAnoAtual();
 

@@ -13,6 +13,7 @@ import { CreateJornadaDto, UpdateJornadaDto, BulkJornadaDto } from './dto/jornad
 import { CreateFeriasDto, UpdateFeriasDto } from './dto/ferias.dto';
 import { CreateDesligamentoDto } from './dto/desligamento.dto';
 import { Decimal } from '@prisma/client/runtime/library';
+import * as xlsx from 'xlsx';
 
 @Injectable()
 export class HrService {
@@ -209,7 +210,123 @@ export class HrService {
     });
   }
 
-  // ===================== IMPORTAÇÃO CSV =====================
+  // ===================== TEMPLATE / IMPORTAÇÃO =====================
+
+  gerarTemplateExcel(): Buffer {
+    const headers = [
+      'matricula', 'nome', 'email', 'cargo', 'classe',
+      'taxaHora', 'cargaHoraria', 'cidade', 'estado',
+      'sindicatoId', 'projectId', 'dataAdmissao', 'tipoContratacao',
+    ];
+    const exemplo = [
+      '0001', 'João da Silva', 'joao@email.com', 'Analista', 'Pleno',
+      '85.00', '168', 'Brasília', 'DF',
+      '', 'ID_DO_PROJETO', '2025-01-15', 'CL',
+    ];
+    const ws = xlsx.utils.aoa_to_sheet([headers, exemplo]);
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, 'Colaboradores');
+    return xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+  }
+
+  async importarExcel(fileBuffer: Buffer): Promise<{ imported: number; errors: string[] }> {
+    const workbook = xlsx.read(fileBuffer, { type: 'buffer' });
+    const firstSheetName = workbook.SheetNames[0];
+    if (!firstSheetName) {
+      throw new BadRequestException('Planilha inválida: nenhuma aba encontrada');
+    }
+
+    const sheet = workbook.Sheets[firstSheetName];
+    const rows = xlsx.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
+    if (rows.length === 0) {
+      throw new BadRequestException('Planilha vazia. Informe ao menos uma linha de colaborador.');
+    }
+
+    const normalizeKey = (key: string) =>
+      String(key || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+
+    const toDecimalNumber = (value: unknown): number => {
+      const raw = String(value ?? '').trim().replace(',', '.');
+      return Number(raw);
+    };
+
+    const toIsoDate = (value: unknown): string => {
+      if (value instanceof Date) return value.toISOString().slice(0, 10);
+      if (typeof value === 'number') {
+        const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+        const jsDate = new Date(excelEpoch.getTime() + value * 86400000);
+        return jsDate.toISOString().slice(0, 10);
+      }
+      const parsed = new Date(String(value || '').trim());
+      if (isNaN(parsed.getTime())) return '';
+      return parsed.toISOString().slice(0, 10);
+    };
+
+    const requiredFields = ['matricula', 'nome', 'cargo', 'taxahora', 'cargahoraria', 'cidade', 'estado', 'dataadmissao', 'projectid'];
+    const firstRowKeys = Object.keys(rows[0] || {}).map(normalizeKey);
+    for (const field of requiredFields) {
+      if (!firstRowKeys.includes(field)) {
+        throw new BadRequestException(`Campo obrigatório ausente na planilha: ${field}`);
+      }
+    }
+
+    let imported = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const normalized: Record<string, any> = {};
+      for (const [k, v] of Object.entries(row)) {
+        normalized[normalizeKey(k)] = v;
+      }
+
+      try {
+        const dto: CreateColaboradorDto = {
+          matricula: String(normalized['matricula'] || '').trim(),
+          nome: String(normalized['nome'] || '').trim(),
+          email: String(normalized['email'] || '').trim() || undefined,
+          cargo: String(normalized['cargo'] || '').trim(),
+          classe: String(normalized['classe'] || '').trim() || undefined,
+          taxaHora: toDecimalNumber(normalized['taxahora']),
+          cargaHoraria: Number(normalized['cargahoraria']),
+          cidade: String(normalized['cidade'] || '').trim(),
+          estado: String(normalized['estado'] || '').trim().toUpperCase(),
+          sindicatoId: String(normalized['sindicatoid'] || '').trim() || undefined,
+          projectId: String(normalized['projectid'] || '').trim(),
+          dataAdmissao: toIsoDate(normalized['dataadmissao']),
+          tipoContratacao: (String(normalized['tipocontratacao'] || '').trim().toUpperCase() as any) || undefined,
+        };
+
+        if (!dto.matricula || !dto.nome || !dto.cargo || !dto.projectId || !dto.dataAdmissao) {
+          errors.push(`Linha ${i + 2}: campos obrigatórios ausentes`);
+          continue;
+        }
+
+        if (!Number.isFinite(dto.taxaHora) || dto.taxaHora <= 0 || !Number.isFinite(dto.cargaHoraria) || dto.cargaHoraria <= 0) {
+          errors.push(`Linha ${i + 2}: taxaHora/cargaHoraria inválidas`);
+          continue;
+        }
+
+        const exists = await this.prisma.colaborador.findUnique({ where: { matricula: dto.matricula } });
+        if (exists) {
+          errors.push(`Linha ${i + 2}: matrícula '${dto.matricula}' já existe`);
+          continue;
+        }
+
+        await this.create(dto);
+        imported++;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        errors.push(`Linha ${i + 2}: ${msg}`);
+      }
+    }
+
+    return { imported, errors };
+  }
 
   async importarCSV(csvContent: string): Promise<{ imported: number; errors: string[] }> {
     const lines = csvContent.trim().split('\n');
