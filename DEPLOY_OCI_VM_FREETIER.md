@@ -1,6 +1,8 @@
 # Deploy OCI Free Tier — Gestor Multiprojetos
 ## Guia Completo: VM + Node.js + PostgreSQL + PM2 + Nginx
 
+> Atualizacao importante: para o ambiente atual em `10.10.11.92` (deploy Docker multi-app com gateway host nginx), consulte `deploy/oci/RUNBOOK_PROD_10.10.11.92.md`.
+
 > **Estratégia:** Uma única VM Free Tier (VM.Standard.E2.1.Micro) rodando
 > tudo — backend NestJS, frontend Next.js, PostgreSQL e Redis — sem Docker,
 > gerenciado pelo PM2, com Nginx como proxy reverso.
