@@ -15,6 +15,10 @@ RUN npm install
 # Copiar código
 COPY . .
 
+# URL da API — precisa ser conhecida em build time (Next.js bake-in)
+ARG NEXT_PUBLIC_API_URL=http://localhost:3001
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 # Build Next.js
 WORKDIR /app/apps/frontend
 RUN npm run build
