@@ -128,7 +128,7 @@ export default function DashboardPage() {
           return;
         }
 
-        setError('Não foi possível carregar o dashboard.');
+        setError('Não foi possível carregar o dashboard. Tente novamente em instantes.');
       })
       .finally(() => setLoading(false));
   }, [ano, selectedProjectId]);
@@ -181,8 +181,7 @@ export default function DashboardPage() {
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
-          {error}{' '}
-          {!isAuthError && <span className="text-red-400">(Backend pode estar offline)</span>}
+          {error}
         </div>
       )}
 
