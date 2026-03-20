@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import axios from 'axios';
 import api from '@/services/api';
 import {
   buildDashboardFinanceiroCsvFilename,
@@ -68,6 +69,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [exportando, setExportando] = useState(false);
   const [error, setError] = useState('');
+  const [isAuthError, setIsAuthError] = useState(false);
   const [ano, setAno] = useState(currentYear);
   const [projetos, setProjetos] = useState<ProjetoSelect[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
@@ -112,12 +114,22 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setLoading(true);
+    setError('');
+    setIsAuthError(false);
     let url = `/dashboard/executivo?ano=${ano}`;
     if (selectedProjectId) url += `&projectId=${selectedProjectId}`;
     api
       .get(url)
       .then((r) => setData(r.data))
-      .catch(() => setError('Não foi possível carregar o dashboard.'))
+      .catch((err: unknown) => {
+        if (axios.isAxiosError(err) && err.response?.status === 401) {
+          setIsAuthError(true);
+          setError('Sessão expirada ou não autenticada. Faça login novamente.');
+          return;
+        }
+
+        setError('Não foi possível carregar o dashboard.');
+      })
       .finally(() => setLoading(false));
   }, [ano, selectedProjectId]);
 
@@ -169,7 +181,8 @@ export default function DashboardPage() {
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
-          {error} <span className="text-red-400">(Backend pode estar offline)</span>
+          {error}{' '}
+          {!isAuthError && <span className="text-red-400">(Backend pode estar offline)</span>}
         </div>
       )}
 
