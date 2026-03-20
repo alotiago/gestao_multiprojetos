@@ -37,6 +37,23 @@ sudo docker compose -f docker-compose.oci.yml up -d --build
 sudo docker exec gmp-backend sh -c 'cd /app/apps/backend && npx prisma migrate deploy --schema=prisma/schema.prisma'
 ```
 
+## Validacao pos-migration
+Depois de aplicar as migrations, valide rapidamente se os erros de schema desapareceram:
+
+```bash
+cd /opt/gestor_multiprojetos
+sudo docker compose -f docker-compose.oci.yml logs --tail=300 postgres backend | egrep 'column .* does not exist|relation .* does not exist|saldo_contratual|regimeTributario|project_id|saldo_quantidade|project_go_lives|project_status_reports|historico_recalculos|aliquotas_regime'
+```
+
+Se o comando acima nao retornar novas ocorrencias de `column ... does not exist` ou `relation ... does not exist`, o drift principal de schema foi resolvido.
+
+Para uma verificacao funcional minima:
+
+```bash
+curl -s http://127.0.0.1:8081/health
+curl -s http://127.0.0.1/ -H 'Host: gestaodeprojetos.oais.cloud' | head
+```
+
 ## Seed inicial de usuarios
 No runtime de producao, o `ts-node` pode nao existir. Use fallback JS:
 ```bash
