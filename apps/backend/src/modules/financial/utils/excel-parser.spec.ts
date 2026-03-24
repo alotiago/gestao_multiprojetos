@@ -71,6 +71,25 @@ describe('ExcelParser', () => {
   });
 
   describe('parseExcel - Validações de Dados', () => {
+    it('deve aceitar cabeçalhos com variações de nome e acentuação', () => {
+      const rows = [
+        ['Projeto', 'Tipo Despesa', 'Descrição', 'Valor (R$)', 'Mês', 'Ano'],
+        ['PRJ-001', 'Comerciais', 'Despesa com cabeçalho alternativo', '1.234,56', '3', '2024'],
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Despesas');
+      const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      const result = ExcelParser.parseExcel(buffer, 'test.xlsx');
+
+      expect(result.errors).toHaveLength(0);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].projectId).toBe('PRJ-001');
+      expect(result.items[0].tipo).toBe('comerciais');
+      expect(result.items[0].valor).toBe(1234.56);
+    });
+
     it('deve processar arquivo válido com sucesso', () => {
       const rows = [
         ['projectId', 'tipo', 'descricao', 'valor', 'mes', 'ano'],
@@ -100,13 +119,15 @@ describe('ExcelParser', () => {
 
       expect(result.errors).toHaveLength(0);
       expect(result.items).toHaveLength(2);
-      expect(result.items[0]).toEqual({
+      expect(result.items[0]).toMatchObject({
         projectId: '123e4567-e89b-12d3-a456-426614174000',
         tipo: 'facilities',
         descricao: 'Despesa teste 1',
         valor: 1500.75,
         mes: 3,
         ano: 2024,
+        naturezaCusto: 'VARIAVEL',
+        replicarAteFimContrato: false,
       });
     });
 
@@ -185,6 +206,23 @@ describe('ExcelParser', () => {
       expect(result.errors).toHaveLength(2);
       expect(result.errors[0].codigo).toBe('E006');
       expect(result.errors[1].codigo).toBe('E006');
+    });
+
+    it('deve interpretar valor monetário no padrão brasileiro', () => {
+      const rows = [
+        ['projectId', 'tipo', 'descricao', 'valor', 'mes', 'ano'],
+        ['123e4567-e89b-12d3-a456-426614174000', 'software', 'Licença anual', '12.345,67', '1', '2024'],
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Despesas');
+      const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      const result = ExcelParser.parseExcel(buffer, 'test.xlsx');
+
+      expect(result.errors).toHaveLength(0);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].valor).toBe(12345.67);
     });
 
     it('deve rejeitar mês fora do intervalo 1-12 (E007)', () => {
@@ -359,7 +397,7 @@ describe('ExcelParser', () => {
       expect(wb.SheetNames).toContain('Despesas');
     });
 
-    it('deve conter as 6 colunas obrigatórias', () => {
+    it('deve conter as colunas obrigatórias e auxiliares', () => {
       const buffer = ExcelParser.generateTemplate();
       const wb = XLSX.read(buffer, { type: 'buffer' });
       const ws = wb.Sheets['Despesas'];
@@ -368,6 +406,8 @@ describe('ExcelParser', () => {
       const headers = data[0];
       expect(headers).toContain('projectId');
       expect(headers).toContain('tipo');
+      expect(headers).toContain('naturezaCusto');
+      expect(headers).toContain('replicarAteFimContrato');
       expect(headers).toContain('descricao');
       expect(headers).toContain('valor');
       expect(headers).toContain('mes');
@@ -388,6 +428,13 @@ describe('ExcelParser', () => {
   describe('Validações de Tipo', () => {
     it('deve aceitar todos os tipos válidos de despesa', () => {
       const tiposValidos = [
+        'comerciais',
+        'operacao',
+        'taxas',
+        'administrativas',
+        'software',
+        'tributarias',
+        'financeiras',
         'facilities',
         'fornecedor',
         'aluguel',
@@ -420,6 +467,30 @@ describe('ExcelParser', () => {
 
       expect(result.items).toHaveLength(tiposValidos.length);
       expect(result.errors).toHaveLength(0);
+    });
+
+    it('deve aceitar tipos com acentos e normalizar para formato canônico', () => {
+      const rows = [
+        ['projectId', 'tipo', 'descricao', 'valor', 'mes', 'ano'],
+        ['123e4567-e89b-12d3-a456-426614174000', 'Operação', 'Despesa Operação', '100', '1', '2024'],
+        ['123e4567-e89b-12d3-a456-426614174000', 'Tributárias', 'Despesa Tributária', '100', '1', '2024'],
+        ['123e4567-e89b-12d3-a456-426614174000', 'Amortização', 'Despesa Amortização', '100', '1', '2024'],
+        ['123e4567-e89b-12d3-a456-426614174000', 'Provisão', 'Despesa Provisão', '100', '1', '2024'],
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Despesas');
+      const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      const result = ExcelParser.parseExcel(buffer, 'test.xlsx');
+
+      expect(result.errors).toHaveLength(0);
+      expect(result.items).toHaveLength(4);
+      expect(result.items[0].tipo).toBe('operacao');
+      expect(result.items[1].tipo).toBe('tributarias');
+      expect(result.items[2].tipo).toBe('amortizacao');
+      expect(result.items[3].tipo).toBe('provisao');
     });
   });
 });

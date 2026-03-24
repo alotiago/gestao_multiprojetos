@@ -13,7 +13,7 @@ import {
   ArrayMinSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TipoDespesa } from './despesa.dto';
+import { TipoDespesa, NaturezaCusto } from './despesa.dto';
 import { TipoProvisao } from './provisao.dto';
 import { TipoImposto } from './imposto.dto';
 
@@ -47,6 +47,14 @@ export class BulkDespesaItemDto {
   @Max(2100)
   @Type(() => Number)
   ano!: number;
+
+  @IsEnum(NaturezaCusto)
+  @IsOptional()
+  naturezaCusto?: NaturezaCusto;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  replicarAteFimContrato?: boolean;
 }
 
 export class BulkImportDespesaDto {

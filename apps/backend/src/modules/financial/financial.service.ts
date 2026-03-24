@@ -3,10 +3,18 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  Logger,
+  OnModuleInit,
 } from '@nestjs/common';
+import { Prisma, NaturezaCusto as PrismaNaturezaCusto } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
-import { CreateDespesaDto, UpdateDespesaDto, FilterDespesaDto } from './dto/despesa.dto';
+import {
+  CreateDespesaDto,
+  UpdateDespesaDto,
+  FilterDespesaDto,
+  NaturezaCusto,
+} from './dto/despesa.dto';
 import {
   CreateImpostoDto,
   UpdateImpostoDto,
@@ -27,6 +35,7 @@ import {
   CalculoTributarioSindicatoDto,
 } from './dto/bulk-operations.dto';
 import { ExcelParser } from './utils/excel-parser';
+import { ExcelReceitasParser } from './utils/excel-receitas-parser';
 import { CreateAliquotaRegimeDto, UpdateAliquotaRegimeDto } from './dto/aliquota-regime.dto';
 
 // Alíquotas FALLBACK (usadas apenas se não houver registros no BD)
@@ -38,8 +47,22 @@ const ALIQUOTAS_FALLBACK: Record<string, Record<string, number>> = {
 };
 
 @Injectable()
-export class FinancialService {
+export class FinancialService implements OnModuleInit {
+  private readonly logger = new Logger(FinancialService.name);
+
   constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    await this.ensureAliquotasRegimeSeeded();
+  }
+
+  private async ensureAliquotasRegimeSeeded() {
+    const totalAtivas = await this.prisma.aliquotaRegime.count({ where: { ativo: true } });
+    if (totalAtivas > 0) return;
+
+    const { criados } = await this.seedAliquotasRegime();
+    this.logger.log(`Tabela de alíquotas estava vazia. Seed automático executado com ${criados} registro(s).`);
+  }
 
   private normalizeMesesAdicionais(value?: number) {
     const parsed = Number(value ?? 0);
@@ -80,6 +103,87 @@ export class FinancialService {
       competenciaInicial: this.formatCompetencia(primeira),
       competenciaFinal: this.formatCompetencia(ultima),
     };
+  }
+
+  private resolveContratoDataFim(project: any): Date | null {
+    return project?.contrato?.dataFim ?? project?.dataFim ?? null;
+  }
+
+  private getCompetenciaIndice(mes: number, ano: number): number {
+    return ano * 12 + (mes - 1);
+  }
+
+  private calcularMesesAteFimContrato(
+    project: any,
+    mesInicio: number,
+    anoInicio: number,
+    contexto: string,
+  ): number {
+    const dataFim = this.resolveContratoDataFim(project);
+    if (!dataFim) {
+      throw new BadRequestException(
+        `Não é possível replicar até o fim da vigência em ${contexto} porque o contrato/projeto não possui data final.`,
+      );
+    }
+
+    const inicioIdx = this.getCompetenciaIndice(mesInicio, anoInicio);
+    const fimIdx = this.getCompetenciaIndice(dataFim.getUTCMonth() + 1, dataFim.getUTCFullYear());
+
+    if (inicioIdx > fimIdx) {
+      throw new BadRequestException(
+        `Competência ${this.formatCompetencia({ mes: mesInicio, ano: anoInicio })} está após a vigência final do contrato (${this.formatCompetencia({ mes: dataFim.getUTCMonth() + 1, ano: dataFim.getUTCFullYear() })}) em ${contexto}.`,
+      );
+    }
+
+    return Math.max(0, fimIdx - inicioIdx);
+  }
+
+  private assertCompetenciasDentroDaVigencia(
+    project: any,
+    competencias: Array<{ mes: number; ano: number }>,
+    contexto: string,
+  ) {
+    const dataFim = this.resolveContratoDataFim(project);
+    if (!dataFim || competencias.length === 0) {
+      return;
+    }
+
+    const fimIdx = this.getCompetenciaIndice(dataFim.getUTCMonth() + 1, dataFim.getUTCFullYear());
+    const foraDaVigencia = competencias.find(
+      (competencia) => this.getCompetenciaIndice(competencia.mes, competencia.ano) > fimIdx,
+    );
+
+    if (foraDaVigencia) {
+      throw new BadRequestException(
+        `${contexto} não pode ser lançado além da vigência final do contrato (${this.formatCompetencia({ mes: dataFim.getUTCMonth() + 1, ano: dataFim.getUTCFullYear() })}). Competência inválida: ${this.formatCompetencia(foraDaVigencia)}.`,
+      );
+    }
+  }
+
+  private normalizeJustificativa(value?: string | null): string | null {
+    const texto = String(value ?? '').trim();
+    return texto ? texto : null;
+  }
+
+  private validateJustificativaReceita(
+    valorPrevisto: number,
+    valorRealizado: number,
+    justificativa?: string | null,
+  ) {
+    if (!Number.isFinite(valorRealizado) || valorRealizado <= 0) {
+      return;
+    }
+
+    const diferenca = Math.abs(valorRealizado - valorPrevisto);
+    if (diferenca < 0.01) {
+      return;
+    }
+
+    if (!this.normalizeJustificativa(justificativa)) {
+      throw new BadRequestException(
+        'Justificativa é obrigatória quando o valor realizado for diferente do valor planejado (exceto quando valor realizado for 0 ou vazio).',
+      );
+    }
   }
 
   private async ensureReceitaNaoDuplicada(
@@ -160,20 +264,30 @@ export class FinancialService {
   }
 
   async createDespesa(dto: CreateDespesaDto) {
-    await this.validateProject(dto.projectId);
+    const project = await this.validateProject(dto.projectId);
+    const naturezaCusto = dto.naturezaCusto ?? NaturezaCusto.VARIAVEL;
 
-    const competencias = this.buildCompetencias(dto.mes, dto.ano, dto.mesesAdicionais);
+    const mesesAdicionaisEfetivos =
+      dto.replicarAteFimContrato && naturezaCusto === NaturezaCusto.FIXO
+        ? this.calcularMesesAteFimContrato(project, dto.mes, dto.ano, 'despesa')
+        : dto.mesesAdicionais;
+
+    const competencias = this.buildCompetencias(dto.mes, dto.ano, mesesAdicionaisEfetivos);
+    this.assertCompetenciasDentroDaVigencia(project, competencias, 'Despesa');
 
     if (competencias.length === 1) {
+      const data: Prisma.DespesaUncheckedCreateInput = {
+        projectId: dto.projectId,
+        tipo: dto.tipo,
+        naturezaCusto: naturezaCusto as PrismaNaturezaCusto,
+        descricao: dto.descricao,
+        valor: new Decimal(dto.valor),
+        mes: dto.mes,
+        ano: dto.ano,
+      };
+
       const despesa = await this.prisma.despesa.create({
-        data: {
-          projectId: dto.projectId,
-          tipo: dto.tipo,
-          descricao: dto.descricao,
-          valor: new Decimal(dto.valor),
-          mes: dto.mes,
-          ano: dto.ano,
-        },
+        data,
       });
 
       return this.formatDespesaResponse(despesa);
@@ -185,11 +299,12 @@ export class FinancialService {
           data: {
             projectId: dto.projectId,
             tipo: dto.tipo,
+            naturezaCusto: naturezaCusto as PrismaNaturezaCusto,
             descricao: dto.descricao,
             valor: new Decimal(dto.valor),
             mes: competencia.mes,
             ano: competencia.ano,
-          },
+          } satisfies Prisma.DespesaUncheckedCreateInput,
         }),
       ),
     );
@@ -201,7 +316,7 @@ export class FinancialService {
   }
 
   async updateDespesa(id: string, dto: UpdateDespesaDto) {
-    await this.findDespesaById(id);
+    const despesaAtual = await this.findDespesaById(id);
 
     const updateData: any = {};
     if (dto.tipo !== undefined) updateData.tipo = dto.tipo;
@@ -209,6 +324,12 @@ export class FinancialService {
     if (dto.valor !== undefined) updateData.valor = new Decimal(dto.valor);
     if (dto.mes !== undefined) updateData.mes = dto.mes;
     if (dto.ano !== undefined) updateData.ano = dto.ano;
+    if (dto.naturezaCusto !== undefined) updateData.naturezaCusto = dto.naturezaCusto;
+
+    const mesFinal = dto.mes ?? despesaAtual.mes;
+    const anoFinal = dto.ano ?? despesaAtual.ano;
+    const project = await this.validateProject(despesaAtual.projectId);
+    this.assertCompetenciasDentroDaVigencia(project, [{ mes: mesFinal, ano: anoFinal }], 'Despesa');
 
     const despesa = await this.prisma.despesa.update({ where: { id }, data: updateData });
 
@@ -368,7 +489,12 @@ export class FinancialService {
   }
 
   async upsertCustoMensal(dto: CreateCustoMensalDto) {
-    await this.validateProject(dto.projectId);
+    const project = await this.validateProject(dto.projectId);
+    this.assertCompetenciasDentroDaVigencia(
+      project,
+      [{ mes: dto.mes, ano: dto.ano }],
+      'Custo mensal de recursos humanos',
+    );
 
     const colaborador = await this.prisma.colaborador.findUnique({
       where: { id: dto.colaboradorId },
@@ -571,7 +697,17 @@ export class FinancialService {
   // ===================== HELPERS =====================
 
   private async validateProject(projectId: string) {
-    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        contrato: {
+          select: {
+            id: true,
+            dataFim: true,
+          },
+        },
+      },
+    });
     if (!project) throw new NotFoundException(`Projeto '${projectId}' não encontrado`);
     return project;
   }
@@ -663,7 +799,7 @@ export class FinancialService {
     let avisos = 0;
 
     // Cache de projetos validados
-    const projetosValidados = new Map<string, boolean>();
+    const projetosValidados = new Map<string, string | null>();
 
     for (let i = 0; i < dto.items.length; i++) {
       const item = dto.items[i];
@@ -684,36 +820,55 @@ export class FinancialService {
         }
 
         // Validar projeto (com cache)
-        if (!projetosValidados.has(item.projectId)) {
+        const projectRef = item.projectId.trim();
+
+        if (!projetosValidados.has(projectRef)) {
           const project = await this.prisma.project.findUnique({
-            where: { id: item.projectId },
+            where: { id: projectRef },
+            select: { id: true },
           });
-          projetosValidados.set(item.projectId, !!project);
+
+          if (project) {
+            projetosValidados.set(projectRef, project.id);
+          } else {
+            const projectByCode = await this.prisma.project.findUnique({
+              where: { codigo: projectRef },
+              select: { id: true },
+            });
+            projetosValidados.set(projectRef, projectByCode?.id ?? null);
+          }
         }
 
-        if (!projetosValidados.get(item.projectId)) {
+        const resolvedProjectId = projetosValidados.get(projectRef);
+        if (!resolvedProjectId) {
           resultado.status = 'erro';
-          resultado.mensagem = `Projeto '${item.projectId}' não encontrado`;
+          resultado.mensagem = `Projeto '${projectRef}' não encontrado (ID ou código)`;
           erros++;
           detalhes.push(resultado);
           continue;
         }
 
-        // Criar despesa
-        const despesa = await this.prisma.despesa.create({
-          data: {
-            projectId: item.projectId,
-            tipo: item.tipo,
-            descricao: item.descricao,
-            valor: new Decimal(item.valor),
-            mes: item.mes,
-            ano: item.ano,
-          },
+        const created = await this.createDespesa({
+          projectId: resolvedProjectId,
+          tipo: item.tipo,
+          descricao: item.descricao,
+          valor: item.valor,
+          mes: item.mes,
+          ano: item.ano,
+          naturezaCusto: item.naturezaCusto ?? NaturezaCusto.VARIAVEL,
+          replicarAteFimContrato: item.replicarAteFimContrato,
         });
 
-        resultado.mensagem = `Despesa tipo '${item.tipo}' criada com sucesso`;
-        resultado.entityId = despesa.id;
-        sucessos++;
+        if (Array.isArray((created as any)?.items)) {
+          const totalCriados = Number((created as any).totalCriados ?? (created as any).items.length);
+          resultado.entityId = (created as any).items[0]?.id;
+          resultado.mensagem = `${totalCriados} despesa(s) criada(s) com sucesso`;
+          sucessos += totalCriados;
+        } else {
+          resultado.entityId = (created as any)?.id;
+          resultado.mensagem = `Despesa tipo '${item.tipo}' criada com sucesso`;
+          sucessos++;
+        }
       } catch (error: any) {
         resultado.status = 'erro';
         resultado.mensagem = `Erro ao criar despesa: ${error.message}`;
@@ -1273,8 +1428,14 @@ export class FinancialService {
       const valorTotal = Math.round(quantidade * valorUnitario * 100) / 100;
       const quantidadeRealizada = data.quantidadeRealizada ? Number(data.quantidadeRealizada) : 0;
       const valorRealizadoUnitario = Math.round(quantidadeRealizada * valorUnitario * 100) / 100;
+      const valorRealizadoInformado = Math.round(Number(data.valorRealizado || 0) * 100) / 100;
+      const valorRealizadoCompetencia =
+        quantidadeRealizada > 0 ? valorRealizadoUnitario : valorRealizadoInformado;
       const quantidadeRealizadaTotal = quantidadeRealizada * competencias.length;
-      const valorRealizadoTotal = Math.round(valorRealizadoUnitario * competencias.length * 100) / 100;
+      const valorRealizadoTotal = Math.round(valorRealizadoCompetencia * competencias.length * 100) / 100;
+      const justificativa = this.normalizeJustificativa(data.justificativa);
+
+      this.validateJustificativaReceita(valorTotal, valorRealizadoCompetencia, justificativa);
 
       // RN-003: Validar se quantidade realizada não excede o saldo disponível
       if (quantidadeRealizada > 0) {
@@ -1339,10 +1500,8 @@ export class FinancialService {
             valorPrevisto: new Decimal(valorTotal),
             quantidadeRealizada: quantidadeRealizada > 0 ? new Decimal(quantidadeRealizada) : null,
             valorUnitarioRealizado: quantidadeRealizada > 0 ? new Decimal(valorUnitario) : null,
-            valorRealizado:
-              quantidadeRealizada > 0
-                ? new Decimal(valorRealizadoUnitario)
-                : new Decimal(data.valorRealizado || 0),
+            valorRealizado: new Decimal(valorRealizadoCompetencia),
+            justificativa,
             ativo: true,
           };
 
@@ -1398,6 +1557,11 @@ export class FinancialService {
     }
 
     const tipoReceita = data.tipoReceita || 'Manual';
+    const valorPrevistoManual = Number(data.valorPrevisto);
+    const valorRealizadoManual = Number(data.valorRealizado || 0);
+    const justificativa = this.normalizeJustificativa(data.justificativa);
+
+    this.validateJustificativaReceita(valorPrevistoManual, valorRealizadoManual, justificativa);
 
     await this.ensureReceitaNaoDuplicada(
       data.projectId,
@@ -1427,9 +1591,10 @@ export class FinancialService {
           descricao: data.descricao,
           mes: competencia.mes,
           ano: competencia.ano,
-          valorPlanejado: new Decimal(data.valorPrevisto),
-          valorPrevisto: new Decimal(data.valorPrevisto),
-          valorRealizado: data.valorRealizado ? new Decimal(data.valorRealizado) : new Decimal(0),
+          valorPlanejado: new Decimal(valorPrevistoManual),
+          valorPrevisto: new Decimal(valorPrevistoManual),
+          valorRealizado: new Decimal(valorRealizadoManual),
+          justificativa,
           ativo: true,
         };
 
@@ -1475,7 +1640,6 @@ export class FinancialService {
 
     // Se é receita vinculada a contrato
     if (receita.linhaContratualId && receita.linhaContratual) {
-      // Só permite alterar quantidade e valorRealizado (valores vêm do contrato)
       if (data.quantidade !== undefined) {
         const novaQtd = Number(data.quantidade);
         const valorUnit = Number(receita.linhaContratual.valorUnitario);
@@ -1487,10 +1651,7 @@ export class FinancialService {
         const novaQtdReal = Number(data.quantidadeRealizada);
         const valorUnit = Number(receita.linhaContratual.valorUnitario);
         updateData.quantidadeRealizada = new Decimal(novaQtdReal);
-        // Recalcula valorRealizado automaticamente pela quantidade realizada
-        updateData.valorRealizado = new Decimal(
-          Math.round(novaQtdReal * valorUnit * 100) / 100,
-        );
+        updateData.valorRealizado = new Decimal(Math.round(novaQtdReal * valorUnit * 100) / 100);
       } else if (data.valorRealizado !== undefined) {
         updateData.valorRealizado = new Decimal(data.valorRealizado);
       }
@@ -1498,13 +1659,11 @@ export class FinancialService {
         updateData.descricao = data.descricao;
       }
     } else {
-      // Receita manual — permite alterar todos os campos
       if (data.valorPrevisto !== undefined) updateData.valorPrevisto = new Decimal(data.valorPrevisto);
       if (data.valorRealizado !== undefined) updateData.valorRealizado = new Decimal(data.valorRealizado);
       if (data.descricao !== undefined) updateData.descricao = data.descricao;
       if (data.tipoReceita !== undefined) updateData.tipoReceita = data.tipoReceita;
 
-      // Se mudando para via contrato (vinculando a uma linha)
       if (data.linhaContratualId) {
         const linha = await this.prisma.linhaContratual.findUnique({
           where: { id: data.linhaContratualId },
@@ -1522,6 +1681,20 @@ export class FinancialService {
         }
       }
     }
+
+    const valorPrevistoFinal = Number(updateData.valorPrevisto ?? receita.valorPrevisto ?? 0);
+    const valorRealizadoFinal = Number(updateData.valorRealizado ?? receita.valorRealizado ?? 0);
+
+    if (data.justificativa !== undefined) {
+      updateData.justificativa = this.normalizeJustificativa(data.justificativa);
+    }
+
+    const justificativaFinal =
+      updateData.justificativa !== undefined
+        ? updateData.justificativa
+        : this.normalizeJustificativa((receita as any).justificativa);
+
+    this.validateJustificativaReceita(valorPrevistoFinal, valorRealizadoFinal, justificativaFinal);
 
     return this.prisma.receitaMensal.update({
       where: { id },
@@ -1550,6 +1723,70 @@ export class FinancialService {
   }
 
   /**
+   * Gera template Excel para importação de receitas
+   * @returns Buffer do arquivo Excel com headers e exemplos
+   */
+  async gerarTemplateReceitas(projectId?: string): Promise<Buffer> {
+    if (!projectId) {
+      return ExcelReceitasParser.generateTemplate();
+    }
+
+    const projeto = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: {
+        id: true,
+        codigo: true,
+        nome: true,
+        contrato: {
+          select: {
+            objetos: {
+              where: { ativo: true },
+              select: {
+                id: true,
+                nome: true,
+                linhasContratuais: {
+                  where: { ativo: true },
+                  select: {
+                    id: true,
+                    descricaoItem: true,
+                    unidade: true,
+                    valorUnitario: true,
+                  },
+                  orderBy: { descricaoItem: 'asc' },
+                },
+              },
+              orderBy: { nome: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (!projeto) {
+      throw new NotFoundException(`Projeto '${projectId}' não encontrado`);
+    }
+
+    const linhasTemplate = projeto.contrato.objetos.flatMap((objeto) =>
+      objeto.linhasContratuais.map((linha) => ({
+        objetoContratualId: objeto.id,
+        objetoNome: objeto.nome,
+        linhaContratualId: linha.id,
+        linhaDescricao: linha.descricaoItem,
+        unidade: linha.unidade,
+        valorUnitario: Number(linha.valorUnitario || 0),
+      })),
+    );
+
+    return ExcelReceitasParser.generateTemplate({
+      projectId: projeto.id,
+      projectCodigo: projeto.codigo,
+      projectNome: projeto.nome,
+      ano: new Date().getFullYear(),
+      linhas: linhasTemplate,
+    });
+  }
+
+  /**
    * Importa despesas via arquivo Excel (upload)
    * @param buffer - Buffer do arquivo Excel uploadado
    * @param filename - Nome do arquivo original
@@ -1573,22 +1810,9 @@ export class FinancialService {
       });
     }
 
-    // 3. Verifica threshold de rollback (>20% de erro = abortar tudo)
+    // 3. Calcula taxa de erro para auditoria/alerta (não aborta se houver linhas válidas)
     const totalLinhas = parseResult.items.length + parseResult.errors.length;
     const taxaErro = parseResult.errors.length / totalLinhas;
-    
-    if (taxaErro > 0.2) {
-      throw new BadRequestException({
-        codigo: 'E010',
-        mensagem: `Importação abortada: ${(taxaErro * 100).toFixed(1)}% de linhas com erro (limite: 20%)`,
-        detalhes: {
-          totalLinhas,
-          linhasComErro: parseResult.errors.length,
-          taxaErro: `${(taxaErro * 100).toFixed(1)}%`,
-          erros: parseResult.errors,
-        },
-      });
-    }
 
     // 4. Se houver linhas válidas, processar usando a importação bulk existente
     let importResult: any = {
@@ -1617,9 +1841,9 @@ export class FinancialService {
       totalLinhasInvalidas: parseResult.errors.length,
       importacao: {
         totalProcessado: importResult.totalProcessado,
-        totalSucesso: importResult.totalSucesso,
-        totalErros: importResult.totalErros,
-        totalAvisos: importResult.totalAvisos,
+        totalSucesso: importResult.sucessos ?? importResult.totalSucesso ?? 0,
+        totalErros: importResult.erros ?? importResult.totalErros ?? 0,
+        totalAvisos: importResult.avisos ?? importResult.totalAvisos ?? 0,
         detalhes: importResult.detalhes,
       },
       errosValidacao: parseResult.errors,
@@ -1628,6 +1852,177 @@ export class FinancialService {
         parseResult.errors.length === 0
           ? 'Importação concluída com sucesso'
           : `Importação parcial: ${parseResult.errors.length} linha(s) ignorada(s) por erro de validação`,
+      diagnostico: {
+        totalLinhas,
+        linhasComErro: parseResult.errors.length,
+        taxaErro: `${(taxaErro * 100).toFixed(1)}%`,
+      },
+    };
+  }
+
+  /**
+   * Importa receitas (manuais e via contrato) via arquivo Excel (upload)
+   * @param buffer - Buffer do arquivo Excel uploadado
+   * @param filename - Nome do arquivo original
+   * @param userId - ID do usuário que está realizando a importação
+   * @returns Resultado da importação com sucessos, erros e avisos
+   */
+  async importarReceitasViaExcel(
+    buffer: Buffer,
+    filename: string,
+    userId?: string,
+  ) {
+    const parseResult = ExcelReceitasParser.parseExcel(buffer, filename);
+
+    if (parseResult.items.length === 0 && parseResult.errors.length > 0) {
+      throw new BadRequestException({
+        codigo: 'E010',
+        mensagem: 'Nenhuma linha válida encontrada no arquivo Excel',
+        detalhes: parseResult.errors,
+      });
+    }
+
+    const totalLinhas = parseResult.items.length + parseResult.errors.length;
+    const taxaErro = totalLinhas > 0 ? parseResult.errors.length / totalLinhas : 0;
+
+    const projetosValidados = new Map<string, string | null>();
+    const detalhes: Array<{
+      indice: number;
+      status: string;
+      mensagem: string;
+      entityId?: string;
+    }> = [];
+    const receitasCriadas: any[] = [];
+    let sucessos = 0;
+    let erros = 0;
+
+    for (const item of parseResult.items) {
+      const resultado: { indice: number; status: string; mensagem: string; entityId?: string } = {
+        indice: item.linha,
+        status: 'SUCESSO',
+        mensagem: '',
+      };
+
+      try {
+        const projectRef = item.projectId.trim();
+
+        if (!projetosValidados.has(projectRef)) {
+          const projectById = await this.prisma.project.findUnique({
+            where: { id: projectRef },
+            select: { id: true },
+          });
+
+          if (projectById) {
+            projetosValidados.set(projectRef, projectById.id);
+          } else {
+            const projectByCode = await this.prisma.project.findUnique({
+              where: { codigo: projectRef },
+              select: { id: true },
+            });
+            projetosValidados.set(projectRef, projectByCode?.id ?? null);
+          }
+        }
+
+        const resolvedProjectId = projetosValidados.get(projectRef);
+        if (!resolvedProjectId) {
+          resultado.status = 'ERRO';
+          resultado.mensagem = `Projeto '${projectRef}' não encontrado (ID ou código)`;
+          erros++;
+          detalhes.push(resultado);
+          continue;
+        }
+
+        const payload: any = {
+          projectId: resolvedProjectId,
+          tipoReceita: item.tipoReceita,
+          descricao: item.descricao,
+          valorRealizado: item.valorRealizado,
+          justificativa: item.justificativa,
+          mes: item.mes,
+          ano: item.ano,
+          mesesAdicionais: item.mesesAdicionais,
+        };
+
+        if (item.modo === 'manual') {
+          payload.valorPrevisto = item.valorPrevisto;
+        }
+
+        if (item.modo === 'contrato') {
+          payload.objetoContratualId = item.objetoContratualId;
+          payload.linhaContratualId = item.linhaContratualId;
+          payload.quantidade = item.quantidade;
+          if (item.quantidadeRealizada !== undefined) {
+            payload.quantidadeRealizada = item.quantidadeRealizada;
+          }
+        }
+
+        const created = await this.createReceita(payload);
+
+        if (Array.isArray(created?.items)) {
+          receitasCriadas.push(...created.items);
+          resultado.entityId = created.items[0]?.id;
+          resultado.mensagem = `${created.items.length} receita(s) criada(s) com sucesso`;
+        } else {
+          receitasCriadas.push(created);
+          resultado.entityId = created?.id;
+          resultado.mensagem = 'Receita criada com sucesso';
+        }
+
+        sucessos++;
+      } catch (error: any) {
+        resultado.status = 'ERRO';
+        resultado.mensagem = `Erro ao importar linha: ${error?.message || 'Erro inesperado'}`;
+        erros++;
+      }
+
+      detalhes.push(resultado);
+    }
+
+    if (userId) {
+      try {
+        await this.prisma.historicoCalculo.create({
+          data: {
+            projectId: parseResult.items[0]?.projectId || 'bulk',
+            tipo: 'bulk_import_receitas_excel',
+            dadosAntes: {},
+            dadosDepois: {
+              totalProcessado: parseResult.items.length,
+              sucessos,
+              erros,
+              descricao: `Importação de receitas via Excel: ${filename}`,
+            },
+            criadoPor: userId,
+          },
+        });
+      } catch {
+        // Log silencioso - não impede a operação
+      }
+    }
+
+    return {
+      arquivo: filename,
+      totalLinhasArquivo: totalLinhas,
+      totalLinhasValidas: parseResult.items.length,
+      totalLinhasInvalidas: parseResult.errors.length,
+      importacao: {
+        totalProcessado: parseResult.items.length,
+        totalSucesso: sucessos,
+        totalErros: erros,
+        totalAvisos: parseResult.warnings.length,
+        detalhes,
+      },
+      receitasCriadas,
+      errosValidacao: parseResult.errors,
+      avisos: parseResult.warnings,
+      mensagem:
+        parseResult.errors.length === 0 && erros === 0
+          ? 'Importação de receitas concluída com sucesso'
+          : 'Importação parcial: verifique os erros de validação/processamento',
+      diagnostico: {
+        totalLinhas,
+        linhasComErro: parseResult.errors.length + erros,
+        taxaErro: `${(taxaErro * 100).toFixed(1)}%`,
+      },
     };
   }
 }

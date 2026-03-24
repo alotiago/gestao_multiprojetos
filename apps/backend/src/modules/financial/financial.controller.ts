@@ -340,6 +340,42 @@ export class FinancialController {
 
   // ===================== RECEITAS =====================
 
+  @Get('receitas/template')
+  @ApiOperation({ summary: 'Baixar template Excel para importação de receitas' })
+  @Permissions(Permission.FINANCIAL_LIST)
+  async baixarTemplateReceitas(@Res() res: Response, @Query('projectId') projectId?: string) {
+    const buffer = await this.financialService.gerarTemplateReceitas(projectId);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="template_receitas.xlsx"');
+    res.setHeader('Content-Length', buffer.length.toString());
+    res.send(buffer);
+  }
+
+  @Post('receitas/upload')
+  @ApiOperation({
+    summary: 'Importar receitas via upload de planilha Excel',
+    description: 'Upload de arquivo .xlsx/.xls com validação (máx 5MB, 1000 linhas). Retorna erros por linha.',
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(HttpStatus.OK)
+  @Permissions(Permission.FINANCIAL_CREATE)
+  @ApiResponse({ status: 200, description: 'Importação de receitas concluída com sucesso' })
+  @ApiResponse({ status: 400, description: 'Arquivo inválido ou erros de validação' })
+  uploadReceitas(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Arquivo não enviado. Selecione um .xlsx/.xls para importar.');
+    }
+
+    return this.financialService.importarReceitasViaExcel(
+      file.buffer,
+      file.originalname,
+      req.user?.sub,
+    );
+  }
+
   @Get('receitas')
   @ApiOperation({ summary: 'Listar receitas' })
   @Permissions(Permission.FINANCIAL_READ)

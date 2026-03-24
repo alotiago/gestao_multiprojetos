@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FinancialService } from './financial.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { NotFoundException, ConflictException } from '@nestjs/common';
+import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { RegimeTributario, TipoImposto } from './dto/imposto.dto';
-import { TipoDespesa } from './dto/despesa.dto';
+import { TipoDespesa, NaturezaCusto } from './dto/despesa.dto';
 import { TipoProvisao } from './dto/provisao.dto';
 
 const mockPrisma = {
@@ -78,12 +78,18 @@ const mockProject = {
   codigo: 'PROJ-001',
   nome: 'Projeto Teste',
   ativo: true,
+  dataFim: new Date('2026-12-31T00:00:00.000Z'),
+  contrato: {
+    id: 'ctr-001',
+    dataFim: new Date('2026-12-31T00:00:00.000Z'),
+  },
 };
 
 const mockDespesa = {
   id: 'desp-001',
   projectId: 'proj-001',
   tipo: TipoDespesa.FACILITIES,
+  naturezaCusto: 'VARIAVEL',
   descricao: 'Aluguel escritório',
   valor: 5000,
   mes: 1,
@@ -158,12 +164,26 @@ describe('FinancialService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
+    it('deve bloquear despesa além da vigência contratual', async () => {
+      mockPrisma.project.findUnique.mockResolvedValue(mockProject);
+
+      await expect(
+        service.createDespesa({
+          projectId: 'proj-001',
+          tipo: TipoDespesa.FACILITIES,
+          descricao: 'Despesa fora da vigência',
+          valor: 100,
+          mes: 1,
+          ano: 2027,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
     it('deve replicar despesa para os meses seguintes com virada de ano', async () => {
       mockPrisma.project.findUnique.mockResolvedValue(mockProject);
       mockPrisma.despesa.create
         .mockResolvedValueOnce({ ...mockDespesa, id: 'desp-011', mes: 11, ano: 2026 })
-        .mockResolvedValueOnce({ ...mockDespesa, id: 'desp-012', mes: 12, ano: 2026 })
-        .mockResolvedValueOnce({ ...mockDespesa, id: 'desp-013', mes: 1, ano: 2027 });
+        .mockResolvedValueOnce({ ...mockDespesa, id: 'desp-012', mes: 12, ano: 2026 });
 
       const result = await service.createDespesa({
         projectId: 'proj-001',
@@ -172,13 +192,34 @@ describe('FinancialService', () => {
         valor: 5000,
         mes: 11,
         ano: 2026,
-        mesesAdicionais: 2,
+        mesesAdicionais: 1,
       });
 
-      expect(result.totalCriados).toBe(3);
+      expect(result.totalCriados).toBe(2);
       expect(result.competenciaInicial).toBe('11/2026');
-      expect(result.competenciaFinal).toBe('01/2027');
-      expect(result.items).toHaveLength(3);
+      expect(result.competenciaFinal).toBe('12/2026');
+      expect(result.items).toHaveLength(2);
+    });
+
+    it('deve replicar despesa fixa até o fim da vigência do contrato', async () => {
+      mockPrisma.project.findUnique.mockResolvedValue(mockProject);
+      mockPrisma.despesa.create
+        .mockResolvedValueOnce({ ...mockDespesa, id: 'desp-011', mes: 11, ano: 2026, naturezaCusto: 'FIXO' })
+        .mockResolvedValueOnce({ ...mockDespesa, id: 'desp-012', mes: 12, ano: 2026, naturezaCusto: 'FIXO' });
+
+      const result = await service.createDespesa({
+        projectId: 'proj-001',
+        tipo: TipoDespesa.FACILITIES,
+        naturezaCusto: NaturezaCusto.FIXO,
+        replicarAteFimContrato: true,
+        descricao: 'Custo fixo mensal',
+        valor: 5000,
+        mes: 11,
+        ano: 2026,
+      });
+
+      expect(result.totalCriados).toBe(2);
+      expect(result.competenciaFinal).toBe('12/2026');
     });
   });
 
@@ -188,8 +229,7 @@ describe('FinancialService', () => {
       mockPrisma.receitaMensal.findFirst.mockResolvedValue(null);
       mockPrisma.receitaMensal.create
         .mockResolvedValueOnce({ id: 'rec-001', mes: 11, ano: 2026, valorPrevisto: 1500, valorRealizado: 1000 })
-        .mockResolvedValueOnce({ id: 'rec-002', mes: 12, ano: 2026, valorPrevisto: 1500, valorRealizado: 1000 })
-        .mockResolvedValueOnce({ id: 'rec-003', mes: 1, ano: 2027, valorPrevisto: 1500, valorRealizado: 1000 });
+        .mockResolvedValueOnce({ id: 'rec-002', mes: 12, ano: 2026, valorPrevisto: 1500, valorRealizado: 1000 });
 
       const result = await service.createReceita({
         projectId: 'proj-001',
@@ -197,14 +237,15 @@ describe('FinancialService', () => {
         descricao: 'Receita recorrente',
         valorPrevisto: 1500,
         valorRealizado: 1000,
+        justificativa: 'Recebimento parcial no período',
         mes: 11,
         ano: 2026,
-        mesesAdicionais: 2,
+        mesesAdicionais: 1,
       });
 
-      expect('totalCriados' in result && result.totalCriados).toBe(3);
-      expect('competenciaFinal' in result && result.competenciaFinal).toBe('01/2027');
-      expect('items' in result && result.items).toHaveLength(3);
+      expect('totalCriados' in result && result.totalCriados).toBe(2);
+      expect('competenciaFinal' in result && result.competenciaFinal).toBe('12/2026');
+      expect('items' in result && result.items).toHaveLength(2);
     });
 
     it('deve bloquear replicação quando já existir receita em um dos meses', async () => {
@@ -220,16 +261,34 @@ describe('FinancialService', () => {
           descricao: 'Receita recorrente',
           valorPrevisto: 1500,
           valorRealizado: 1000,
+          justificativa: 'Parcial de faturamento no mês',
           mes: 11,
           ano: 2026,
           mesesAdicionais: 1,
         }),
       ).rejects.toThrow(ConflictException);
     });
+
+    it('deve exigir justificativa quando valor realizado divergir do planejado', async () => {
+      mockPrisma.project.findUnique.mockResolvedValue(mockProject);
+
+      await expect(
+        service.createReceita({
+          projectId: 'proj-001',
+          tipoReceita: 'Serviços',
+          descricao: 'Receita sem justificativa',
+          valorPrevisto: 2000,
+          valorRealizado: 1500,
+          mes: 10,
+          ano: 2026,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 
   describe('updateDespesa', () => {
     it('deve atualizar despesa', async () => {
+      mockPrisma.project.findUnique.mockResolvedValue(mockProject);
       mockPrisma.despesa.findUnique.mockResolvedValue(mockDespesa);
       mockPrisma.despesa.update.mockResolvedValue({ ...mockDespesa, valor: 6000 });
 

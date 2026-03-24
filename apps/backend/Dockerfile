@@ -5,6 +5,9 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
+# Prisma no Alpine precisa do OpenSSL disponível também no estágio de build.
+RUN apk add --no-cache openssl
+
 # Copiar package.json's
 COPY package*.json ./
 COPY apps/backend/package*.json apps/backend/

@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsInt, IsOptional, Min, Max } from 'class-validator';
+import { IsString, IsNumber, IsInt, IsOptional, Min, Max, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateReceitaDto {
@@ -72,6 +72,11 @@ export class CreateReceitaDto {
   @IsNumber()
   @Type(() => Number)
   valorUnitario?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  justificativa?: string;
 }
 
 export class UpdateReceitaDto {
@@ -110,4 +115,9 @@ export class UpdateReceitaDto {
   @IsOptional()
   @IsString()
   linhaContratualId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  justificativa?: string;
 }

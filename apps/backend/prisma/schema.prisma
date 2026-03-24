@@ -45,6 +45,11 @@ enum TipoContratacao {
   TERCEIRIZADO
 }
 
+enum NaturezaCusto {
+  FIXO
+  VARIAVEL
+}
+
 enum TipoRecalculo {
   IMPOSTO
   CALENDARIO
@@ -301,6 +306,7 @@ model ReceitaMensal {
   quantidade            Decimal?  @db.Decimal(15, 2) // = quantidadePlanejada
   valorUnitario         Decimal?  @db.Decimal(15, 2) // = valorUnitarioPlanejado
   valorPrevisto         Decimal   @db.Decimal(15, 2) // = valorPlanejado
+  justificativa         String?
   
   ativo                 Boolean   @default(true)
   createdAt             DateTime  @default(now())
@@ -441,6 +447,7 @@ model Despesa {
   project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   
   tipo              String    // Ex: "facilities", "fornecedor", "aluguel", "endomarketing"
+  naturezaCusto     NaturezaCusto @default(VARIAVEL)
   descricao         String
   valor             Decimal   @db.Decimal(15, 2)
   

@@ -13,6 +13,7 @@ interface Despesa {
   id: string;
   projectId: string;
   tipo: string;
+  naturezaCusto?: 'FIXO' | 'VARIAVEL';
   descricao: string;
   valor: number;
   mes: number;
@@ -27,6 +28,7 @@ interface Receita {
   descricao?: string;
   valorPrevisto: number;
   valorRealizado: number;
+  justificativa?: string | null;
   mes: number;
   ano: number;
   objetoContratualId?: string;
@@ -80,6 +82,13 @@ interface FinanceiroData {
 }
 
 const TipoDespesa: Record<string, string> = {
+  comerciais: 'Comerciais',
+  operacao: 'Operacao',
+  taxas: 'Taxas',
+  administrativas: 'Administrativas',
+  software: 'Software',
+  tributarias: 'Tributarias',
+  financeiras: 'Financeiras',
   facilities: 'Facilities',
   fornecedor: 'Fornecedor',
   aluguel: 'Aluguel',
@@ -88,6 +97,11 @@ const TipoDespesa: Record<string, string> = {
   rateio: 'Rateio',
   provisao: 'Provisão',
   outros: 'Outros',
+};
+
+const NaturezaCustoLabel: Record<'FIXO' | 'VARIAVEL', string> = {
+  FIXO: 'Fixo',
+  VARIAVEL: 'Variável',
 };
 
 const formatBRL = (v: number) =>
@@ -115,7 +129,8 @@ interface ImportResultUI {
   message: string;
   validas: number;
   erros: Array<{ linha: number; erros: string[] }>;
-  despesasCriadas?: any[];
+  registrosCriados?: any[];
+  tipoRegistro: 'despesa' | 'receita';
 }
 
 const toErrorText = (value: unknown, fallback = 'Erro inesperado'): string => {
@@ -152,7 +167,7 @@ const extractApiErrorMessage = (err: any, fallback: string): string => {
   );
 };
 
-const normalizeImportResult = (payload: any): ImportResultUI => {
+const normalizeImportResult = (payload: any, tipoRegistro: 'despesa' | 'receita'): ImportResultUI => {
   const validationErrors = Array.isArray(payload?.erros)
     ? payload.erros.map((item: any) => ({
         linha: Number(item?.linha ?? 0),
@@ -183,7 +198,14 @@ const normalizeImportResult = (payload: any): ImportResultUI => {
     message: toErrorText(payload?.message ?? payload?.mensagem, 'Importação concluída'),
     validas: Number(payload?.validas ?? payload?.totalLinhasValidas ?? 0),
     erros,
-    despesasCriadas: Array.isArray(payload?.despesasCriadas) ? payload.despesasCriadas : [],
+    registrosCriados: Array.isArray(payload?.despesasCriadas)
+      ? payload.despesasCriadas
+      : Array.isArray(payload?.receitasCriadas)
+        ? payload.receitasCriadas
+        : Array.isArray(payload?.registrosCriados)
+          ? payload.registrosCriados
+          : [],
+    tipoRegistro,
   };
 };
 
@@ -199,7 +221,7 @@ const getImportSuccessCount = (payload: any, normalized: ImportResultUI): number
     return details.filter((item: any) => String(item?.status ?? '').toUpperCase() === 'SUCESSO').length;
   }
 
-  return Number(normalized?.despesasCriadas?.length ?? 0);
+  return Number(normalized?.registrosCriados?.length ?? 0);
 };
 
 export default function FinanceiroPage() {
@@ -226,11 +248,14 @@ export default function FinanceiroPage() {
   const [form, setForm] = useState({
     projectId: '',
     tipo: 'outros',
+    naturezaCusto: 'VARIAVEL' as 'FIXO' | 'VARIAVEL',
+    replicarAteFimContrato: false,
     tipoReceita: '',
     descricao: '',
     valor: '',
     valorPrevisto: '',
     valorRealizado: '',
+    justificativa: '',
     mes: '',
     ano: currentYear,
     mesesAdicionais: '0',
@@ -242,6 +267,7 @@ export default function FinanceiroPage() {
 
   // Estados para importação de despesas via Excel
   const [uploading, setUploading] = useState(false);
+  const [uploadingReceitas, setUploadingReceitas] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importResult, setImportResult] = useState<ImportResultUI | null>(null);
 
@@ -406,7 +432,7 @@ export default function FinanceiroPage() {
         },
       });
 
-      const normalizedResult = normalizeImportResult(response.data);
+      const normalizedResult = normalizeImportResult(response.data, 'despesa');
       setImportResult(normalizedResult);
       setShowImportModal(true);
 
@@ -426,6 +452,84 @@ export default function FinanceiroPage() {
     }
   };
 
+  const handleBaixarTemplateReceitas = async () => {
+    if (!selectedProjectId) {
+      setError('Selecione um projeto para gerar o template de receitas com objetos e linhas contratuais.');
+      return;
+    }
+
+    const projetoSelecionado = projetos.find((p) => p.id === selectedProjectId);
+
+    try {
+      const response = await api.get(`/financial/receitas/template?projectId=${selectedProjectId}`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const sufixoProjeto = projetoSelecionado?.codigo || selectedProjectId;
+      link.download = `template_receitas_${sufixoProjeto}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      setSuccessMsg('Template de receitas baixado com objetos e linhas do projeto selecionado.');
+    } catch (err: any) {
+      setError(extractApiErrorMessage(err, 'Erro ao baixar template de receitas'));
+    }
+  };
+
+  const handleImportarExcelReceitas = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const inputEl = event.currentTarget;
+    const file = inputEl.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      setError('Por favor, selecione um arquivo Excel (.xlsx ou .xls)');
+      inputEl.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Arquivo muito grande. Tamanho máximo: 5MB');
+      inputEl.value = '';
+      return;
+    }
+
+    setUploadingReceitas(true);
+    setError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await api.post('/financial/receitas/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const normalizedResult = normalizeImportResult(response.data, 'receita');
+      setImportResult(normalizedResult);
+      setShowImportModal(true);
+
+      const totalSucesso = getImportSuccessCount(response.data, normalizedResult);
+      if (totalSucesso > 0) {
+        setTimeout(() => {
+          loadReceitas();
+        }, 1000);
+      }
+    } catch (err: any) {
+      setError(extractApiErrorMessage(err, 'Erro ao importar receitas via arquivo'));
+    } finally {
+      setUploadingReceitas(false);
+      if (inputEl) inputEl.value = '';
+    }
+  };
+
   useEffect(() => {
   }, [successMsg]);
 
@@ -440,11 +544,14 @@ export default function FinanceiroPage() {
     setForm({
       projectId: '',
       tipo: 'outros',
+      naturezaCusto: 'VARIAVEL',
+      replicarAteFimContrato: false,
       tipoReceita: '',
       descricao: '',
       valor: '',
       valorPrevisto: '',
       valorRealizado: '',
+      justificativa: '',
       mes: '',
       ano: currentYear,
       mesesAdicionais: '0',
@@ -476,11 +583,14 @@ export default function FinanceiroPage() {
     setForm({
       projectId: despesa.projectId,
       tipo: despesa.tipo,
+      naturezaCusto: despesa.naturezaCusto ?? 'VARIAVEL',
+      replicarAteFimContrato: false,
       tipoReceita: '',
       descricao: despesa.descricao,
       valor: String(despesa.valor),
       valorPrevisto: '',
       valorRealizado: '',
+      justificativa: '',
       mes: String(despesa.mes),
       ano: despesa.ano,
       mesesAdicionais: '0',
@@ -500,6 +610,8 @@ export default function FinanceiroPage() {
       const payload = {
         projectId: form.projectId,
         tipo: form.tipo,
+        naturezaCusto: form.naturezaCusto,
+        replicarAteFimContrato: form.naturezaCusto === 'FIXO' ? form.replicarAteFimContrato : false,
         descricao: form.descricao,
         valor: Number(form.valor),
         mes: Number(form.mes),
@@ -560,11 +672,30 @@ export default function FinanceiroPage() {
     setError('');
 
     const isContrato = receitaMode === 'contrato' && form.linhaContratualId;
+    const linhaSelecionada = linhasContratuais.find((l) => l.id === form.linhaContratualId);
+
+    const valorPrevistoCalculado = isContrato
+      ? Number(form.quantidade || 0) * Number(linhaSelecionada?.valorUnitario || 0)
+      : Number(form.valorPrevisto || 0);
+
+    const valorRealizadoCalculado = isContrato
+      ? Number(form.quantidadeRealizada || 0) * Number(linhaSelecionada?.valorUnitario || 0)
+      : Number(form.valorRealizado || 0);
+
+    const precisaJustificativa =
+      valorRealizadoCalculado > 0 && Math.abs(valorRealizadoCalculado - valorPrevistoCalculado) >= 0.01;
+
+    if (precisaJustificativa && !form.justificativa.trim()) {
+      setSaving(false);
+      setError('Justificativa é obrigatória quando valor realizado for diferente do planejado (exceto quando realizado for 0).');
+      return;
+    }
 
     const payload: any = {
       projectId: form.projectId,
       tipoReceita: form.tipoReceita || 'Serviços',
       descricao: form.descricao,
+      justificativa: form.justificativa.trim() || undefined,
       mes: Number(form.mes),
       ano: Number(form.ano),
       mesesAdicionais: Number(form.mesesAdicionais || 0),
@@ -580,10 +711,7 @@ export default function FinanceiroPage() {
       }
       // Calcula valorRealizado a partir de quantidadeRealizada × valorUnitario da linha
       if (form.quantidadeRealizada && Number(form.quantidadeRealizada) > 0) {
-        const linhaSel = linhasContratuais.find(l => l.id === form.linhaContratualId);
-        payload.valorRealizado = linhaSel
-          ? Math.round(Number(form.quantidadeRealizada) * Number(linhaSel.valorUnitario) * 100) / 100
-          : Number(form.valorRealizado || 0);
+        payload.valorRealizado = Math.round(valorRealizadoCalculado * 100) / 100;
       } else {
         payload.valorRealizado = Number(form.valorRealizado || 0);
       }
@@ -606,10 +734,12 @@ export default function FinanceiroPage() {
           if (Number(form.valorRealizado || 0) > 0) {
             updatePayload.valorRealizado = Number(form.valorRealizado);
           }
+          updatePayload.justificativa = form.justificativa.trim() || null;
         } else {
           updatePayload.valorPrevisto = Number(form.valorPrevisto);
           updatePayload.valorRealizado = Number(form.valorRealizado);
           updatePayload.descricao = form.descricao;
+          updatePayload.justificativa = form.justificativa.trim() || null;
         }
         await api.put(`/financial/receitas/${editingId}`, updatePayload);
         setSuccessMsg('Receita atualizada com sucesso!');
@@ -671,11 +801,14 @@ export default function FinanceiroPage() {
     setForm({
       projectId: receita.projectId,
       tipo: receita.tipoReceita,
+      naturezaCusto: 'VARIAVEL',
+      replicarAteFimContrato: false,
       tipoReceita: receita.tipoReceita,
       descricao: receita.descricao || '',
       valor: String(receita.valorPrevisto),
       valorPrevisto: String(receita.valorPrevisto),
       valorRealizado: String(receita.valorRealizado),
+      justificativa: receita.justificativa || '',
       mes: String(receita.mes),
       ano: receita.ano,
       objetoContratualId: receita.objetoContratualId || '',
@@ -756,9 +889,29 @@ export default function FinanceiroPage() {
             </div>
           )}
           {view === 'receitas' && (
-            <button onClick={openCreateReceitaModal} className="hw1-btn-primary text-sm">
-              + Nova Receita
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleBaixarTemplateReceitas}
+                disabled={!selectedProjectId}
+                title={!selectedProjectId ? 'Selecione um projeto para gerar o template de receitas contextualizado' : 'Gerar template com objetos e linhas do projeto selecionado'}
+                className="px-4 py-2 bg-white border border-emerald-600 text-emerald-700 rounded-xl text-sm font-medium hover:bg-emerald-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                📥 Template Receitas
+              </button>
+              <label className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-all cursor-pointer">
+                {uploadingReceitas ? '⏳ Importando...' : '📤 Importar Receitas'}
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleImportarExcelReceitas}
+                  disabled={uploadingReceitas}
+                  className="hidden"
+                />
+              </label>
+              <button onClick={openCreateReceitaModal} className="hw1-btn-primary text-sm">
+                + Nova Receita
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -893,6 +1046,7 @@ export default function FinanceiroPage() {
                     style={{ background: 'linear-gradient(90deg, #050439, #1E16A0)' }}
                   >
                     <th className="px-6 py-4">Tipo</th>
+                    <th className="px-6 py-4">Natureza</th>
                     <th className="px-6 py-4">Descrição</th>
                     <th className="px-6 py-4">Mês</th>
                     <th className="px-6 py-4 text-right">Valor</th>
@@ -908,6 +1062,7 @@ export default function FinanceiroPage() {
                       }`}
                     >
                       <td className="px-6 py-4 text-sm font-medium">{TipoDespesa[d.tipo] || d.tipo}</td>
+                      <td className="px-6 py-4 text-gray-500 text-xs">{NaturezaCustoLabel[d.naturezaCusto || 'VARIAVEL']}</td>
                       <td className="px-6 py-4 text-gray-600">{d.descricao}</td>
                       <td className="px-6 py-4 text-gray-500">{String(d.mes).padStart(2, '0')}/{d.ano}</td>
                       <td className="px-6 py-4 text-right font-medium text-hw1-navy">{formatBRL(d.valor)}</td>
@@ -972,6 +1127,39 @@ export default function FinanceiroPage() {
 
       {view === 'receitas' && (
         <>
+          {/* Guia rápido de importação de receitas */}
+          <details className="hw1-card border border-emerald-100 bg-emerald-50/40 group" open={false}>
+            <summary className="list-none cursor-pointer flex items-center justify-between text-sm font-semibold text-emerald-800">
+              <span>Guia rápido: Importar Receitas por Excel</span>
+              <span className="text-emerald-700 group-open:rotate-180 transition-transform">⌄</span>
+            </summary>
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="p-3 bg-white border border-emerald-200 rounded-xl">
+                <p className="font-semibold text-emerald-700 mb-2">Modo Manual</p>
+                <p className="text-gray-600 mb-2">Preencha estes campos por linha:</p>
+                <p className="text-gray-700">projectId, modo=manual, tipoReceita, valorPrevisto, mes, ano</p>
+                <p className="text-gray-500 mt-2">Opcional: descricao, valorRealizado, mesesAdicionais, justificativa</p>
+              </div>
+              <div className="p-3 bg-white border border-emerald-200 rounded-xl">
+                <p className="font-semibold text-emerald-700 mb-2">Modo Contrato</p>
+                <p className="text-gray-600 mb-2">Preencha estes campos por linha:</p>
+                <p className="text-gray-700">projectId, modo=contrato, linhaContratualId, quantidade, mes, ano</p>
+                <p className="text-gray-500 mt-2">Opcional: quantidadeRealizada, objetoContratualId, descricao</p>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-emerald-200 text-xs text-gray-600">
+              <p>
+                Para baixar o template de receitas, selecione primeiro um projeto no filtro superior.
+              </p>
+              <p className="mt-1">
+                Dica: se modo estiver vazio e linhaContratualId for informado, o sistema assume automaticamente modo contrato.
+              </p>
+              <p className="mt-1">
+                Regra: quando valor realizado for diferente do planejado e maior que zero, informe a justificativa.
+              </p>
+            </div>
+          </details>
+
           {/* Receitas table */}
           <div className="hw1-card p-0 overflow-hidden">
             {loading ? (
@@ -994,6 +1182,7 @@ export default function FinanceiroPage() {
                     <th className="px-6 py-4 text-right">Vl. Unit.</th>
                     <th className="px-6 py-4 text-right">Previsto</th>
                     <th className="px-6 py-4 text-right">Realizado</th>
+                    <th className="px-6 py-4">Justificativa</th>
                     <th className="px-6 py-4 text-right">Ações</th>
                   </tr>
                 </thead>
@@ -1020,6 +1209,9 @@ export default function FinanceiroPage() {
                       <td className="px-6 py-4 text-right text-gray-500 text-xs">{r.valorUnitario ? formatBRL(Number(r.valorUnitario)) : '-'}</td>
                       <td className="px-6 py-4 text-right font-medium text-emerald-600">{formatBRL(r.valorPrevisto)}</td>
                       <td className="px-6 py-4 text-right font-medium text-emerald-700">{formatBRL(r.valorRealizado)}</td>
+                      <td className="px-6 py-4 text-xs text-gray-600 max-w-[260px] truncate" title={r.justificativa || ''}>
+                        {r.justificativa || '—'}
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">
                           <button
@@ -1280,6 +1472,38 @@ export default function FinanceiroPage() {
                   </select>
                 </div>
 
+                {modalType !== 'receita' && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Natureza do Custo *</label>
+                    <select
+                      value={form.naturezaCusto}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          naturezaCusto: e.target.value as 'FIXO' | 'VARIAVEL',
+                          replicarAteFimContrato: e.target.value === 'FIXO' ? form.replicarAteFimContrato : false,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+                    >
+                      <option value="VARIAVEL">Variável</option>
+                      <option value="FIXO">Fixo</option>
+                    </select>
+                    {form.naturezaCusto === 'FIXO' && (
+                      <label className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+                        <input
+                          type="checkbox"
+                          checked={form.replicarAteFimContrato}
+                          onChange={(e) =>
+                            setForm({ ...form, replicarAteFimContrato: e.target.checked })
+                          }
+                        />
+                        Replicar automaticamente até o fim da vigência do contrato
+                      </label>
+                    )}
+                  </div>
+                )}
+
                 <div className={modalType === 'receita' && receitaMode === 'contrato' ? '' : 'md:col-span-2'}>
                   <label className="block text-xs text-gray-500 mb-1">Descrição {modalType === 'receita' ? '' : '*'}</label>
                   <input
@@ -1336,6 +1560,42 @@ export default function FinanceiroPage() {
                   </div>
                 )}
 
+                {modalType === 'receita' && (() => {
+                  const linhaSel = linhasContratuais.find((l) => l.id === form.linhaContratualId);
+                  const previsto = receitaMode === 'contrato'
+                    ? Number(form.quantidade || 0) * Number(linhaSel?.valorUnitario || 0)
+                    : Number(form.valorPrevisto || 0);
+                  const realizado = receitaMode === 'contrato'
+                    ? Number(form.quantidadeRealizada || 0) * Number(linhaSel?.valorUnitario || 0)
+                    : Number(form.valorRealizado || 0);
+                  const precisaJustificar = realizado > 0 && Math.abs(realizado - previsto) >= 0.01;
+
+                  return (
+                    <div className="md:col-span-2">
+                      <label className="block text-xs text-gray-500 mb-1">
+                        Justificativa {precisaJustificar ? '*' : '(opcional)'}
+                      </label>
+                      <textarea
+                        value={form.justificativa}
+                        onChange={(e) => setForm({ ...form, justificativa: e.target.value })}
+                        placeholder={
+                          precisaJustificar
+                            ? 'Explique a diferença entre valor planejado e realizado'
+                            : 'Informe uma justificativa se necessário'
+                        }
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue min-h-[84px]"
+                        required={precisaJustificar}
+                        maxLength={1000}
+                      />
+                      {precisaJustificar && (
+                        <p className="mt-1 text-[11px] text-amber-700">
+                          Valor realizado diferente do planejado com realizado maior que zero exige justificativa.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Mês *</label>
                   <select
@@ -1377,10 +1637,13 @@ export default function FinanceiroPage() {
                         max="36"
                         value={form.mesesAdicionais}
                         onChange={(e) => setForm({ ...form, mesesAdicionais: e.target.value })}
-                        className="w-32 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+                        disabled={modalType === 'despesa' && form.naturezaCusto === 'FIXO' && form.replicarAteFimContrato}
+                        className="w-32 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue disabled:bg-gray-100 disabled:text-gray-400"
                       />
                       <p className="text-xs text-gray-500">
-                        0 = somente a competência informada. Valores maiores replicam para os próximos meses, inclusive virando o ano.
+                        {modalType === 'despesa' && form.naturezaCusto === 'FIXO' && form.replicarAteFimContrato
+                          ? 'Replicação até o fim da vigência será calculada automaticamente.'
+                          : '0 = somente a competência informada. Valores maiores replicam para os próximos meses, inclusive virando o ano.'}
                       </p>
                     </div>
                   </div>
@@ -1442,8 +1705,11 @@ export default function FinanceiroPage() {
                 <div className="mt-2 text-sm text-gray-600">
                   <p>✓ Linhas válidas: <strong>{importResult.validas}</strong></p>
                   <p>✗ Linhas com erro: <strong>{importResult.erros.length}</strong></p>
-                  {importResult.despesasCriadas && importResult.despesasCriadas.length > 0 && (
-                    <p>💾 Despesas criadas: <strong>{importResult.despesasCriadas.length}</strong></p>
+                  {importResult.registrosCriados && importResult.registrosCriados.length > 0 && (
+                    <p>
+                      💾 {importResult.tipoRegistro === 'receita' ? 'Receitas criadas' : 'Despesas criadas'}:{' '}
+                      <strong>{importResult.registrosCriados.length}</strong>
+                    </p>
                   )}
                 </div>
               </div>
@@ -1469,33 +1735,49 @@ export default function FinanceiroPage() {
                 </div>
               )}
 
-              {/* Despesas Criadas com Sucesso */}
-              {importResult.despesasCriadas && importResult.despesasCriadas.length > 0 && (
+              {/* Registros Criados com Sucesso */}
+              {importResult.registrosCriados && importResult.registrosCriados.length > 0 && (
                 <div className="mt-4">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Despesas Importadas:</h4>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                    {importResult.tipoRegistro === 'receita' ? 'Receitas Importadas:' : 'Despesas Importadas:'}
+                  </h4>
                   <div className="space-y-2">
-                    {importResult.despesasCriadas
+                    {importResult.registrosCriados
                       .filter((item) => item && typeof item === 'object')
                       .slice(0, 10)
-                      .map((despesa, idx) => (
+                      .map((registro, idx) => (
                       <div key={idx} className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-                        <div className="flex justify-between items-start text-xs">
-                          <div>
-                            <p className="font-medium text-emerald-700">{despesa.descricao}</p>
-                            <p className="text-gray-600">
-                              {TipoDespesa[despesa.tipo as keyof typeof TipoDespesa]} • 
-                              {String(despesa.mes).padStart(2, '0')}/{despesa.ano}
+                        {importResult.tipoRegistro === 'receita' ? (
+                          <div className="flex justify-between items-start text-xs">
+                            <div>
+                              <p className="font-medium text-emerald-700">{registro.descricao || registro.tipoReceita}</p>
+                              <p className="text-gray-600">
+                                {registro.tipoReceita} • {String(registro.mes).padStart(2, '0')}/{registro.ano}
+                              </p>
+                            </div>
+                            <p className="font-semibold text-emerald-700">
+                              {formatBRL(Number(registro.valorPrevisto || 0))}
                             </p>
                           </div>
-                          <p className="font-semibold text-emerald-700">
-                            {formatBRL(despesa.valor)}
-                          </p>
-                        </div>
+                        ) : (
+                          <div className="flex justify-between items-start text-xs">
+                            <div>
+                              <p className="font-medium text-emerald-700">{registro.descricao}</p>
+                              <p className="text-gray-600">
+                                {TipoDespesa[registro.tipo as keyof typeof TipoDespesa]} • 
+                                {String(registro.mes).padStart(2, '0')}/{registro.ano}
+                              </p>
+                            </div>
+                            <p className="font-semibold text-emerald-700">
+                              {formatBRL(Number(registro.valor || 0))}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     ))}
-                    {importResult.despesasCriadas.length > 10 && (
+                    {importResult.registrosCriados.length > 10 && (
                       <p className="text-xs text-gray-500 text-center pt-2">
-                        + {importResult.despesasCriadas.length - 10} despesa(s) a mais...
+                        + {importResult.registrosCriados.length - 10} registro(s) a mais...
                       </p>
                     )}
                   </div>
@@ -1508,9 +1790,13 @@ export default function FinanceiroPage() {
                   <h4 className="text-sm font-semibold text-blue-700 mb-2">💡 Dicas:</h4>
                   <ul className="text-xs text-blue-600 space-y-1 list-disc list-inside">
                     <li>Corrija os erros listados acima no arquivo Excel</li>
-                    <li>Verifique se os IDs de projetos estão corretos</li>
+                    <li>Verifique se os IDs ou códigos de projeto estão corretos</li>
                     <li>Certifique-se de que os valores numéricos estão no formato correto</li>
-                    <li>O tipo de despesa deve ser um dos valores válidos: facilities, fornecedor, aluguel, etc.</li>
+                    <li>
+                      {importResult.tipoRegistro === 'receita'
+                        ? 'Preencha o tipo de receita e valor previsto em todas as linhas válidas'
+                        : 'O tipo de despesa deve ser um dos valores válidos: facilities, fornecedor, aluguel, etc.'}
+                    </li>
                     <li>Baixe o template atualizado se tiver dúvidas sobre o formato</li>
                   </ul>
                 </div>

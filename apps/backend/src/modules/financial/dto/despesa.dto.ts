@@ -12,6 +12,13 @@ import {
 import { Type } from 'class-transformer';
 
 export enum TipoDespesa {
+  COMERCIAIS = 'comerciais',
+  OPERACAO = 'operacao',
+  TAXAS = 'taxas',
+  ADMINISTRATIVAS = 'administrativas',
+  SOFTWARE = 'software',
+  TRIBUTARIAS = 'tributarias',
+  FINANCEIRAS = 'financeiras',
   FACILITIES = 'facilities',
   FORNECEDOR = 'fornecedor',
   ALUGUEL = 'aluguel',
@@ -20,6 +27,11 @@ export enum TipoDespesa {
   RATEIO = 'rateio',
   PROVISAO = 'provisao',
   OUTROS = 'outros',
+}
+
+export enum NaturezaCusto {
+  FIXO = 'FIXO',
+  VARIAVEL = 'VARIAVEL',
 }
 
 export class CreateDespesaDto {
@@ -57,6 +69,14 @@ export class CreateDespesaDto {
   @IsOptional()
   @Type(() => Number)
   mesesAdicionais?: number;
+
+  @IsEnum(NaturezaCusto)
+  @IsOptional()
+  naturezaCusto?: NaturezaCusto;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  replicarAteFimContrato?: boolean;
 }
 
 export class UpdateDespesaDto {
@@ -87,6 +107,10 @@ export class UpdateDespesaDto {
   @IsOptional()
   @Type(() => Number)
   ano?: number;
+
+  @IsEnum(NaturezaCusto)
+  @IsOptional()
+  naturezaCusto?: NaturezaCusto;
 }
 
 export class FilterDespesaDto {
