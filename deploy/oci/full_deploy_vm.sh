@@ -159,6 +159,10 @@ log "Deploy do Gestor Multiprojetos concluído!"
 log "  Stack: ${APP_DIR}"
 log "  Nginx interno: 127.0.0.1:8081"
 log ""
-log "Próximo passo — ativar HTTPS e gateway:"
-log "  sudo bash ${APP_DIR}/deploy/oci/setup_host_nginx.sh [--email EMAIL]"
+log "Proximo passo - ativar HTTPS e gateway:"
+if [[ "${DOMAIN}" == *"hml"* ]]; then
+  log "  sudo bash ${APP_DIR}/deploy/oci/setup_host_nginx_hml.sh [--email EMAIL] [--domain ${DOMAIN}]"
+else
+  log "  sudo bash ${APP_DIR}/deploy/oci/setup_host_nginx.sh [--email EMAIL] [--domain ${DOMAIN}]"
+fi
 log "=========================================="

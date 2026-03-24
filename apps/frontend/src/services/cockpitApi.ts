@@ -26,6 +26,29 @@ export interface StatusUpdate {
   text: string;
 }
 
+export interface FteMensalPoint {
+  mes: number;
+  label: string;
+  fte: number;
+}
+
+export interface LinhaSaldo {
+  id: string;
+  descricaoItem: string;
+  unidade: string;
+  valorTotalAnual: number;
+  saldoQuantidade: number;
+  saldoValor: number;
+}
+
+export interface ObjetoSaldo {
+  id: string;
+  nome: string;
+  descricao: string;
+  saldoValor: number;
+  linhas: LinhaSaldo[];
+}
+
 export interface PortfolioProject {
   id: string;
   nome: string;
@@ -35,6 +58,12 @@ export interface PortfolioProject {
   acaoCLevel: string;
   detalheGargalo: string;
   statusUpdates: StatusUpdate[];
+  contratoNome: string;
+  saldoContratual: number;
+  saldoLinhas: number;
+  fteAtual: number;
+  fteMensal: FteMensalPoint[];
+  objetos: ObjetoSaldo[];
 }
 
 export interface BurnRatePoint {
@@ -56,6 +85,20 @@ export interface GoLiveData {
   proximos60: GoLiveProject[];
 }
 
+export interface CockpitInsights {
+  fteMensal: FteMensalPoint[];
+  contratos: Array<{
+    id: string;
+    nomeContrato: string;
+    cliente: string;
+    saldoContratual: number;
+    saldoLinhas: number;
+    objetos: ObjetoSaldo[];
+  }>;
+  saldoContratualTotal: number;
+  saldoLinhasTotal: number;
+}
+
 // ─── Cached cockpit data ────────────────────────────────────────────────
 
 interface CockpitResponse {
@@ -63,6 +106,7 @@ interface CockpitResponse {
   portfolio: PortfolioProject[];
   burnRate: BurnRatePoint[];
   goLive: GoLiveData;
+  insights: CockpitInsights;
 }
 
 let _cache: CockpitResponse | null = null;
@@ -100,4 +144,9 @@ export async function fetchBurnRate(): Promise<BurnRatePoint[]> {
 export async function fetchGoLive(): Promise<GoLiveData> {
   const data = await fetchCockpit();
   return data.goLive;
+}
+
+export async function fetchCockpitInsights(): Promise<CockpitInsights> {
+  const data = await fetchCockpit();
+  return data.insights;
 }

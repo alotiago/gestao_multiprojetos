@@ -89,8 +89,8 @@ export class RelatoriosService {
         // Usa realizada se houver, senão usa prevista
         const receita = receitaRealizada > 0 ? receitaRealizada : receitaPrevista;
 
-        // Custos Fixos (facilities, aluguel, amortizacao, rateio)
-        const custosFixos = await this.prisma.despesa.aggregate({
+        // Custos Fixos operacionais (facilities, aluguel, amortizacao, rateio)
+        const despesasFixas = await this.prisma.despesa.aggregate({
           where: {
             projectId: { in: projectIds },
             mes,
@@ -99,10 +99,10 @@ export class RelatoriosService {
           },
           _sum: { valor: true },
         });
-        const custoFixo = Number(custosFixos._sum.valor || 0);
+        const custoFixoOperacional = Number(despesasFixas._sum.valor || 0);
 
-        // Custos Variáveis (fornecedor, endomarketing, provisao, outros)
-        const custosVariaveis = await this.prisma.despesa.aggregate({
+        // Custos Variáveis operacionais (fornecedor, endomarketing, provisao, outros)
+        const despesasVariaveis = await this.prisma.despesa.aggregate({
           where: {
             projectId: { in: projectIds },
             mes,
@@ -111,7 +111,7 @@ export class RelatoriosService {
           },
           _sum: { valor: true },
         });
-        const custoVariavel = Number(custosVariaveis._sum.valor || 0);
+        const custoVariavelOperacional = Number(despesasVariaveis._sum.valor || 0);
 
         // Impostos da tabela imposto
         const impostosDB = await this.prisma.imposto.aggregate({
@@ -141,9 +141,12 @@ export class RelatoriosService {
         const custoPessoalFixo = Number(custosPessoal._sum.custoFixo || 0);
         const custoPessoalVariavel = Number(custosPessoal._sum.custoVariavel || 0);
 
-        const custoTotal = custoFixo + custoVariavel + imposto + custoPessoalFixo + custoPessoalVariavel;
-        const margemBruta = receita > 0 ? (receita - custoTotal) / receita : 0;
-        const margemLiquida = receita > 0 ? (receita - custoTotal - imposto) / receita : 0;
+        const custoFixo = custoFixoOperacional + custoPessoalFixo;
+        const custoVariavel = custoVariavelOperacional + custoPessoalVariavel;
+        const custoOperacional = custoFixo + custoVariavel;
+        const custoTotal = custoOperacional + imposto;
+        const margemBruta = receita > 0 ? (receita - custoOperacional) / receita : 0;
+        const margemLiquida = receita > 0 ? (receita - custoTotal) / receita : 0;
 
         // Detalhamento mensal por objeto e linha contratual (drill-down)
         const receitasDetalhadas = await this.prisma.receitaMensal.findMany({
@@ -279,9 +282,10 @@ export class RelatoriosService {
       }
 
       // Totais do ano
-      const custoTotalAnual = totalCustoFixo + totalCustoVariavel;
-      const margemBrutaAnual = totalReceita > 0 ? (totalReceita - custoTotalAnual) / totalReceita : 0;
-      const margemLiquidaAnual = totalReceita > 0 ? (totalReceita - custoTotalAnual - totalImposto) / totalReceita : 0;
+      const custoOperacionalAnual = totalCustoFixo + totalCustoVariavel;
+      const custoTotalAnual = custoOperacionalAnual + totalImposto;
+      const margemBrutaAnual = totalReceita > 0 ? (totalReceita - custoOperacionalAnual) / totalReceita : 0;
+      const margemLiquidaAnual = totalReceita > 0 ? (totalReceita - custoTotalAnual) / totalReceita : 0;
 
       // Variação vs ano anterior
       const variacaoReceita = totalReceitaAnterior > 0 ? ((totalReceita - totalReceitaAnterior) / totalReceitaAnterior) : 0;
@@ -417,7 +421,7 @@ export class RelatoriosService {
           custoVariavel: totalCustoVariavel,
           custoTotal: custoTotalAnual,
           imposto: totalImposto,
-          lucro: totalReceita - custoTotalAnual - totalImposto,
+          lucro: totalReceita - custoTotalAnual,
           margemBruta: margemBrutaAnual,
           margemLiquida: margemLiquidaAnual,
         },

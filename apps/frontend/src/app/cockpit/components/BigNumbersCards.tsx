@@ -49,8 +49,8 @@ function SkeletonCard() {
 export default function BigNumbersCards({ data, loading }: Props) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map((i) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-4">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
           <SkeletonCard key={i} />
         ))}
       </div>
@@ -58,7 +58,7 @@ export default function BigNumbersCards({ data, loading }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-4">
       {data.map((item) => {
         const style = VARIANT_STYLES[item.variant];
         const isMargemGreen = item.id === 'margem' && item.value >= 30;

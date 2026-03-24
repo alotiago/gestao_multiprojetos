@@ -255,13 +255,38 @@ export default function ContratosDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Cabeçalho */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">📊 Dashboard Financeiro</h1>
+          <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">📊 Dashboard Financeiro</h1>
           <p className="text-gray-600">Análise de performance de contratos por período</p>
         </div>
+
+        <details className="bg-white rounded-2xl shadow-md p-5 mb-6 border border-gray-100 open:shadow-lg">
+          <summary className="cursor-pointer list-none flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Como o relatório compõe custo fixo e variável</h2>
+              <p className="text-sm text-gray-500 mt-1">Abrir para entender a origem dos números mostrados no gráfico e nas tabelas</p>
+            </div>
+            <span className="text-sm font-medium text-blue-600">Ver metodologia</span>
+          </summary>
+
+          <div className="mt-4 grid grid-cols-1 xl:grid-cols-3 gap-4 text-sm text-gray-600">
+            <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+              <p className="font-semibold text-gray-900">Custo Fixo</p>
+              <p className="mt-2">Soma despesas de facilities, aluguel, amortização e rateio com o custo fixo de pessoal registrado em custo mensal.</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+              <p className="font-semibold text-gray-900">Custo Variável</p>
+              <p className="mt-2">Soma fornecedor, endomarketing, provisão, outros e o custo variável de pessoal do mesmo período.</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+              <p className="font-semibold text-gray-900">Margens</p>
+              <p className="mt-2">Margem bruta desconta apenas custo operacional. Margem líquida desconta custo operacional e imposto, sem dupla contagem.</p>
+            </div>
+          </div>
+        </details>
 
         {/* Controles */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
@@ -307,16 +332,16 @@ export default function ContratosDashboard() {
               </select>
             </div>
 
-            <div className="flex items-end gap-2">
+            <div className="flex items-end gap-2 flex-col sm:flex-row">
               <button
                 onClick={exportarExcel}
-                className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition font-medium"
+                className="w-full sm:flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition font-medium"
               >
                 📥 Excel
               </button>
               <button
                 onClick={exportarPDF}
-                className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition font-medium"
+                className="w-full sm:flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition font-medium"
               >
                 📄 PDF
               </button>

@@ -3,6 +3,14 @@
 import React from 'react';
 import type { PortfolioProject, StatusColor } from '@/services/cockpitApi';
 
+function formatBRL(value: number) {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 const STATUS_COLOR: Record<StatusColor, string> = {
   red: 'bg-red-500',
   yellow: 'bg-amber-500',
@@ -59,6 +67,36 @@ export default function DrillDownModal({ project, open, onClose }: Props) {
 
         {/* Body */}
         <div className="px-6 py-5 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+              <p className="text-[11px] uppercase tracking-wide text-gray-400">Contrato</p>
+              <p className="mt-2 text-sm font-semibold text-[#0C1B3A]">{project.contratoNome}</p>
+            </div>
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+              <p className="text-[11px] uppercase tracking-wide text-gray-400">FTE no mês</p>
+              <p className="mt-2 text-2xl font-semibold text-[#0C1B3A]">{project.fteAtual.toFixed(2)}</p>
+            </div>
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+              <p className="text-[11px] uppercase tracking-wide text-gray-400">Saldo contratual</p>
+              <p className="mt-2 text-lg font-semibold text-[#0C1B3A]">{formatBRL(project.saldoContratual)}</p>
+              <p className="mt-1 text-xs text-gray-400">Saldo por linhas: {formatBRL(project.saldoLinhas)}</p>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+              FTE Mensal
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {project.fteMensal.map((item) => (
+                <div key={item.mes} className="rounded-xl border border-gray-100 bg-white p-3">
+                  <p className="text-[11px] uppercase tracking-wide text-gray-400">{item.label}</p>
+                  <p className="mt-2 text-lg font-semibold text-[#0C1B3A]">{item.fte.toFixed(2)}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Gargalo detail */}
           <div>
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
@@ -81,6 +119,52 @@ export default function DrillDownModal({ project, open, onClose }: Props) {
             </h3>
             <div className="p-4 rounded-xl bg-[#1E16A0]/5 border border-[#1E16A0]/10">
               <p className="text-sm font-semibold text-[#1E16A0]">{project.acaoCLevel}</p>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+              Saldos Contratuais por Objeto e Linha
+            </h3>
+            <div className="space-y-3">
+              {project.objetos.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                  Nenhum objeto contratual encontrado para este projeto.
+                </div>
+              ) : (
+                project.objetos.map((objeto) => (
+                  <details key={objeto.id} className="rounded-2xl border border-gray-100 bg-white open:shadow-sm">
+                    <summary className="cursor-pointer list-none px-4 py-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="font-semibold text-[#0C1B3A]">{objeto.nome}</p>
+                        {objeto.descricao && <p className="text-sm text-gray-500 mt-1">{objeto.descricao}</p>}
+                      </div>
+                      <div className="text-sm font-semibold text-[#1E16A0]">
+                        Saldo: {formatBRL(objeto.saldoValor)}
+                      </div>
+                    </summary>
+
+                    <div className="px-4 pb-4">
+                      <div className="space-y-2">
+                        {objeto.linhas.map((linha) => (
+                          <div key={linha.id} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-[#0C1B3A]">{linha.descricaoItem}</p>
+                                <p className="text-xs text-gray-400 mt-1">Unidade: {linha.unidade} · Valor anual: {formatBRL(linha.valorTotalAnual)}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-semibold text-[#0C1B3A]">{formatBRL(linha.saldoValor)}</p>
+                                <p className="text-xs text-gray-400 mt-1">Saldo qtd: {linha.saldoQuantidade.toFixed(2)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </details>
+                ))
+              )}
             </div>
           </div>
 

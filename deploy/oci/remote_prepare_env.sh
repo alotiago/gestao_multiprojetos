@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
-# remote_prepare_env.sh — Gera .env de producao para o Gestor de Multiprojetos
+# remote_prepare_env.sh — Gera .env para ambientes OCI (producao/homologacao)
 # Uso: APP_DIR=/opt/gestor_multiprojetos DOMAIN=gestaodeprojetos.oais.cloud bash remote_prepare_env.sh
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/gestor_multiprojetos}"
 DOMAIN="${DOMAIN:-gestaodeprojetos.oais.cloud}"
+if [[ "${DOMAIN}" == *"hml"* ]]; then
+	ENV_LABEL="homologacao"
+else
+	ENV_LABEL="producao"
+fi
 
 gen() { openssl rand -base64 48 | tr -d '\n/+=' | head -c 64; }
 
@@ -29,7 +34,7 @@ JWT_SECRET=$(gen)
 JWT_REFRESH_SECRET=$(gen)
 JWT_EXPIRATION=1h
 
-# URLs públicas (domínio de produção)
+# URLs publicas (dominio do ambiente: ${ENV_LABEL})
 DOMAIN=${DOMAIN}
 FRONTEND_URL=https://${DOMAIN}
 BACKEND_URL=https://${DOMAIN}/api

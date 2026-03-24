@@ -25,6 +25,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -35,13 +36,24 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     return <>{children}</>;
   }
 
+  const showExpanded = sidebarOpen || mobileNavOpen;
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#F4F5F9]">
+      {mobileNavOpen && (
+        <button
+          type="button"
+          aria-label="Fechar menu"
+          className="fixed inset-0 z-30 bg-[#050439]/45 backdrop-blur-[1px] lg:hidden"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
-        className={`flex-shrink-0 flex flex-col transition-all duration-300 ${
-          sidebarOpen ? 'w-[260px]' : 'w-[72px]'
-        }`}
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col transition-all duration-300 lg:static lg:z-auto ${
+          mobileNavOpen ? 'translate-x-0 w-[280px]' : '-translate-x-full w-[280px]'
+        } ${sidebarOpen ? 'lg:w-[260px]' : 'lg:w-[72px]'} lg:translate-x-0`}
         style={{ background: 'var(--hw1-navy)' }}
       >
         {/* Logo */}
@@ -52,7 +64,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           >
             H
           </div>
-          {sidebarOpen && (
+          {showExpanded && (
             <div className="overflow-hidden">
               <p className="text-white font-heading font-semibold text-sm leading-tight truncate">
                 Gestor
@@ -81,10 +93,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                     : 'text-white/60 hover:text-white hover:bg-white/10'
                 }`}
                 style={active ? { background: isSub ? 'rgba(30, 22, 160, 0.5)' : 'rgba(30, 22, 160, 0.8)' } : {}}
-                title={!sidebarOpen ? item.label : undefined}
+                title={!showExpanded ? item.label : undefined}
+                onClick={() => setMobileNavOpen(false)}
               >
                 <span className={`${isSub ? 'text-sm' : 'text-base'} flex-shrink-0`}>{item.icon}</span>
-                {sidebarOpen && (
+                {showExpanded && (
                   <span className={`${isSub ? 'text-xs' : 'text-sm'} font-medium truncate`}>{item.label}</span>
                 )}
               </Link>
@@ -93,7 +106,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </nav>
 
         {/* User area */}
-        {sidebarOpen && (
+        {showExpanded && (
           <div className="p-4 border-t border-white/10">
             <div className="flex items-center gap-3 mb-3">
               <div
@@ -119,7 +132,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         {/* Toggle button */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-3 text-white/40 hover:text-white hover:bg-white/10 transition-colors self-end m-2 rounded-lg"
+          className="hidden lg:block p-3 text-white/40 hover:text-white hover:bg-white/10 transition-colors self-end m-2 rounded-lg"
           aria-label="Toggle sidebar"
         >
           {sidebarOpen ? '◀' : '▶'}
@@ -129,8 +142,16 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar */}
-        <header className="h-16 bg-white border-b border-gray-100 flex items-center px-6 flex-shrink-0 shadow-sm">
+        <header className="h-16 bg-white border-b border-gray-100 flex items-center px-4 lg:px-6 flex-shrink-0 shadow-sm">
           <div className="flex items-center gap-3 flex-1">
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(true)}
+              className="lg:hidden w-10 h-10 rounded-xl border border-gray-200 text-hw1-navy flex items-center justify-center"
+              aria-label="Abrir menu"
+            >
+              ☰
+            </button>
             <h2 className="text-base font-heading font-semibold text-hw1-navy">
               {navItems.find((n) => pathname.startsWith(n.href))?.label ?? 'Início'}
             </h2>
@@ -146,7 +167,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           {children}
         </main>
       </div>

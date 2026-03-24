@@ -6,6 +6,115 @@ import { CreateStatusReportDto, UpdateStatusReportDto, CreateGoLiveDto, UpdateGo
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private readonly nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+  private buildFteMensal(jornadas: Array<{ mes: number; fte: any }>) {
+    const totais = Array.from({ length: 12 }, (_, index) => ({
+      mes: index + 1,
+      label: this.nomesMeses[index],
+      fte: 0,
+    }));
+
+    for (const jornada of jornadas) {
+      if (jornada.mes < 1 || jornada.mes > 12) continue;
+      totais[jornada.mes - 1].fte += Number(jornada.fte || 0);
+    }
+
+    return totais.map((item) => ({
+      ...item,
+      fte: Number(item.fte.toFixed(2)),
+    }));
+  }
+
+  private async getContractBreakdown(contractIds: string[]) {
+    if (contractIds.length === 0) {
+      return {
+        totalSaldoContratual: 0,
+        totalSaldoLinhas: 0,
+        itens: [],
+      };
+    }
+
+    const contratos = await this.prisma.contrato.findMany({
+      where: {
+        id: { in: contractIds },
+        ativo: true,
+      },
+      select: {
+        id: true,
+        nomeContrato: true,
+        cliente: true,
+        saldoContratual: true,
+        objetos: {
+          where: { ativo: true },
+          select: {
+            id: true,
+            nome: true,
+            descricao: true,
+            linhasContratuais: {
+              where: { ativo: true },
+              select: {
+                id: true,
+                descricaoItem: true,
+                unidade: true,
+                valorTotalAnual: true,
+                saldoQuantidade: true,
+                saldoValor: true,
+              },
+              orderBy: { descricaoItem: 'asc' },
+            },
+          },
+          orderBy: { nome: 'asc' },
+        },
+      },
+      orderBy: { nomeContrato: 'asc' },
+    });
+
+    const itens = contratos.map((contrato) => {
+      const objetos = contrato.objetos.map((objeto) => {
+        const linhas = objeto.linhasContratuais.map((linha) => ({
+          id: linha.id,
+          descricaoItem: linha.descricaoItem,
+          unidade: linha.unidade,
+          valorTotalAnual: Number(linha.valorTotalAnual || 0),
+          saldoQuantidade: Number(linha.saldoQuantidade || 0),
+          saldoValor: Number(linha.saldoValor || 0),
+        }));
+
+        const saldoValor = linhas.reduce((acc, linha) => acc + linha.saldoValor, 0);
+
+        return {
+          id: objeto.id,
+          nome: objeto.nome,
+          descricao: objeto.descricao,
+          saldoValor: Number(saldoValor.toFixed(2)),
+          linhas,
+        };
+      });
+
+      const saldoLinhas = objetos.reduce((acc, objeto) => acc + objeto.saldoValor, 0);
+
+      return {
+        id: contrato.id,
+        nomeContrato: contrato.nomeContrato,
+        cliente: contrato.cliente,
+        saldoContratual: Number(contrato.saldoContratual || 0),
+        saldoLinhas: Number(saldoLinhas.toFixed(2)),
+        objetos,
+      };
+    });
+
+    return {
+      totalSaldoContratual: Number(
+        itens.reduce((acc, contrato) => acc + contrato.saldoContratual, 0).toFixed(2),
+      ),
+      totalSaldoLinhas: Number(
+        itens.reduce((acc, contrato) => acc + contrato.saldoLinhas, 0).toFixed(2),
+      ),
+      itens,
+    };
+  }
+
   // =============================================================
   // DASHBOARD EXECUTIVO
   // =============================================================
@@ -31,7 +140,9 @@ export class DashboardService {
             projetosAtivos: 0,
             colaboradoresAtivos: 0,
             fteTotal: 0,
+            fteMesAtual: 0,
             carteiraAcumulada: 0,
+            saldoContratualTotal: 0,
           },
           financeiro: {
             receitaPrevista: 0,
@@ -45,6 +156,11 @@ export class DashboardService {
           },
           projetos: {
             distribuicaoStatus: {},
+          },
+          analitico: {
+            fteMensal: this.buildFteMensal([]),
+            contratos: [],
+            saldoLinhasTotal: 0,
           },
         };
       }
@@ -83,6 +199,12 @@ export class DashboardService {
 
     const projetosAtivos = projetos.filter((p) => p.status === 'ATIVO').length;
     const fteTotal = jornadas.reduce((s, j) => s + Number(j.fte), 0);
+    const fteMensal = this.buildFteMensal(jornadas);
+    const mesAtual = new Date().getMonth() + 1;
+    const fteMesAtual = fteMensal.find((item) => item.mes === mesAtual)?.fte || 0;
+    const contratosResumo = await this.getContractBreakdown(
+      [...new Set(projetos.map((projeto) => projeto.contratoId).filter(Boolean))],
+    );
 
     // Carteira acumulada (receita prevista de todos os projetos ativos no ano)
     const carteiraAcumulada = totalReceitaPrevista;
@@ -100,7 +222,9 @@ export class DashboardService {
         projetosAtivos,
         colaboradoresAtivos: colaboradores.length,
         fteTotal: Number(fteTotal.toFixed(2)),
+        fteMesAtual: Number(fteMesAtual.toFixed(2)),
         carteiraAcumulada: Number(carteiraAcumulada.toFixed(2)),
+        saldoContratualTotal: contratosResumo.totalSaldoContratual,
       },
       financeiro: {
         receitaPrevista: Number(totalReceitaPrevista.toFixed(2)),
@@ -114,6 +238,11 @@ export class DashboardService {
       },
       projetos: {
         distribuicaoStatus: statusDistribuicao,
+      },
+      analitico: {
+        fteMensal,
+        contratos: contratosResumo.itens,
+        saldoLinhasTotal: contratosResumo.totalSaldoLinhas,
       },
     };
   }
@@ -478,6 +607,27 @@ export class DashboardService {
       },
     });
 
+    const projectIds = projetos.map((projeto) => projeto.id);
+    const jornadas = await this.prisma.jornada.findMany({
+      where: {
+        ano,
+        projectId: { in: projectIds },
+      },
+      select: {
+        projectId: true,
+        mes: true,
+        fte: true,
+      },
+    });
+
+    const contratosResumo = await this.getContractBreakdown(
+      [...new Set(projetos.map((projeto) => projeto.contratoId).filter(Boolean))],
+    );
+    const contratosMap = new Map(contratosResumo.itens.map((contrato) => [contrato.id, contrato]));
+    const mesAtual = new Date().getMonth() + 1;
+    const fteMensalTotal = this.buildFteMensal(jornadas);
+    const fteMesAtualTotal = fteMensalTotal.find((item) => item.mes === mesAtual)?.fte || 0;
+
     // ── Big Numbers ──
     let totalReceitaRealizada = 0;
     let totalReceitaPrevista = 0;
@@ -486,6 +636,10 @@ export class DashboardService {
     let projetosEmRisco = 0;
 
     const portfolioItems = projetos.map((p) => {
+      const jornadasProjeto = jornadas.filter((jornada) => jornada.projectId === p.id);
+      const fteMensalProjeto = this.buildFteMensal(jornadasProjeto);
+      const fteAtualProjeto = fteMensalProjeto.find((item) => item.mes === mesAtual)?.fte || 0;
+      const contrato = contratosMap.get(p.contratoId);
       const recPrev = p.receitas.reduce((s, r) => s + Number(r.valorPrevisto), 0);
       const recReal = p.receitas.reduce((s, r) => s + Number(r.valorRealizado), 0);
       const custoPessoal = p.custos.reduce((s, c) => s + Number(c.custoFixo) + Number(c.custoVariavel), 0);
@@ -514,6 +668,12 @@ export class DashboardService {
         gargalo: sr?.gargalo || (statusHealth === 'green' ? '—' : 'Sem report cadastrado'),
         acaoCLevel: sr?.acaoCLevel || (statusHealth === 'green' ? 'Nenhuma ação necessária' : 'Cadastrar Status Report'),
         detalheGargalo: sr?.detalheGargalo || '',
+        contratoNome: contrato?.nomeContrato || 'Sem contrato',
+        saldoContratual: contrato?.saldoContratual || 0,
+        saldoLinhas: contrato?.saldoLinhas || 0,
+        fteAtual: Number(fteAtualProjeto.toFixed(2)),
+        fteMensal: fteMensalProjeto,
+        objetos: contrato?.objetos || [],
       };
     });
 
@@ -526,7 +686,6 @@ export class DashboardService {
       : 0;
 
     // ── Economia OPEX (despesas mês atual vs mês anterior) ──
-    const mesAtual = new Date().getMonth() + 1;
     const despesasMesAtual = projetos.reduce((s, p) =>
       s + p.despesas.filter((d) => d.mes === mesAtual).reduce((ss, d) => ss + Number(d.valor), 0), 0);
     const despesasMesAnterior = projetos.reduce((s, p) =>
@@ -564,6 +723,26 @@ export class DashboardService {
         type: 'currency',
         variant: receitaEmRisco > 0 ? 'danger' : 'success',
         icon: '⚠️',
+      },
+      {
+        id: 'fte-mes-atual',
+        label: 'FTE do Mês',
+        value: fteMesAtualTotal,
+        formattedValue: fteMesAtualTotal.toFixed(2),
+        meta: `Acumulado anual: ${fteMensalTotal.reduce((acc, item) => acc + item.fte, 0).toFixed(2)}`,
+        type: 'number',
+        variant: 'default',
+        icon: '⏱️',
+      },
+      {
+        id: 'saldo-contratual',
+        label: 'Saldo Contratual',
+        value: contratosResumo.totalSaldoContratual,
+        formattedValue: this.formatCurrency(contratosResumo.totalSaldoContratual),
+        meta: `${contratosResumo.itens.length} contrato(s) monitorado(s)`,
+        type: 'currency',
+        variant: contratosResumo.totalSaldoContratual > 0 ? 'warning' : 'success',
+        icon: '📑',
       },
       {
         id: 'economia-opex',
@@ -607,6 +786,12 @@ export class DashboardService {
       portfolio: portfolioWithUpdates,
       burnRate,
       goLive: goLiveData,
+      insights: {
+        fteMensal: fteMensalTotal,
+        contratos: contratosResumo.itens,
+        saldoContratualTotal: contratosResumo.totalSaldoContratual,
+        saldoLinhasTotal: contratosResumo.totalSaldoLinhas,
+      },
     };
   }
 

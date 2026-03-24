@@ -24,7 +24,9 @@ interface ExecutivoData {
     projetosAtivos: number;
     colaboradoresAtivos: number;
     fteTotal: number;
+    fteMesAtual: number;
     carteiraAcumulada: number;
+    saldoContratualTotal: number;
   };
   financeiro: {
     receitaPrevista: number;
@@ -32,6 +34,35 @@ interface ExecutivoData {
     totalCustos: number;
     margemPrevista: number;
     margemRealizada: number;
+  };
+  analitico: {
+    fteMensal: Array<{
+      mes: number;
+      label: string;
+      fte: number;
+    }>;
+    saldoLinhasTotal: number;
+    contratos: Array<{
+      id: string;
+      nomeContrato: string;
+      cliente: string;
+      saldoContratual: number;
+      saldoLinhas: number;
+      objetos: Array<{
+        id: string;
+        nome: string;
+        descricao: string;
+        saldoValor: number;
+        linhas: Array<{
+          id: string;
+          descricaoItem: string;
+          unidade: string;
+          valorTotalAnual: number;
+          saldoQuantidade: number;
+          saldoValor: number;
+        }>;
+      }>;
+    }>;
   };
 }
 
@@ -62,6 +93,14 @@ function KpiCard({ title, value, sub, color, icon }: KpiCardProps) {
       </div>
     </div>
   );
+}
+
+function formatCompactBRL(value: number) {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
 export default function DashboardPage() {
@@ -136,14 +175,14 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header row */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h1 className="text-2xl font-heading font-semibold text-hw1-navy">
             Dashboard Executivo
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">Visão consolidada do portfólio</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <button
             type="button"
             onClick={exportarCsvFinanceiro}
@@ -160,7 +199,7 @@ export default function DashboardPage() {
           <select
             value={selectedProjectId}
             onChange={(e) => setSelectedProjectId(e.target.value)}
-            className="px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+            className="px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue min-w-[220px]"
           >
             <option value="">Todos os projetos</option>
             {projetos.map((p) => (
@@ -186,7 +225,7 @@ export default function DashboardPage() {
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
           title="Receita Prevista"
           value={data ? formatBRL(data.financeiro.receitaPrevista) : '—'}
@@ -217,7 +256,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Second row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
           title="Colaboradores Ativos"
           value={data ? String(data.kpis.colaboradoresAtivos) : '—'}
@@ -227,7 +266,7 @@ export default function DashboardPage() {
         <KpiCard
           title="FTE Total"
           value={data ? String(data.kpis.fteTotal) : '—'}
-          sub="Full-Time Equivalent"
+          sub={data ? `FTE no mês: ${data.kpis.fteMesAtual.toFixed(2)}` : 'Full-Time Equivalent'}
           color="#1E16A0"
           icon="⏱️"
         />
@@ -237,6 +276,107 @@ export default function DashboardPage() {
           color="linear-gradient(135deg, #050439, #1E16A0)"
           icon="💼"
         />
+        <KpiCard
+          title="Saldo Contratual"
+          value={data ? formatBRL(data.kpis.saldoContratualTotal) : '—'}
+          sub={data ? `Saldo em linhas: ${formatCompactBRL(data.analitico.saldoLinhasTotal)}` : '—'}
+          color="linear-gradient(135deg, #B45309, #F59E0B)"
+          icon="📑"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1.1fr,1fr] gap-4">
+        <section className="hw1-card">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-base font-heading font-semibold text-hw1-navy">FTE Mensal</h2>
+              <p className="text-sm text-gray-500 mt-0.5">Capacidade consolidada por mês para decisões de alocação</p>
+            </div>
+            <div className="text-xs text-gray-400">
+              Ano {ano} · total {data ? data.analitico.fteMensal.reduce((acc, item) => acc + item.fte, 0).toFixed(2) : '—'}
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+            {(data?.analitico.fteMensal ?? []).map((item) => (
+              <div key={item.mes} className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-gray-400">{item.label}</p>
+                <p className="mt-2 text-xl font-semibold text-hw1-navy">{item.fte.toFixed(2)}</p>
+                <div className="mt-3 h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.min(item.fte * 10, 100)}%`,
+                      background: 'linear-gradient(90deg, #1E16A0, #00D4FF)',
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="hw1-card">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-base font-heading font-semibold text-hw1-navy">Radar Contratual</h2>
+              <p className="text-sm text-gray-500 mt-0.5">Quebra por contrato, objeto e linha para localizar onde ainda existe saldo</p>
+            </div>
+            <div className="text-xs text-gray-400">
+              {data ? `${data.analitico.contratos.length} contrato(s)` : '—'}
+            </div>
+          </div>
+
+          <div className="mt-5 space-y-3 max-h-[420px] overflow-y-auto pr-1">
+            {(data?.analitico.contratos ?? []).map((contrato) => (
+              <details key={contrato.id} className="rounded-2xl border border-gray-100 bg-gray-50 open:bg-white open:shadow-sm">
+                <summary className="cursor-pointer list-none px-4 py-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="font-semibold text-hw1-navy">{contrato.nomeContrato}</p>
+                    <p className="text-xs text-gray-400 mt-1">{contrato.cliente}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-hw1-navy">{formatCompactBRL(contrato.saldoContratual)}</p>
+                    <p className="text-xs text-gray-400 mt-1">Linhas: {formatCompactBRL(contrato.saldoLinhas)}</p>
+                  </div>
+                </summary>
+
+                <div className="px-4 pb-4 space-y-3">
+                  {contrato.objetos.map((objeto) => (
+                    <details key={objeto.id} className="rounded-xl border border-gray-100 bg-white">
+                      <summary className="cursor-pointer list-none px-3 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-hw1-navy">{objeto.nome}</p>
+                          {objeto.descricao && <p className="text-xs text-gray-400 mt-1">{objeto.descricao}</p>}
+                        </div>
+                        <p className="text-sm font-semibold text-[#1E16A0]">{formatCompactBRL(objeto.saldoValor)}</p>
+                      </summary>
+
+                      <div className="px-3 pb-3 space-y-2">
+                        {objeto.linhas.map((linha) => (
+                          <div key={linha.id} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-hw1-navy">{linha.descricaoItem}</p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  Unidade: {linha.unidade} · Valor anual: {formatCompactBRL(linha.valorTotalAnual)}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-semibold text-hw1-navy">{formatCompactBRL(linha.saldoValor)}</p>
+                                <p className="text-xs text-gray-400 mt-1">Qtd: {linha.saldoQuantidade.toFixed(2)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              </details>
+            ))}
+          </div>
+        </section>
       </div>
 
       {/* Status panel */}

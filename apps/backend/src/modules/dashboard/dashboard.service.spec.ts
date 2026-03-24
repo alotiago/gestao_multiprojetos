@@ -7,6 +7,7 @@ const mockProject = {
   codigo: 'P001',
   nome: 'Projeto Alpha',
   cliente: 'Cliente X',
+  contratoId: 'ctr-1',
   status: 'ATIVO',
   ativo: true,
   dataInicio: new Date('2026-01-01'),
@@ -100,6 +101,7 @@ const mockJornada = {
 
 const mockPrisma = {
   project: { findMany: jest.fn() },
+  contrato: { findMany: jest.fn() },
   receitaMensal: { findMany: jest.fn() },
   custoMensal: { findMany: jest.fn() },
   despesa: { findMany: jest.fn() },
@@ -130,6 +132,7 @@ describe('DashboardService', () => {
   describe('getDashboardExecutivo', () => {
     it('deve retornar KPIs consolidados do ano', async () => {
       mockPrisma.project.findMany.mockResolvedValue([mockProject]);
+      mockPrisma.contrato.findMany.mockResolvedValue([{ id: 'ctr-1', nomeContrato: 'Contrato Alpha', cliente: 'Cliente X', saldoContratual: 25000, objetos: [] }]);
       mockPrisma.receitaMensal.findMany.mockResolvedValue([mockReceita]);
       mockPrisma.custoMensal.findMany.mockResolvedValue([mockCusto]);
       mockPrisma.despesa.findMany.mockResolvedValue([mockDespesa]);
@@ -144,12 +147,14 @@ describe('DashboardService', () => {
       expect(result.kpis.colaboradoresAtivos).toBe(1);
       expect(result.financeiro.receitaPrevista).toBe(50000);
       expect(result.financeiro.receitaRealizada).toBe(45000);
+      expect(result.kpis.saldoContratualTotal).toBe(25000);
       expect(result.financeiro.totalCustos).toBe(16650); // 10000 + 5000 + 1650
       expect(result.financeiro.margemRealizada).toBeGreaterThan(0);
     });
 
     it('deve calcular margem zero quando sem receita realizada', async () => {
       mockPrisma.project.findMany.mockResolvedValue([mockProject]);
+      mockPrisma.contrato.findMany.mockResolvedValue([{ id: 'ctr-1', nomeContrato: 'Contrato Alpha', cliente: 'Cliente X', saldoContratual: 25000, objetos: [] }]);
       mockPrisma.receitaMensal.findMany.mockResolvedValue([]);
       mockPrisma.custoMensal.findMany.mockResolvedValue([]);
       mockPrisma.despesa.findMany.mockResolvedValue([]);
