@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/services/api';
+import RowActionsMenu from '@/app/components/RowActionsMenu';
 
 interface Colaborador {
   id: string;
@@ -51,6 +52,14 @@ export default function RhPage() {
   const [uploadingExcel, setUploadingExcel] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [showDesligamentoModal, setShowDesligamentoModal] = useState(false);
+  const [desligandoColaborador, setDesligandoColaborador] = useState<Colaborador | null>(null);
+  const [savingDesligamento, setSavingDesligamento] = useState(false);
+  const [formDesligamento, setFormDesligamento] = useState({
+    dataDesligamento: new Date().toISOString().slice(0, 10),
+    motivo: '',
+    observacoes: '',
+  });
   const [form, setForm] = useState({
     matricula: '',
     nome: '',
@@ -229,6 +238,47 @@ export default function RhPage() {
     }
   };
 
+  const openDesligamentoModal = (colaborador: Colaborador) => {
+    setDesligandoColaborador(colaborador);
+    setFormDesligamento({
+      dataDesligamento: new Date().toISOString().slice(0, 10),
+      motivo: '',
+      observacoes: '',
+    });
+    setShowDesligamentoModal(true);
+  };
+
+  const closeDesligamentoModal = () => {
+    setShowDesligamentoModal(false);
+    setDesligandoColaborador(null);
+  };
+
+  const handleDesligamento = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!desligandoColaborador) return;
+    setSavingDesligamento(true);
+    setError('');
+    try {
+      await api.post(`/hr/colaboradores/${desligandoColaborador.id}/desligamento`, {
+        dataDesligamento: formDesligamento.dataDesligamento,
+        motivo: formDesligamento.motivo.trim(),
+        observacoes: formDesligamento.observacoes.trim() || undefined,
+      });
+      setSuccessMsg(`Desligamento de ${desligandoColaborador.nome} registrado com sucesso.`);
+      closeDesligamentoModal();
+      loadColaboradores();
+    } catch (err: any) {
+      const backendMessage = err?.response?.data?.message;
+      if (Array.isArray(backendMessage)) {
+        setError(backendMessage[0]);
+      } else {
+        setError(backendMessage || 'Não foi possível registrar o desligamento.');
+      }
+    } finally {
+      setSavingDesligamento(false);
+    }
+  };
+
   const handleDownloadTemplate = async () => {
     try {
       const res = await api.get('/hr/colaboradores/importar/template', { responseType: 'blob' });
@@ -389,9 +439,9 @@ export default function RhPage() {
       {/* Table */}
       <div className="hw1-card p-0 overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-gray-400 text-sm">Carregando...</div>
+          <div className="p-12 text-center text-gray-500 text-sm">Carregando...</div>
         ) : filtered.length === 0 ? (
-          <div className="p-12 text-center text-gray-400 text-sm">Nenhum colaborador encontrado.</div>
+          <div className="p-12 text-center text-gray-500 text-sm">Nenhum colaborador encontrado.</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -432,21 +482,14 @@ export default function RhPage() {
                   <td className="px-6 py-4">
                     <span className={statusColors[c.status] ?? 'hw1-badge-blue'}>{c.status}</span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => openEditModal(c)}
-                        className="px-3 py-1 text-xs font-medium rounded-lg border border-hw1-blue text-hw1-blue hover:bg-hw1-blue hover:text-white transition-all"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleDelete(c)}
-                        className="px-3 py-1 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-all"
-                      >
-                        Excluir
-                      </button>
-                    </div>
+                  <td className="px-6 py-4 text-right">
+                    <RowActionsMenu
+                      items={[
+                        { label: 'Editar', icon: '✏️', onClick: () => openEditModal(c) },
+                        ...(c.status !== 'DESLIGADO' ? [{ label: 'Registrar Desligamento', icon: '🚪', tone: 'danger' as const, onClick: () => openDesligamentoModal(c) }] : []),
+                        { label: 'Excluir', icon: '🗑️', tone: 'danger' as const, onClick: () => handleDelete(c) },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}
@@ -489,6 +532,89 @@ export default function RhPage() {
         </div>
       </div>
 
+      {showDesligamentoModal && desligandoColaborador && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-heading font-semibold text-hw1-navy">Registrar Desligamento</h2>
+                <p className="text-sm text-gray-500 mt-0.5">{desligandoColaborador.nome} — {desligandoColaborador.matricula}</p>
+              </div>
+              <button
+                onClick={closeDesligamentoModal}
+                className="text-gray-500 hover:text-gray-700 text-xl leading-none"
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+            <form onSubmit={handleDesligamento} className="p-6 space-y-4">
+              <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                ⚠️ Esta ação é irreversível. O colaborador será marcado como <strong>DESLIGADO</strong>.
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Data do Desligamento *</label>
+                <input
+                  type="date"
+                  value={formDesligamento.dataDesligamento}
+                  onChange={(e) => setFormDesligamento({ ...formDesligamento, dataDesligamento: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Motivo *</label>
+                <select
+                  value={formDesligamento.motivo}
+                  onChange={(e) => setFormDesligamento({ ...formDesligamento, motivo: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+                  required
+                >
+                  <option value="">Selecione o motivo</option>
+                  <option value="Pedido de demissão">Pedido de demissão</option>
+                  <option value="Demissão sem justa causa">Demissão sem justa causa</option>
+                  <option value="Demissão com justa causa">Demissão com justa causa</option>
+                  <option value="Término de contrato">Término de contrato</option>
+                  <option value="Aposentadoria">Aposentadoria</option>
+                  <option value="Outro">Outro</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Observações</label>
+                <textarea
+                  value={formDesligamento.observacoes}
+                  onChange={(e) => setFormDesligamento({ ...formDesligamento, observacoes: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue resize-none"
+                  rows={3}
+                  placeholder="Detalhes adicionais (opcional)…"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={closeDesligamentoModal}
+                  className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50"
+                  disabled={savingDesligamento}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50"
+                  disabled={savingDesligamento}
+                >
+                  {savingDesligamento ? 'Registrando...' : 'Confirmar Desligamento'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-auto">
@@ -498,7 +624,7 @@ export default function RhPage() {
               </h2>
               <button
                 onClick={closeModal}
-                className="text-gray-400 hover:text-gray-700 text-xl leading-none"
+                className="text-gray-500 hover:text-gray-700 text-xl leading-none"
                 aria-label="Fechar"
               >
                 ×
