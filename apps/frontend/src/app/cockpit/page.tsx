@@ -72,7 +72,7 @@ export default function CockpitPage() {
           <h1 className="text-2xl font-heading font-bold text-[#0C1B3A]">
             Cockpit do Sócio
           </h1>
-          <p className="text-sm text-gray-400 mt-1 capitalize">{dateStr}</p>
+          <p className="text-sm text-gray-500 mt-1 capitalize">{dateStr}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -90,9 +90,9 @@ export default function CockpitPage() {
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-base font-heading font-semibold text-[#0C1B3A]">Pulso de Capacidade</h2>
-              <p className="text-xs text-gray-400 mt-1">FTE mensal consolidado para leitura rápida de ocupação</p>
+              <p className="text-xs text-gray-500 mt-1">FTE mensal consolidado para leitura rápida de ocupação</p>
             </div>
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-gray-500">
               Total do ano: {insights ? insights.fteMensal.reduce((acc, item) => acc + item.fte, 0).toFixed(2) : '—'}
             </div>
           </div>
@@ -100,7 +100,7 @@ export default function CockpitPage() {
           <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
             {(insights?.fteMensal ?? []).map((item) => (
               <div key={item.mes} className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
-                <p className="text-[11px] uppercase tracking-wide text-gray-400">{item.label}</p>
+                <p className="text-[11px] uppercase tracking-wide text-gray-500">{item.label}</p>
                 <p className="mt-2 text-xl font-semibold text-[#0C1B3A]">{item.fte.toFixed(2)}</p>
                 <div className="mt-3 h-1.5 rounded-full bg-gray-200 overflow-hidden">
                   <div
@@ -120,7 +120,7 @@ export default function CockpitPage() {
               <p className="text-xs text-gray-500 mt-1">Visão total do saldo publicado nos contratos e nas linhas</p>
             </div>
             <div className="rounded-2xl bg-white/80 border border-amber-100 px-4 py-3 text-right">
-              <p className="text-[11px] uppercase tracking-wide text-gray-400">Linhas</p>
+              <p className="text-[11px] uppercase tracking-wide text-gray-500">Linhas</p>
               <p className="mt-1 text-lg font-semibold text-[#0C1B3A]">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(insights?.saldoLinhasTotal ?? 0)}
               </p>
@@ -133,7 +133,7 @@ export default function CockpitPage() {
                 <summary className="cursor-pointer list-none flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="font-semibold text-[#0C1B3A]">{contrato.nomeContrato}</p>
-                    <p className="text-xs text-gray-400 mt-1">{contrato.cliente}</p>
+                    <p className="text-xs text-gray-500 mt-1">{contrato.cliente}</p>
                   </div>
                   <div className="text-sm font-semibold text-[#1E16A0]">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(contrato.saldoContratual)}
@@ -146,7 +146,7 @@ export default function CockpitPage() {
                       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <p className="text-sm font-medium text-[#0C1B3A]">{objeto.nome}</p>
-                          {objeto.descricao && <p className="text-xs text-gray-400 mt-1">{objeto.descricao}</p>}
+                          {objeto.descricao && <p className="text-xs text-gray-500 mt-1">{objeto.descricao}</p>}
                         </div>
                         <p className="text-sm font-semibold text-[#0C1B3A]">
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(objeto.saldoValor)}

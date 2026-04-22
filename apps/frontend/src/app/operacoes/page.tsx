@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import api from '@/services/api';
+import RowActionsMenu from '@/app/components/RowActionsMenu';
 
 /* ── tipos ─────────────────────────────────────────────────── */
 interface Historico {
@@ -339,7 +340,7 @@ export default function OperacoesPage() {
                     <tbody>
                       {cascataResult.detalhes.map((d) => (
                         <tr key={d.colaboradorId} className="border-b border-gray-50">
-                          <td className="px-3 py-2 font-medium text-hw1-navy">{d.nome} <span className="text-gray-400">({d.matricula})</span></td>
+                          <td className="px-3 py-2 font-medium text-hw1-navy">{d.nome} <span className="text-gray-500">({d.matricula})</span></td>
                           <td className="px-3 py-2">{d.diasUteis}</td>
                           <td className="px-3 py-2">{d.horasPrevistas.toFixed(0)}h</td>
                           <td className="px-3 py-2">{formatBRL(d.custoVariavel)}</td>
@@ -486,9 +487,9 @@ export default function OperacoesPage() {
       {tab === 'historico' && (
         <div className="hw1-card p-0 overflow-hidden">
           {loading ? (
-            <div className="p-12 text-center text-gray-400 text-sm">Carregando...</div>
+            <div className="p-12 text-center text-gray-500 text-sm">Carregando...</div>
           ) : historico.length === 0 ? (
-            <div className="p-12 text-center text-gray-400 text-sm">Nenhum histórico de operações encontrado.</div>
+            <div className="p-12 text-center text-gray-500 text-sm">Nenhum histórico de operações encontrado.</div>
           ) : (
             <table className="w-full text-sm">
               <thead>
@@ -522,10 +523,12 @@ export default function OperacoesPage() {
                     <td className="px-6 py-4 text-gray-600 max-w-xs truncate">{h.descricao}</td>
                     <td className="px-6 py-4 text-gray-500 text-xs">{h.criadoPor ?? 'Sistema'}</td>
                     <td className="px-6 py-4 text-center">
-                      <button onClick={() => handleRollback(h.id)}
-                        className="text-hw1-pink hover:text-hw1-hot-pink text-xs font-medium transition-colors">
-                        Rollback
-                      </button>
+                      <RowActionsMenu
+                        items={[
+                          { label: 'Rollback', icon: '↩️', onClick: () => handleRollback(h.id) },
+                        ]}
+                        align="left"
+                      />
                     </td>
                   </tr>
                 ))}

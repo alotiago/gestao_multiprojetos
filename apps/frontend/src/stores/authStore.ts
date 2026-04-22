@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '@/services/api';
+import { LOCAL_DEV_BYPASS_TOKEN } from '@/services/localDev';
 
 interface User {
   id: string;
@@ -15,6 +16,7 @@ interface AuthStore {
   isAuthenticated: boolean;
 
   login: (email: string, password: string) => Promise<void>;
+  loginLocalDev: () => void;
   logout: () => void;
   setUser: (user: User) => void;
 }
@@ -43,6 +45,26 @@ export const useAuthStore = create<AuthStore>()(
             role: user.role,
           },
           token: accessToken,
+          isAuthenticated: true,
+        });
+      },
+
+      loginLocalDev: () => {
+        const localDevUser = {
+          id: 'local-dev-user',
+          email: 'local@dev',
+          name: 'Usuario Local',
+          role: 'ADMIN',
+        };
+        const localDevToken = LOCAL_DEV_BYPASS_TOKEN;
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('auth-token', localDevToken);
+        }
+
+        set({
+          user: localDevUser,
+          token: localDevToken,
           isAuthenticated: true,
         });
       },

@@ -35,7 +35,7 @@ function GoLiveItem({ item }: { item: GoLiveProject }) {
         <p className={`text-sm font-medium truncate ${isOverdue ? 'text-red-800' : 'text-[#0C1B3A]'}`}>
           {item.cliente}
         </p>
-        <p className="text-xs text-gray-400 mt-0.5">{formatDate(item.dataGoLive)}</p>
+        <p className="text-xs text-gray-500 mt-0.5">{formatDate(item.dataGoLive)}</p>
       </div>
       <div className="flex-shrink-0 ml-3">
         {isOverdue ? (
@@ -77,7 +77,7 @@ export default function GoLivePipeline({ data, loading }: Props) {
         <h2 className="text-base font-heading font-semibold text-[#0C1B3A]">
           Pipeline de Go-Live
         </h2>
-        <p className="text-xs text-gray-400 mt-0.5">Projetos entrando em produção</p>
+        <p className="text-xs text-gray-500 mt-0.5">Projetos entrando em produção</p>
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
@@ -89,7 +89,7 @@ export default function GoLivePipeline({ data, loading }: Props) {
               Próximos 30 dias
             </h3>
             {data && (
-              <span className="text-xs text-gray-400">({data.proximos30.length})</span>
+              <span className="text-xs text-gray-500">({data.proximos30.length})</span>
             )}
           </div>
           <div className="space-y-2">
@@ -101,7 +101,7 @@ export default function GoLivePipeline({ data, loading }: Props) {
             ) : data && data.proximos30.length > 0 ? (
               data.proximos30.map((item) => <GoLiveItem key={item.id} item={item} />)
             ) : (
-              <p className="text-xs text-gray-400 text-center py-4">Nenhum go-live nos próximos 30 dias</p>
+              <p className="text-xs text-gray-500 text-center py-4">Nenhum go-live nos próximos 30 dias</p>
             )}
           </div>
         </div>
@@ -117,7 +117,7 @@ export default function GoLivePipeline({ data, loading }: Props) {
               Próximos 60 dias
             </h3>
             {data && (
-              <span className="text-xs text-gray-400">({data.proximos60.length})</span>
+              <span className="text-xs text-gray-500">({data.proximos60.length})</span>
             )}
           </div>
           <div className="space-y-2">
@@ -129,7 +129,7 @@ export default function GoLivePipeline({ data, loading }: Props) {
             ) : data && data.proximos60.length > 0 ? (
               data.proximos60.map((item) => <GoLiveItem key={item.id} item={item} />)
             ) : (
-              <p className="text-xs text-gray-400 text-center py-4">Nenhum go-live nos próximos 60 dias</p>
+              <p className="text-xs text-gray-500 text-center py-4">Nenhum go-live nos próximos 60 dias</p>
             )}
           </div>
         </div>

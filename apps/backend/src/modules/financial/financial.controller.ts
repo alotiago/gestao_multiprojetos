@@ -36,6 +36,8 @@ import {
   CalculoTributarioSindicatoDto,
 } from './dto/bulk-operations.dto';
 import { CreateAliquotaRegimeDto, UpdateAliquotaRegimeDto } from './dto/aliquota-regime.dto';
+import { CreateTipoDespesaDto, UpdateTipoDespesaDto } from './dto/tipo-despesa.dto';
+import { CreateFornecedorDto, UpdateFornecedorDto } from './dto/fornecedor.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions/permissions.guard';
 import { Permissions } from '../auth/permissions/permissions.decorator';
@@ -436,5 +438,74 @@ export class FinancialController {
   @Permissions(Permission.FINANCIAL_DELETE)
   deleteReceita(@Param('id') id: string) {
     return this.financialService.deleteReceita(id);
+  }
+
+  // ===================== TIPOS DE DESPESA =====================
+
+  @Get('tipos-despesa')
+  @ApiOperation({ summary: 'Listar tipos de despesa' })
+  @Permissions(Permission.FINANCIAL_READ)
+  findTiposDespesa(@Query('apenasAtivos') apenasAtivos?: string) {
+    return this.financialService.findTiposDespesa(apenasAtivos === 'true');
+  }
+
+  @Post('tipos-despesa')
+  @ApiOperation({ summary: 'Criar tipo de despesa' })
+  @Permissions(Permission.FINANCIAL_CREATE)
+  createTipoDespesa(@Body() dto: CreateTipoDespesaDto) {
+    return this.financialService.createTipoDespesa(dto);
+  }
+
+  @Put('tipos-despesa/:id')
+  @ApiOperation({ summary: 'Atualizar tipo de despesa' })
+  @Permissions(Permission.FINANCIAL_UPDATE)
+  updateTipoDespesa(@Param('id') id: string, @Body() dto: UpdateTipoDespesaDto) {
+    return this.financialService.updateTipoDespesa(id, dto);
+  }
+
+  @Delete('tipos-despesa/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Deletar tipo de despesa' })
+  @Permissions(Permission.FINANCIAL_DELETE)
+  deleteTipoDespesa(@Param('id') id: string) {
+    return this.financialService.deleteTipoDespesa(id);
+  }
+
+  // ===================== FORNECEDORES =====================
+
+  @Get('fornecedores')
+  @ApiOperation({ summary: 'Listar fornecedores' })
+  @Permissions(Permission.FINANCIAL_READ)
+  findFornecedores(@Query('search') search?: string) {
+    return this.financialService.findFornecedores(search);
+  }
+
+  @Get('fornecedores/:id')
+  @ApiOperation({ summary: 'Buscar fornecedor por ID' })
+  @Permissions(Permission.FINANCIAL_READ)
+  findFornecedorById(@Param('id') id: string) {
+    return this.financialService.findFornecedorById(id);
+  }
+
+  @Post('fornecedores')
+  @ApiOperation({ summary: 'Criar fornecedor' })
+  @Permissions(Permission.FINANCIAL_CREATE)
+  createFornecedor(@Body() dto: CreateFornecedorDto) {
+    return this.financialService.createFornecedor(dto);
+  }
+
+  @Put('fornecedores/:id')
+  @ApiOperation({ summary: 'Atualizar fornecedor' })
+  @Permissions(Permission.FINANCIAL_UPDATE)
+  updateFornecedor(@Param('id') id: string, @Body() dto: UpdateFornecedorDto) {
+    return this.financialService.updateFornecedor(id, dto);
+  }
+
+  @Delete('fornecedores/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Deletar fornecedor' })
+  @Permissions(Permission.FINANCIAL_DELETE)
+  deleteFornecedor(@Param('id') id: string) {
+    return this.financialService.deleteFornecedor(id);
   }
 }

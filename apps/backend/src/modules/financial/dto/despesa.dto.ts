@@ -8,6 +8,7 @@ import {
   Min,
   Max,
   IsEnum,
+  IsDateString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -39,8 +40,9 @@ export class CreateDespesaDto {
   @IsNotEmpty()
   projectId!: string;
 
-  @IsEnum(TipoDespesa)
-  tipo!: TipoDespesa;
+  @IsString()
+  @IsNotEmpty()
+  tipo!: string;
 
   @IsString()
   @IsNotEmpty()
@@ -77,12 +79,24 @@ export class CreateDespesaDto {
   @IsOptional()
   @Type(() => Boolean)
   replicarAteFimContrato?: boolean;
+
+  @IsString()
+  @IsOptional()
+  fornecedorId?: string;
+
+  @IsDateString()
+  @IsOptional()
+  dataVencimento?: string;
+
+  @IsString()
+  @IsOptional()
+  anexoUrl?: string;
 }
 
 export class UpdateDespesaDto {
-  @IsEnum(TipoDespesa)
+  @IsString()
   @IsOptional()
-  tipo?: TipoDespesa;
+  tipo?: string;
 
   @IsString()
   @IsOptional()
@@ -111,6 +125,18 @@ export class UpdateDespesaDto {
   @IsEnum(NaturezaCusto)
   @IsOptional()
   naturezaCusto?: NaturezaCusto;
+
+  @IsString()
+  @IsOptional()
+  fornecedorId?: string | null;
+
+  @IsDateString()
+  @IsOptional()
+  dataVencimento?: string | null;
+
+  @IsString()
+  @IsOptional()
+  anexoUrl?: string | null;
 }
 
 export class FilterDespesaDto {
@@ -118,9 +144,9 @@ export class FilterDespesaDto {
   @IsOptional()
   projectId?: string;
 
-  @IsEnum(TipoDespesa)
+  @IsString()
   @IsOptional()
-  tipo?: TipoDespesa;
+  tipo?: string;
 
   @IsInt()
   @IsOptional()

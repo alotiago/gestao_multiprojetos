@@ -453,12 +453,52 @@ model Despesa {
   
   mes               Int       // 1-12
   ano               Int
+
+  fornecedorId      String?
+  fornecedor        Fornecedor? @relation(fields: [fornecedorId], references: [id])
+  dataVencimento    DateTime?
+  anexoUrl          String?
   
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
   @@map("despesas")
   @@index([projectId, ano])
+}
+
+/// Tipos de Despesa (Cadastro dinâmico)
+model TipoDespesa {
+  id                String    @id @default(cuid())
+  nome              String    @unique
+  descricao         String?
+  ativo             Boolean   @default(true)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("tipos_despesa")
+}
+
+/// Fornecedores
+model Fornecedor {
+  id                String    @id @default(cuid())
+  cnpj              String    @unique
+  razaoSocial       String
+  nomeFantasia      String?
+  endereco          String?
+  cidade            String?
+  uf                String?
+  cep               String?
+  telefone          String?
+  email             String?
+  ativo             Boolean   @default(true)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  despesas          Despesa[]
+
+  @@map("fornecedores")
 }
 
 /// Impostos

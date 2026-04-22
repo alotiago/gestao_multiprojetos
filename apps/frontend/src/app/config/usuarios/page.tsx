@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/services/api';
+import RowActionsMenu from '@/app/components/RowActionsMenu';
 
 type UserRole = 'ADMIN' | 'PMO' | 'PROJECT_MANAGER' | 'HR' | 'FINANCE' | 'VIEWER';
 type UserStatus = 'ATIVO' | 'INATIVO' | 'DESLIGADO';
@@ -183,9 +184,9 @@ export default function UsuariosConfigPage() {
 
       <div className="hw1-card p-0 overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-gray-400 text-sm">Carregando...</div>
+          <div className="p-12 text-center text-gray-500 text-sm">Carregando...</div>
         ) : filtered.length === 0 ? (
-          <div className="p-12 text-center text-gray-400 text-sm">Nenhum usuario encontrado.</div>
+          <div className="p-12 text-center text-gray-500 text-sm">Nenhum usuario encontrado.</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -210,14 +211,16 @@ export default function UsuariosConfigPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-gray-500 text-xs">{u.lastLogin ? new Date(u.lastLogin).toLocaleString('pt-BR') : '-'}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => openEdit(u)} className="px-3 py-1 text-xs font-medium rounded-lg border border-hw1-blue text-hw1-blue hover:bg-hw1-blue hover:text-white transition-all">Editar</button>
-                      {u.status !== 'ATIVO' && (
-                        <button onClick={() => handleActivate(u)} className="px-3 py-1 text-xs font-medium rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-all">Ativar</button>
-                      )}
-                      <button onClick={() => handleDelete(u)} className="px-3 py-1 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-all">Desativar</button>
-                    </div>
+                  <td className="px-6 py-4 text-right">
+                    <RowActionsMenu
+                      items={[
+                        { label: 'Editar', icon: '✏️', onClick: () => openEdit(u) },
+                        ...(u.status !== 'ATIVO'
+                          ? [{ label: 'Ativar', icon: '✅', tone: 'success' as const, onClick: () => handleActivate(u) }]
+                          : []),
+                        { label: 'Desativar', icon: '🗑️', tone: 'danger', onClick: () => handleDelete(u) },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}
@@ -237,7 +240,7 @@ export default function UsuariosConfigPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-auto">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
               <h2 className="text-lg font-heading font-semibold text-hw1-navy">{editingId ? 'Editar Usuario' : 'Novo Usuario'}</h2>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-700 text-xl leading-none" aria-label="Fechar">x</button>
+              <button onClick={closeModal} className="text-gray-500 hover:text-gray-700 text-xl leading-none" aria-label="Fechar">x</button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               {!editingId && (

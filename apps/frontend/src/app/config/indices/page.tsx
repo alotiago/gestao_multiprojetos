@@ -199,9 +199,9 @@ export default function IndicesFinanceirosPage() {
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-gray-400 text-sm">Carregando...</div>
+          <div className="p-8 text-center text-gray-500 text-sm">Carregando...</div>
         ) : indices.length === 0 ? (
-          <div className="p-8 text-center text-gray-400 text-sm">Nenhum indice encontrado.</div>
+          <div className="p-8 text-center text-gray-500 text-sm">Nenhum indice encontrado.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

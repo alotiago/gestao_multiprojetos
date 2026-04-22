@@ -89,25 +89,25 @@ export class RelatoriosService {
         // Usa realizada se houver, senão usa prevista
         const receita = receitaRealizada > 0 ? receitaRealizada : receitaPrevista;
 
-        // Custos Fixos operacionais (facilities, aluguel, amortizacao, rateio)
+        // Custos Fixos operacionais (despesas marcadas como FIXO em naturezaCusto)
         const despesasFixas = await this.prisma.despesa.aggregate({
           where: {
             projectId: { in: projectIds },
             mes,
             ano,
-            tipo: { in: ['facilities', 'aluguel', 'amortizacao', 'rateio'] },
+            naturezaCusto: 'FIXO',
           },
           _sum: { valor: true },
         });
         const custoFixoOperacional = Number(despesasFixas._sum.valor || 0);
 
-        // Custos Variáveis operacionais (fornecedor, endomarketing, provisao, outros)
+        // Custos Variáveis operacionais (despesas marcadas como VARIAVEL em naturezaCusto)
         const despesasVariaveis = await this.prisma.despesa.aggregate({
           where: {
             projectId: { in: projectIds },
             mes,
             ano,
-            tipo: { in: ['fornecedor', 'endomarketing', 'provisao', 'outros'] },
+            naturezaCusto: 'VARIAVEL',
           },
           _sum: { valor: true },
         });

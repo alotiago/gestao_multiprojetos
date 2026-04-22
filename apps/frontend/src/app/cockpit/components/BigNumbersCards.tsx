@@ -96,7 +96,7 @@ export default function BigNumbersCards({ data, loading }: Props) {
                   {item.formattedValue}
                 </p>
                 {item.meta && (
-                  <p className="text-xs text-gray-400 mt-1 truncate">{item.meta}</p>
+                  <p className="text-xs text-gray-500 mt-1 truncate">{item.meta}</p>
                 )}
               </div>
             </div>
@@ -110,7 +110,7 @@ export default function BigNumbersCards({ data, loading }: Props) {
                     style={{ width: `${Math.min((item.value / 2000000) * 100, 100)}%` }}
                   />
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1 text-right">
+                <p className="text-[10px] text-gray-500 mt-1 text-right">
                   {((item.value / 2000000) * 100).toFixed(1)}% da meta
                 </p>
               </div>

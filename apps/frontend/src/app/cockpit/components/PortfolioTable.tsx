@@ -52,7 +52,7 @@ export default function PortfolioTable({ data, loading, onProjectClick }: Props)
           <h2 className="text-base font-heading font-semibold text-[#0C1B3A]">
             Semáforo de Portfólio
           </h2>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-gray-500 mt-0.5">
             Toque em um projeto para ver gargalos, FTE mensal e saldo por linha
           </p>
         </div>
@@ -88,7 +88,7 @@ export default function PortfolioTable({ data, loading, onProjectClick }: Props)
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold text-[#0C1B3A]">{project.nome}</p>
-                    <p className="text-xs text-gray-400 mt-1">{project.contratoNome}</p>
+                    <p className="text-xs text-gray-500 mt-1">{project.contratoNome}</p>
                   </div>
                   <span
                     className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${cfg.badgeBg} ${cfg.badgeText}`}
@@ -99,11 +99,11 @@ export default function PortfolioTable({ data, loading, onProjectClick }: Props)
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                    <p className="text-[11px] uppercase tracking-wide text-gray-400">FTE mês</p>
+                    <p className="text-[11px] uppercase tracking-wide text-gray-500">FTE mês</p>
                     <p className="mt-1 text-lg font-semibold text-[#0C1B3A]">{project.fteAtual.toFixed(2)}</p>
                   </div>
                   <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                    <p className="text-[11px] uppercase tracking-wide text-gray-400">Saldo contratual</p>
+                    <p className="text-[11px] uppercase tracking-wide text-gray-500">Saldo contratual</p>
                     <p className="mt-1 text-sm font-semibold text-[#0C1B3A]">{formatBRL(project.saldoContratual)}</p>
                   </div>
                 </div>
@@ -146,7 +146,7 @@ export default function PortfolioTable({ data, loading, onProjectClick }: Props)
                     <td className="px-5 py-4">
                       <div>
                         <span className="font-medium text-[#0C1B3A]">{project.nome}</span>
-                        <p className="text-xs text-gray-400 mt-1">{project.contratoNome}</p>
+                        <p className="text-xs text-gray-500 mt-1">{project.contratoNome}</p>
                       </div>
                     </td>
 

@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import api from '@/services/api';
+import { isLocalDevBypassSession } from '@/services/localDev';
 
 interface ProjetoSelect {
   id: string;
@@ -18,7 +19,25 @@ interface Despesa {
   valor: number;
   mes: number;
   ano: number;
+  fornecedorId?: string;
+  dataVencimento?: string;
+  anexoUrl?: string;
+  fornecedor?: { id: string; razaoSocial: string; cnpj: string };
   createdAt?: string;
+}
+
+interface TipoDespesaConfig {
+  id: string;
+  nome: string;
+  descricao?: string;
+  ativo: boolean;
+}
+
+interface FornecedorSelect {
+  id: string;
+  cnpj: string;
+  razaoSocial: string;
+  nomeFantasia?: string;
 }
 
 interface Receita {
@@ -52,6 +71,8 @@ interface Receita {
     descricaoItem: string;
     unidade: string;
     valorUnitario: number;
+    saldoQuantidade?: number;
+    saldoValor?: number;
   };
 }
 
@@ -122,6 +143,8 @@ interface LinhaContratualSelect {
   valorUnitario: number;
   quantidadeAnualEstimada: number;
   valorTotalAnual: number;
+  saldoQuantidade?: number;
+  saldoValor?: number;
 }
 
 interface ImportResultUI {
@@ -229,6 +252,8 @@ export default function FinanceiroPage() {
   const [despesas, setDespesas] = useState<Despesa[]>([]);
   const [receitas, setReceitas] = useState<Receita[]>([]);
   const [projetos, setProjetos] = useState<ProjetoSelect[]>([]);
+  const [tiposDespesaDinamicos, setTiposDespesaDinamicos] = useState<TipoDespesaConfig[]>([]);
+  const [fornecedoresList, setFornecedoresList] = useState<FornecedorSelect[]>([]);
   const [objetosContratuais, setObjetosContratuais] = useState<ObjetoContratualSelect[]>([]);
   const [linhasContratuais, setLinhasContratuais] = useState<LinhaContratualSelect[]>([]);
   const [loading, setLoading] = useState(true);
@@ -245,6 +270,58 @@ export default function FinanceiroPage() {
   const [saving, setSaving] = useState(false);
   const [modalType, setModalType] = useState<'despesa' | 'receita'>('despesa');
   const [receitaMode, setReceitaMode] = useState<'contrato' | 'manual'>('contrato');
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [selectedDespesaIds, setSelectedDespesaIds] = useState<Set<string>>(new Set());
+  const [selectedReceitaIds, setSelectedReceitaIds] = useState<Set<string>>(new Set());
+  const [sortByDespesa, setSortByDespesa] = useState<string | null>(null);
+  const [sortDirDespesa, setSortDirDespesa] = useState<'asc' | 'desc'>('asc');
+  const [sortByReceita, setSortByReceita] = useState<string | null>(null);
+  const [sortDirReceita, setSortDirReceita] = useState<'asc' | 'desc'>('asc');
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const handleSortDespesa = (field: string) => {
+    if (sortByDespesa === field) {
+      setSortDirDespesa(sortDirDespesa === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortByDespesa(field);
+      setSortDirDespesa('asc');
+    }
+  };
+
+  const handleSortReceita = (field: string) => {
+    if (sortByReceita === field) {
+      setSortDirReceita(sortDirReceita === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortByReceita(field);
+      setSortDirReceita('asc');
+    }
+  };
+
+  const sortArray = <T,>(arr: T[], field: string | null, dir: 'asc' | 'desc', getFieldValue?: (obj: T, f: string) => any): T[] => {
+    if (!field) return arr;
+    const sorted = [...arr].sort((a, b) => {
+      const aVal = getFieldValue ? getFieldValue(a, field) : (a as any)[field];
+      const bVal = getFieldValue ? getFieldValue(b, field) : (b as any)[field];
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return dir === 'asc' ? aVal.localeCompare(bVal, 'pt-BR') : bVal.localeCompare(aVal, 'pt-BR');
+      }
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return dir === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      return 0;
+    });
+    return sorted;
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   const [form, setForm] = useState({
     projectId: '',
     tipo: 'outros',
@@ -261,8 +338,10 @@ export default function FinanceiroPage() {
     mesesAdicionais: '0',
     objetoContratualId: '',
     linhaContratualId: '',
-    quantidade: '',
+    quantidade: '0',
     quantidadeRealizada: '', // RN-003
+    fornecedorId: '',
+    dataVencimento: '',
   });
 
   // Estados para importação de despesas via Excel
@@ -283,6 +362,20 @@ export default function FinanceiroPage() {
         }));
         setProjetos(projects);
       })
+      .catch(() => {});
+  };
+
+  const loadTiposDespesa = () => {
+    api
+      .get('/financial/tipos-despesa?apenasAtivos=true')
+      .then((r) => setTiposDespesaDinamicos(Array.isArray(r.data) ? r.data : []))
+      .catch(() => {});
+  };
+
+  const loadFornecedores = () => {
+    api
+      .get('/financial/fornecedores')
+      .then((r) => setFornecedoresList(Array.isArray(r.data) ? r.data : []))
       .catch(() => {});
   };
 
@@ -317,6 +410,7 @@ export default function FinanceiroPage() {
         console.log('[DESPESAS] Resposta:', r.data);
         const items = r.data?.data ?? r.data ?? [];
         setDespesas(Array.isArray(items) ? items : []);
+        setSelectedDespesaIds(new Set());
       })
       .catch((err) => {
         const msg = err?.response?.data?.message || 'Não foi possível carregar as despesas.';
@@ -329,6 +423,7 @@ export default function FinanceiroPage() {
 
   const loadReceitas = () => {
     setLoading(true);
+    setError('');
     let url = `/financial/receitas?page=${page}&limit=${pageSize}&ano=${ano}`;
     if (mes && mes !== '') url += `&mes=${mes}`;
     if (selectedProjectId && selectedProjectId !== '') url += `&projectId=${selectedProjectId}`;
@@ -337,10 +432,19 @@ export default function FinanceiroPage() {
       .then((r) => {
         const items = r.data?.data ?? r.data ?? [];
         setReceitas(Array.isArray(items) ? items : []);
+        setSelectedReceitaIds(new Set());
       })
       .catch((err) => {
         const msg = err?.response?.data?.message || 'Não foi possível carregar as receitas.';
         console.error('Erro receitas:', { url, status: err?.response?.status, message: msg });
+
+        if (isLocalDevBypassSession()) {
+          setReceitas([]);
+          setSelectedReceitaIds(new Set());
+          setError('');
+          return;
+        }
+
         setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
       })
       .finally(() => setLoading(false));
@@ -362,6 +466,8 @@ export default function FinanceiroPage() {
 
   useEffect(() => {
     loadProjetos();
+    loadTiposDespesa();
+    loadFornecedores();
   }, []);
 
   useEffect(() => {
@@ -557,8 +663,10 @@ export default function FinanceiroPage() {
       mesesAdicionais: '0',
       objetoContratualId: '',
       linhaContratualId: '',
-      quantidade: '',
+      quantidade: '0',
       quantidadeRealizada: '', // RN-003
+      fornecedorId: '',
+      dataVencimento: '',
     });
     setObjetosContratuais([]);
     setLinhasContratuais([]);
@@ -598,6 +706,8 @@ export default function FinanceiroPage() {
       linhaContratualId: '',
       quantidade: '',
       quantidadeRealizada: '', // RN-003
+      fornecedorId: despesa.fornecedorId || '',
+      dataVencimento: despesa.dataVencimento ? despesa.dataVencimento.slice(0, 10) : '',
     });
     setEditingId(despesa.id);
     setShowModal(true);
@@ -607,7 +717,7 @@ export default function FinanceiroPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const payload = {
+      const createPayload = {
         projectId: form.projectId,
         tipo: form.tipo,
         naturezaCusto: form.naturezaCusto,
@@ -617,14 +727,26 @@ export default function FinanceiroPage() {
         mes: Number(form.mes),
         ano: Number(form.ano),
         mesesAdicionais: Number(form.mesesAdicionais || 0),
+        fornecedorId: form.fornecedorId || undefined,
+        dataVencimento: form.dataVencimento || undefined,
       };
 
       if (editingId) {
-        const { projectId, ...updatePayload } = payload;
+        // UpdateDespesaDto aceita apenas: tipo, descricao, valor, mes, ano, naturezaCusto.
+        const updatePayload = {
+          tipo: form.tipo,
+          descricao: form.descricao,
+          valor: Number(form.valor),
+          mes: Number(form.mes),
+          ano: Number(form.ano),
+          naturezaCusto: form.naturezaCusto,
+          fornecedorId: form.fornecedorId || null,
+          dataVencimento: form.dataVencimento || null,
+        };
         await api.put(`/financial/despesas/${editingId}`, updatePayload);
         setSuccessMsg('Despesa atualizada com sucesso!');
       } else {
-        const response = await api.post('/financial/despesas', payload);
+        const response = await api.post('/financial/despesas', createPayload);
         const totalCriados = Number(response.data?.totalCriados ?? 1);
         setSuccessMsg(
           totalCriados > 1
@@ -666,6 +788,37 @@ export default function FinanceiroPage() {
     }
   };
 
+  const handleBulkDeleteDespesas = async () => {
+    if (selectedDespesaIds.size === 0) return;
+    const confirmText = `Deseja excluir ${selectedDespesaIds.size} despesa(s) selecionada(s)?`;
+    if (!confirm(confirmText)) return;
+
+    try {
+      const results = await Promise.allSettled(
+        Array.from(selectedDespesaIds).map((id) => api.delete(`/financial/despesas/${id}`)),
+      );
+      const successCount = results.filter((r) => r.status === 'fulfilled').length;
+      const failCount = results.length - successCount;
+
+      if (successCount > 0) {
+        setSuccessMsg(
+          failCount === 0
+            ? `${successCount} despesa(s) excluída(s) com sucesso!`
+            : `${successCount} despesa(s) excluída(s). ${failCount} falha(s).`,
+        );
+      }
+      if (failCount > 0) {
+        setError(`Não foi possível excluir ${failCount} despesa(s).`);
+      }
+
+      setSelectedDespesaIds(new Set());
+      if (despesas.length === successCount && page > 1) setPage(page - 1);
+      else loadDespesas();
+    } catch {
+      setError('Não foi possível excluir as despesas selecionadas.');
+    }
+  };
+
   const handleSubmitReceita = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -685,10 +838,58 @@ export default function FinanceiroPage() {
     const precisaJustificativa =
       valorRealizadoCalculado > 0 && Math.abs(valorRealizadoCalculado - valorPrevistoCalculado) >= 0.01;
 
+    const hasQuantidadeRealizada =
+      form.quantidadeRealizada !== '' && form.quantidadeRealizada !== null && form.quantidadeRealizada !== undefined;
+
     if (precisaJustificativa && !form.justificativa.trim()) {
       setSaving(false);
       setError('Justificativa é obrigatória quando valor realizado for diferente do planejado (exceto quando realizado for 0).');
       return;
+    }
+
+    if (!form.projectId) {
+      setSaving(false);
+      setError('Projeto é obrigatório.');
+      return;
+    }
+
+    if (!isContrato && !form.valorPrevisto) {
+      setSaving(false);
+      setError('Valor Previsto é obrigatório.');
+      return;
+    }
+
+    if (!isContrato && !form.valorRealizado) {
+      setSaving(false);
+      setError('Valor Realizado é obrigatório.');
+      return;
+    }
+
+    // Verificar se há overage de saldo e pedir confirmação
+    if (isContrato && !editingId) {
+      const competenciasCount = 1 + Number(form.mesesAdicionais || 0);
+      const quantidadeRealizadaTotal = Number(form.quantidadeRealizada || 0) * competenciasCount;
+      const valorRealizadoTotal = valorRealizadoCalculado * competenciasCount;
+      const saldoQtd = Number(linhaSelecionada?.saldoQuantidade ?? 0);
+      const saldoVal = Number(linhaSelecionada?.saldoValor ?? 0);
+
+      const excedeSaldoQtd = quantidadeRealizadaTotal > saldoQtd && saldoQtd > 0;
+      const excedeSaldoVal = valorRealizadoTotal > saldoVal && saldoVal > 0;
+
+      if ((excedeSaldoQtd || excedeSaldoVal) && !editingId) {
+        const detalhes = [];
+        if (excedeSaldoQtd) {
+          detalhes.push(`Quantidade: ${quantidadeRealizadaTotal} > ${saldoQtd} (saldo)`);
+        }
+        if (excedeSaldoVal) {
+          detalhes.push(`Valor: R$ ${valorRealizadoTotal.toLocaleString('pt-BR')} > R$ ${saldoVal.toLocaleString('pt-BR')} (saldo)`);
+        }
+        const mensagem = `⚠️ ALERTA: A receita vai exceder o saldo do contrato:\n\n${detalhes.join('\n')}\n\nDeseja continuar mesmo assim?`;
+        if (!confirm(mensagem)) {
+          setSaving(false);
+          return;
+        }
+      }
     }
 
     const payload: any = {
@@ -706,11 +907,11 @@ export default function FinanceiroPage() {
       payload.linhaContratualId = form.linhaContratualId;
       payload.quantidade = Number(form.quantidade);
       // RN-003: Quantidade Realizada e Valor Realizado calculado
-      if (form.quantidadeRealizada && Number(form.quantidadeRealizada) > 0) {
+      if (hasQuantidadeRealizada) {
         payload.quantidadeRealizada = Number(form.quantidadeRealizada);
       }
       // Calcula valorRealizado a partir de quantidadeRealizada × valorUnitario da linha
-      if (form.quantidadeRealizada && Number(form.quantidadeRealizada) > 0) {
+      if (hasQuantidadeRealizada) {
         payload.valorRealizado = Math.round(valorRealizadoCalculado * 100) / 100;
       } else {
         payload.valorRealizado = Number(form.valorRealizado || 0);
@@ -728,28 +929,46 @@ export default function FinanceiroPage() {
         if (isContrato) {
           updatePayload.quantidade = Number(form.quantidade);
           updatePayload.descricao = form.descricao;
-          if (form.quantidadeRealizada && Number(form.quantidadeRealizada) > 0) {
+          if (hasQuantidadeRealizada) {
             updatePayload.quantidadeRealizada = Number(form.quantidadeRealizada);
           }
-          if (Number(form.valorRealizado || 0) > 0) {
+          if (form.valorRealizado !== '') {
             updatePayload.valorRealizado = Number(form.valorRealizado);
           }
-          updatePayload.justificativa = form.justificativa.trim() || null;
+          if (form.justificativa.trim()) {
+            updatePayload.justificativa = form.justificativa.trim();
+          }
         } else {
           updatePayload.valorPrevisto = Number(form.valorPrevisto);
           updatePayload.valorRealizado = Number(form.valorRealizado);
           updatePayload.descricao = form.descricao;
-          updatePayload.justificativa = form.justificativa.trim() || null;
+          if (form.justificativa.trim()) {
+            updatePayload.justificativa = form.justificativa.trim();
+          }
         }
-        await api.put(`/financial/receitas/${editingId}`, updatePayload);
-        setSuccessMsg('Receita atualizada com sucesso!');
+        const updateResponse = await api.put(`/financial/receitas/${editingId}`, updatePayload);
+        const alertasSaldo = Array.isArray(updateResponse?.data?.alertasSaldo)
+          ? updateResponse.data.alertasSaldo
+          : [];
+        setSuccessMsg(
+          alertasSaldo.length > 0
+            ? `Receita atualizada com sucesso. Atenção: ${alertasSaldo.join(' ')}`
+            : 'Receita atualizada com sucesso!',
+        );
       } else {
         const response = await api.post('/financial/receitas', payload);
         const totalCriados = Number(response.data?.totalCriados ?? 1);
+        const alertasSaldo = Array.isArray(response.data?.alertasSaldo) ? response.data.alertasSaldo : [];
         setSuccessMsg(
-          totalCriados > 1
-            ? `${totalCriados} receitas criadas com sucesso!`
-            : 'Receita criada com sucesso!',
+          alertasSaldo.length > 0
+            ? `${
+                totalCriados > 1
+                  ? `${totalCriados} receitas criadas com sucesso!`
+                  : 'Receita criada com sucesso!'
+              } Atenção: ${alertasSaldo.join(' ')}`
+            : totalCriados > 1
+              ? `${totalCriados} receitas criadas com sucesso!`
+              : 'Receita criada com sucesso!',
         );
       }
 
@@ -786,6 +1005,37 @@ export default function FinanceiroPage() {
     }
   };
 
+  const handleBulkDeleteReceitas = async () => {
+    if (selectedReceitaIds.size === 0) return;
+    const confirmText = `Deseja excluir ${selectedReceitaIds.size} receita(s) selecionada(s)?`;
+    if (!confirm(confirmText)) return;
+
+    try {
+      const results = await Promise.allSettled(
+        Array.from(selectedReceitaIds).map((id) => api.delete(`/financial/receitas/${id}`)),
+      );
+      const successCount = results.filter((r) => r.status === 'fulfilled').length;
+      const failCount = results.length - successCount;
+
+      if (successCount > 0) {
+        setSuccessMsg(
+          failCount === 0
+            ? `${successCount} receita(s) excluída(s) com sucesso!`
+            : `${successCount} receita(s) excluída(s). ${failCount} falha(s).`,
+        );
+      }
+      if (failCount > 0) {
+        setError(`Não foi possível excluir ${failCount} receita(s).`);
+      }
+
+      setSelectedReceitaIds(new Set());
+      if (receitas.length === successCount && page > 1) setPage(page - 1);
+      else loadReceitas();
+    } catch {
+      setError('Não foi possível excluir as receitas selecionadas.');
+    }
+  };
+
   const openCreateReceitaModal = () => {
     setModalType('receita');
     resetForm();
@@ -813,9 +1063,15 @@ export default function FinanceiroPage() {
       ano: receita.ano,
       objetoContratualId: receita.objetoContratualId || '',
       linhaContratualId: receita.linhaContratualId || '',
-      quantidade: receita.quantidade ? String(receita.quantidade) : '',
+      quantidade:
+        receita.quantidade !== undefined && receita.quantidade !== null ? String(receita.quantidade) : '0',
       mesesAdicionais: '0',
-      quantidadeRealizada: receita.quantidadeRealizada ? String(receita.quantidadeRealizada) : '', // RN-003
+      quantidadeRealizada:
+        receita.quantidadeRealizada !== undefined && receita.quantidadeRealizada !== null
+          ? String(receita.quantidadeRealizada)
+          : '', // RN-003
+      fornecedorId: '',
+      dataVencimento: '',
     });
     if (receita.projectId) loadObjetosByProject(receita.projectId);
     if (receita.objetoContratualId) loadLinhasByObjeto(receita.objetoContratualId);
@@ -824,6 +1080,9 @@ export default function FinanceiroPage() {
   };
 
   const totais = data?.totais;
+  const totalDespesasValor = despesas.reduce((acc, item) => acc + Number(item.valor || 0), 0);
+  const totalReceitasPrevisto = receitas.reduce((acc, item) => acc + Number(item.valorPrevisto || 0), 0);
+  const totalReceitasRealizado = receitas.reduce((acc, item) => acc + Number(item.valorRealizado || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -886,6 +1145,13 @@ export default function FinanceiroPage() {
               <button onClick={openCreateModal} className="hw1-btn-primary text-sm">
                 + Nova Despesa
               </button>
+              <button
+                onClick={handleBulkDeleteDespesas}
+                disabled={selectedDespesaIds.size === 0}
+                className="px-4 py-2 border border-red-200 text-red-700 rounded-xl text-sm font-medium hover:bg-red-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                🗑️ Excluir selecionadas ({selectedDespesaIds.size})
+              </button>
             </div>
           )}
           {view === 'receitas' && (
@@ -910,6 +1176,13 @@ export default function FinanceiroPage() {
               </label>
               <button onClick={openCreateReceitaModal} className="hw1-btn-primary text-sm">
                 + Nova Receita
+              </button>
+              <button
+                onClick={handleBulkDeleteReceitas}
+                disabled={selectedReceitaIds.size === 0}
+                className="px-4 py-2 border border-red-200 text-red-700 rounded-xl text-sm font-medium hover:bg-red-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                🗑️ Excluir selecionadas ({selectedReceitaIds.size})
               </button>
             </div>
           )}
@@ -975,9 +1248,9 @@ export default function FinanceiroPage() {
           {/* Projetos table */}
           <div className="hw1-card p-0 overflow-hidden">
             {loading ? (
-              <div className="p-12 text-center text-gray-400 text-sm">Carregando...</div>
+              <div className="p-12 text-center text-gray-500 text-sm">Carregando...</div>
             ) : !data || data.projetos.length === 0 ? (
-              <div className="p-12 text-center text-gray-400 text-sm">Nenhum dado financeiro encontrado para o período.</div>
+              <div className="p-12 text-center text-gray-500 text-sm">Nenhum dado financeiro encontrado para o período.</div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
@@ -1035,9 +1308,9 @@ export default function FinanceiroPage() {
           {/* Despesas table */}
           <div className="hw1-card p-0 overflow-hidden">
             {loading ? (
-              <div className="p-12 text-center text-gray-400 text-sm">Carregando...</div>
+              <div className="p-12 text-center text-gray-500 text-sm">Carregando...</div>
             ) : despesas.length === 0 ? (
-              <div className="p-12 text-center text-gray-400 text-sm">Nenhuma despesa cadastrada.</div>
+              <div className="p-12 text-center text-gray-500 text-sm">Nenhuma despesa cadastrada.</div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
@@ -1045,46 +1318,101 @@ export default function FinanceiroPage() {
                     className="text-left text-xs font-semibold uppercase tracking-wide text-white"
                     style={{ background: 'linear-gradient(90deg, #050439, #1E16A0)' }}
                   >
-                    <th className="px-6 py-4">Tipo</th>
-                    <th className="px-6 py-4">Natureza</th>
-                    <th className="px-6 py-4">Descrição</th>
-                    <th className="px-6 py-4">Mês</th>
-                    <th className="px-6 py-4 text-right">Valor</th>
+                    <th className="px-4 py-4 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={despesas.length > 0 && selectedDespesaIds.size === despesas.length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedDespesaIds(new Set(despesas.map((item) => item.id)));
+                          } else {
+                            setSelectedDespesaIds(new Set());
+                          }
+                        }}
+                        aria-label="Selecionar todas as despesas"
+                      />
+                    </th>
+                    <th className="px-6 py-4 cursor-pointer hover:opacity-75" onClick={() => handleSortDespesa('tipo')} title="Clique para ordenar">Tipo {sortByDespesa === 'tipo' && (sortDirDespesa === 'asc' ? '↑' : '↓')}</th>
+                    <th className="px-6 py-4 cursor-pointer hover:opacity-75" onClick={() => handleSortDespesa('naturezaCusto')} title="Clique para ordenar">Natureza {sortByDespesa === 'naturezaCusto' && (sortDirDespesa === 'asc' ? '↑' : '↓')}</th>
+                    <th className="px-6 py-4 cursor-pointer hover:opacity-75" onClick={() => handleSortDespesa('descricao')} title="Clique para ordenar">Descrição {sortByDespesa === 'descricao' && (sortDirDespesa === 'asc' ? '↑' : '↓')}</th>
+                    <th className="px-6 py-4 cursor-pointer hover:opacity-75" onClick={() => handleSortDespesa('mes')} title="Clique para ordenar">Mês {sortByDespesa === 'mes' && (sortDirDespesa === 'asc' ? '↑' : '↓')}</th>
+                    <th className="px-6 py-4 text-right cursor-pointer hover:opacity-75" onClick={() => handleSortDespesa('valor')} title="Clique para ordenar">Valor {sortByDespesa === 'valor' && (sortDirDespesa === 'asc' ? '↑' : '↓')}</th>
                     <th className="px-6 py-4 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {despesas.map((d, i) => (
+                  {sortArray(despesas, sortByDespesa, sortDirDespesa, (obj, field) => {
+                    if (field === 'tipo') return TipoDespesa[obj.tipo as keyof typeof TipoDespesa] || obj.tipo;
+                    if (field === 'naturezaCusto') return NaturezaCustoLabel[obj.naturezaCusto || 'VARIAVEL'];
+                    if (field === 'descricao') return obj.descricao;
+                    if (field === 'mes') return obj.mes;
+                    if (field === 'valor') return obj.valor;
+                    return '';
+                  }).map((d, i) => (
                     <tr
                       key={d.id}
                       className={`border-b border-gray-50 hover:bg-gray-50 transition-colors ${
                         i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                       }`}
                     >
+                      <td className="px-4 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedDespesaIds.has(d.id)}
+                          onChange={(e) => {
+                            setSelectedDespesaIds((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(d.id);
+                              else next.delete(d.id);
+                              return next;
+                            });
+                          }}
+                          aria-label={`Selecionar despesa ${d.descricao}`}
+                        />
+                      </td>
                       <td className="px-6 py-4 text-sm font-medium">{TipoDespesa[d.tipo] || d.tipo}</td>
                       <td className="px-6 py-4 text-gray-500 text-xs">{NaturezaCustoLabel[d.naturezaCusto || 'VARIAVEL']}</td>
                       <td className="px-6 py-4 text-gray-600">{d.descricao}</td>
                       <td className="px-6 py-4 text-gray-500">{String(d.mes).padStart(2, '0')}/{d.ano}</td>
                       <td className="px-6 py-4 text-right font-medium text-hw1-navy">{formatBRL(d.valor)}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="px-6 py-4 text-right">
+                        <div className="relative inline-block" ref={openMenuId === d.id ? menuRef : undefined}>
                           <button
-                            onClick={() => openEditModal(d)}
-                            className="px-3 py-1 text-xs font-medium rounded-lg border border-hw1-blue text-hw1-blue hover:bg-hw1-blue hover:text-white transition-all"
+                            onClick={() => setOpenMenuId(openMenuId === d.id ? null : d.id)}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-all text-lg leading-none"
+                            title="Ações"
                           >
-                            Editar
+                            ⋮
                           </button>
-                          <button
-                            onClick={() => handleDelete(d)}
-                            className="px-3 py-1 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-all"
-                          >
-                            Excluir
-                          </button>
+                          {openMenuId === d.id && (
+                            <div className="absolute right-0 z-50 mt-1 w-36 bg-white border border-gray-200 rounded-xl shadow-lg py-1 animate-fade-in">
+                              <button
+                                onClick={() => { openEditModal(d); setOpenMenuId(null); }}
+                                className="w-full text-left px-4 py-2 text-sm text-hw1-navy hover:bg-blue-50 transition-colors"
+                              >
+                                ✏️ Editar
+                              </button>
+                              <button
+                                onClick={() => { handleDelete(d); setOpenMenuId(null); }}
+                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                              >
+                                🗑️ Excluir
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr className="bg-gray-50 border-t border-gray-200 font-semibold text-hw1-navy">
+                    <td className="px-4 py-3" />
+                    <td className="px-6 py-3" colSpan={4}>Total da página</td>
+                    <td className="px-6 py-3 text-right">{formatBRL(totalDespesasValor)}</td>
+                    <td className="px-6 py-3" />
+                  </tr>
+                </tfoot>
               </table>
             )}
           </div>
@@ -1161,11 +1489,11 @@ export default function FinanceiroPage() {
           </details>
 
           {/* Receitas table */}
-          <div className="hw1-card p-0 overflow-hidden">
+          <div className="hw1-card p-0 overflow-x-auto">
             {loading ? (
-              <div className="p-12 text-center text-gray-400 text-sm">Carregando...</div>
+              <div className="p-12 text-center text-gray-500 text-sm">Carregando...</div>
             ) : receitas.length === 0 ? (
-              <div className="p-12 text-center text-gray-400 text-sm">Nenhuma receita cadastrada.</div>
+              <div className="p-12 text-center text-gray-500 text-sm">Nenhuma receita cadastrada.</div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
@@ -1173,28 +1501,78 @@ export default function FinanceiroPage() {
                     className="text-left text-xs font-semibold uppercase tracking-wide text-white"
                     style={{ background: 'linear-gradient(90deg, #009792, #00B3AD)' }}
                   >
-                    <th className="px-6 py-4">Projeto</th>
-                    <th className="px-6 py-4">Obj. Contratual</th>
-                    <th className="px-6 py-4">Linha / Descrição</th>
-                    <th className="px-6 py-4">Unid.</th>
-                    <th className="px-6 py-4">Mês</th>
-                    <th className="px-6 py-4 text-right">Qtd</th>
-                    <th className="px-6 py-4 text-right">Vl. Unit.</th>
-                    <th className="px-6 py-4 text-right">Previsto</th>
-                    <th className="px-6 py-4 text-right">Realizado</th>
-                    <th className="px-6 py-4">Justificativa</th>
+                    <th className="px-4 py-4 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={receitas.length > 0 && selectedReceitaIds.size === receitas.length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedReceitaIds(new Set(receitas.map((item) => item.id)));
+                          } else {
+                            setSelectedReceitaIds(new Set());
+                          }
+                        }}
+                        aria-label="Selecionar todas as receitas"
+                      />
+                    </th>
+                    <th className="px-6 py-4 cursor-pointer hover:opacity-75" onClick={() => handleSortReceita('project')} title="Clique para ordenar">Projeto {sortByReceita === 'project' && (sortDirReceita === 'asc' ? '↑' : '↓')}</th>
+                    <th className="px-6 py-4 cursor-pointer hover:opacity-75" onClick={() => handleSortReceita('objetoContratual')} title="Clique para ordenar">Obj. Contratual {sortByReceita === 'objetoContratual' && (sortDirReceita === 'asc' ? '↑' : '↓')}</th>
+                    <th className="px-6 py-4 cursor-pointer hover:opacity-75" onClick={() => handleSortReceita('descricao')} title="Clique para ordenar">Linha / Descrição {sortByReceita === 'descricao' && (sortDirReceita === 'asc' ? '↑' : '↓')}</th>
+                    <th className="px-6 py-4 cursor-pointer hover:opacity-75" onClick={() => handleSortReceita('unidade')} title="Clique para ordenar">Unid. {sortByReceita === 'unidade' && (sortDirReceita === 'asc' ? '↑' : '↓')}</th>
+                    <th className="px-6 py-4 cursor-pointer hover:opacity-75" onClick={() => handleSortReceita('mes')} title="Clique para ordenar">Mês {sortByReceita === 'mes' && (sortDirReceita === 'asc' ? '↑' : '↓')}</th>
+                    <th className="px-6 py-4 text-right cursor-pointer hover:opacity-75" onClick={() => handleSortReceita('quantidade')} title="Clique para ordenar">Qtd {sortByReceita === 'quantidade' && (sortDirReceita === 'asc' ? '↑' : '↓')}</th>
+                    <th className="px-6 py-4 text-right cursor-pointer hover:opacity-75" onClick={() => handleSortReceita('valorUnitario')} title="Clique para ordenar">Vl. Unit. {sortByReceita === 'valorUnitario' && (sortDirReceita === 'asc' ? '↑' : '↓')}</th>
+                    <th className="px-6 py-4 text-right cursor-pointer hover:opacity-75" onClick={() => handleSortReceita('valorPrevisto')} title="Clique para ordenar">Previsto {sortByReceita === 'valorPrevisto' && (sortDirReceita === 'asc' ? '↑' : '↓')}</th>
+                    <th className="px-6 py-4 text-right cursor-pointer hover:opacity-75" onClick={() => handleSortReceita('valorRealizado')} title="Clique para ordenar">Realizado {sortByReceita === 'valorRealizado' && (sortDirReceita === 'asc' ? '↑' : '↓')}</th>
+                    <th className="px-6 py-4 cursor-pointer hover:opacity-75" onClick={() => handleSortReceita('justificativa')} title="Clique para ordenar">Justificativa {sortByReceita === 'justificativa' && (sortDirReceita === 'asc' ? '↑' : '↓')}</th>
                     <th className="px-6 py-4 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {receitas.map((r, i) => (
+                  {sortArray(receitas, sortByReceita, sortDirReceita, (obj, field) => {
+                    if (field === 'project') return obj.project?.nome || 'N/A';
+                    if (field === 'objetoContratual') return obj.objetoContratual?.nome || '';
+                    if (field === 'descricao') return obj.linhaContratual?.descricaoItem || obj.descricao || '';
+                    if (field === 'unidade') return obj.unidade || obj.linhaContratual?.unidade || '';
+                    if (field === 'mes') return obj.mes;
+                    if (field === 'quantidade') return obj.quantidade || 0;
+                    if (field === 'valorUnitario') return obj.valorUnitario || 0;
+                    if (field === 'valorPrevisto') return obj.valorPrevisto;
+                    if (field === 'valorRealizado') return obj.valorRealizado;
+                    if (field === 'justificativa') return obj.justificativa || '';
+                    return '';
+                  }).map((r, i) => (
                     <tr
                       key={r.id}
                       className={`border-b border-gray-50 hover:bg-gray-50 transition-colors ${
                         i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                       }`}
                     >
-                      <td className="px-6 py-4 text-sm font-medium">{r.project?.nome || 'N/A'}</td>
+                      <td className="px-4 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedReceitaIds.has(r.id)}
+                          onChange={(e) => {
+                            setSelectedReceitaIds((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(r.id);
+                              else next.delete(r.id);
+                              return next;
+                            });
+                          }}
+                          aria-label={`Selecionar receita ${r.id}`}
+                        />
+                      </td>
+                      <td className="px-6 py-4 text-sm font-medium">
+                        <div className="flex items-center gap-2">
+                          <span>{r.project?.nome || 'N/A'}</span>
+                          {(Number(r.linhaContratual?.saldoValor ?? 0) < 0 || Number(r.linhaContratual?.saldoQuantidade ?? 0) < 0) && (
+                            <span className="inline-flex items-center px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[10px] font-semibold whitespace-nowrap">
+                              ⚠️ Saldo Insuficiente
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-6 py-4 text-gray-600 text-xs">
                         {r.objetoContratual ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-[10px] font-medium">
@@ -1205,32 +1583,60 @@ export default function FinanceiroPage() {
                       <td className="px-6 py-4 text-gray-600 text-xs">{r.linhaContratual?.descricaoItem || r.descricao || '-'}</td>
                       <td className="px-6 py-4 text-gray-500 text-xs capitalize">{r.unidade || r.linhaContratual?.unidade || '-'}</td>
                       <td className="px-6 py-4 text-gray-500">{String(r.mes).padStart(2, '0')}/{r.ano}</td>
-                      <td className="px-6 py-4 text-right text-gray-600">{r.quantidade ? Number(r.quantidade).toLocaleString('pt-BR') : '-'}</td>
+                      <td className="px-6 py-4 text-right text-gray-600">{r.quantidade !== undefined && r.quantidade !== null ? Number(r.quantidade).toLocaleString('pt-BR') : '-'}</td>
                       <td className="px-6 py-4 text-right text-gray-500 text-xs">{r.valorUnitario ? formatBRL(Number(r.valorUnitario)) : '-'}</td>
                       <td className="px-6 py-4 text-right font-medium text-emerald-600">{formatBRL(r.valorPrevisto)}</td>
-                      <td className="px-6 py-4 text-right font-medium text-emerald-700">{formatBRL(r.valorRealizado)}</td>
+                      <td
+                        className={`px-6 py-4 text-right font-medium ${
+                          Number(r.linhaContratual?.saldoValor ?? 0) < 0 || Number(r.linhaContratual?.saldoQuantidade ?? 0) < 0
+                            ? 'text-red-600'
+                            : 'text-emerald-700'
+                        }`}
+                      >
+                        {formatBRL(r.valorRealizado)}
+                      </td>
                       <td className="px-6 py-4 text-xs text-gray-600 max-w-[260px] truncate" title={r.justificativa || ''}>
                         {r.justificativa || '—'}
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="px-6 py-4 text-right">
+                        <div className="relative inline-block" ref={openMenuId === r.id ? menuRef : undefined}>
                           <button
-                            onClick={() => openEditReceitaModal(r)}
-                            className="px-3 py-1 text-xs font-medium rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-all"
+                            onClick={() => setOpenMenuId(openMenuId === r.id ? null : r.id)}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-emerald-50 hover:text-emerald-700 transition-all text-lg leading-none"
+                            title="Ações"
                           >
-                            Editar
+                            ⋮
                           </button>
-                          <button
-                            onClick={() => handleDeleteReceita(r)}
-                            className="px-3 py-1 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-all"
-                          >
-                            Excluir
-                          </button>
+                          {openMenuId === r.id && (
+                            <div className="absolute right-0 z-50 mt-1 w-36 bg-white border border-gray-200 rounded-xl shadow-lg py-1 animate-fade-in">
+                              <button
+                                onClick={() => { openEditReceitaModal(r); setOpenMenuId(null); }}
+                                className="w-full text-left px-4 py-2 text-sm text-hw1-navy hover:bg-emerald-50 transition-colors"
+                              >
+                                ✏️ Editar
+                              </button>
+                              <button
+                                onClick={() => { handleDeleteReceita(r); setOpenMenuId(null); }}
+                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                              >
+                                🗑️ Excluir
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr className="bg-emerald-50 border-t border-emerald-200 font-semibold text-emerald-900">
+                    <td className="px-4 py-3" />
+                    <td className="px-6 py-3" colSpan={8}>Total da página</td>
+                    <td className="px-6 py-3 text-right">{formatBRL(totalReceitasPrevisto)}</td>
+                    <td className="px-6 py-3 text-right">{formatBRL(totalReceitasRealizado)}</td>
+                    <td className="px-6 py-3" />
+                  </tr>
+                </tfoot>
               </table>
             )}
           </div>
@@ -1284,7 +1690,7 @@ export default function FinanceiroPage() {
               </h2>
               <button
                 onClick={closeModal}
-                className="text-gray-400 hover:text-gray-700 text-xl leading-none"
+                className="text-gray-500 hover:text-gray-700 text-xl leading-none"
                 aria-label="Fechar"
               >
                 ×
@@ -1299,7 +1705,7 @@ export default function FinanceiroPage() {
                     value={form.projectId}
                     onChange={(e) => {
                       const pid = e.target.value;
-                      setForm({ ...form, projectId: pid, objetoContratualId: '', linhaContratualId: '', quantidade: '' });
+                      setForm({ ...form, projectId: pid, objetoContratualId: '', linhaContratualId: '', quantidade: '0' });
                       if (modalType === 'receita') loadObjetosByProject(pid);
                     }}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
@@ -1338,7 +1744,7 @@ export default function FinanceiroPage() {
                         value={form.objetoContratualId}
                         onChange={(e) => {
                           const oid = e.target.value;
-                          setForm({ ...form, objetoContratualId: oid, linhaContratualId: '', quantidade: '' });
+                          setForm({ ...form, objetoContratualId: oid, linhaContratualId: '', quantidade: '0' });
                           loadLinhasByObjeto(oid);
                         }}
                         className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
@@ -1384,25 +1790,43 @@ export default function FinanceiroPage() {
                             <span className="text-gray-500">Valor Total Anual Contratado:</span>{' '}
                             <span className="font-bold text-emerald-700">{formatBRL(Number(linhaSel.valorTotalAnual || (Number(linhaSel.quantidadeAnualEstimada) * Number(linhaSel.valorUnitario))))}</span>
                           </div>
+                          <div className="mt-1 text-xs text-gray-600">
+                            <span className="text-gray-500">Saldo Quantidade:</span>{' '}
+                            <span className={Number(linhaSel.saldoQuantidade ?? 0) < 0 ? 'font-semibold text-red-600' : 'font-medium'}>
+                              {Number(linhaSel.saldoQuantidade ?? 0).toLocaleString('pt-BR')}
+                            </span>
+                            {' | '}
+                            <span className="text-gray-500">Saldo Valor:</span>{' '}
+                            <span className={Number(linhaSel.saldoValor ?? 0) < 0 ? 'font-semibold text-red-600' : 'font-medium'}>
+                              {formatBRL(Number(linhaSel.saldoValor ?? 0))}
+                            </span>
+                          </div>
                         </div>
                       );
                     })()}
 
                     <div>
-                      <label className="block text-xs text-gray-500 mb-1">Quantidade do Período Previsto *</label>
+                      <label className="block text-xs text-gray-500 mb-1">Quantidade do Período Previsto</label>
                       <input
                         type="number"
                         step="0.01"
+                        min="0"
                         value={form.quantidade}
                         onChange={(e) => setForm({ ...form, quantidade: e.target.value })}
                         placeholder="Quantidade no mês"
                         className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
-                        required
                       />
                     </div>
-                    {form.linhaContratualId && form.quantidade && (() => {
+                    {form.linhaContratualId && form.quantidade !== '' && (() => {
                       const linhaSel = linhasContratuais.find(l => l.id === form.linhaContratualId);
                       const vlCalc = linhaSel ? Number(form.quantidade) * Number(linhaSel.valorUnitario) : 0;
+                      const qtdReal = Number(form.quantidadeRealizada || 0);
+                      const vlRealCalc = linhaSel ? qtdReal * Number(linhaSel.valorUnitario) : 0;
+                      const competenciasCount = Number(form.mesesAdicionais || 0) + 1;
+                      const excedeSaldoQuantidade =
+                        form.quantidadeRealizada !== '' && qtdReal * competenciasCount > Number(linhaSel?.saldoQuantidade ?? 0);
+                      const excedeSaldoValor =
+                        form.quantidadeRealizada !== '' && vlRealCalc * competenciasCount > Number(linhaSel?.saldoValor ?? 0);
                       return (
                         <>
                           <div>
@@ -1410,14 +1834,14 @@ export default function FinanceiroPage() {
                             <div className="w-full px-3 py-2 border border-gray-100 bg-emerald-50 rounded-xl text-sm font-semibold text-emerald-700">
                               {formatBRL(vlCalc)}
                             </div>
-                            <p className="text-[10px] text-gray-400 mt-0.5">= {form.quantidade} × {linhaSel ? formatBRL(Number(linhaSel.valorUnitario)) : ''}</p>
+                            <p className="text-[10px] text-gray-500 mt-0.5">= {form.quantidade} × {linhaSel ? formatBRL(Number(linhaSel.valorUnitario)) : ''}</p>
                           </div>
                           <div>
                             <label className="block text-xs text-gray-500 mb-1">Quantidade do Período Realizado</label>
                             <input
                               type="number"
                               step="0.01"
-                              value={form.quantidadeRealizada || ''}
+                              value={form.quantidadeRealizada}
                               onChange={(e) => setForm({ ...form, quantidadeRealizada: e.target.value })}
                               placeholder="Opcional"
                               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
@@ -1425,15 +1849,35 @@ export default function FinanceiroPage() {
                           </div>
                           <div>
                             <label className="block text-xs text-gray-500 mb-1">Valor Realizado (Contrato)</label>
-                            <div className="w-full px-3 py-2 border border-gray-100 bg-blue-50 rounded-xl text-sm font-semibold text-blue-700">
-                              {form.quantidadeRealizada && linhaSel
+                            <div
+                              className={`w-full px-3 py-2 border rounded-xl text-sm font-semibold ${
+                                excedeSaldoQuantidade || excedeSaldoValor
+                                  ? 'border-red-200 bg-red-50 text-red-700'
+                                  : 'border-gray-100 bg-blue-50 text-blue-700'
+                              }`}
+                            >
+                              {form.quantidadeRealizada !== '' && linhaSel
                                 ? formatBRL(Number(form.quantidadeRealizada) * Number(linhaSel.valorUnitario))
                                 : '—'}
                             </div>
-                            {form.quantidadeRealizada && linhaSel && (
-                              <p className="text-[10px] text-gray-400 mt-0.5">= {form.quantidadeRealizada} × {formatBRL(Number(linhaSel.valorUnitario))}</p>
+                            {form.quantidadeRealizada !== '' && linhaSel && (
+                              <p className="text-[10px] text-gray-500 mt-0.5">= {form.quantidadeRealizada} × {formatBRL(Number(linhaSel.valorUnitario))}</p>
                             )}
                           </div>
+                          {(excedeSaldoQuantidade || excedeSaldoValor) && (
+                            <div className="md:col-span-2">
+                              <p className="text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-2 py-1">
+                                Atenção: o lançamento ultrapassa o saldo remanescente do contrato.
+                                {excedeSaldoQuantidade
+                                  ? ` Quantidade total realizada (${(qtdReal * competenciasCount).toLocaleString('pt-BR')}) maior que saldo (${Number(linhaSel?.saldoQuantidade ?? 0).toLocaleString('pt-BR')}).`
+                                  : ''}
+                                {excedeSaldoValor
+                                  ? ` Valor total realizado (${formatBRL(vlRealCalc * competenciasCount)}) maior que saldo (${formatBRL(Number(linhaSel?.saldoValor ?? 0))}).`
+                                  : ''}
+                                O sistema permitirá salvar com este alerta.
+                              </p>
+                            </div>
+                          )}
                         </>
                       );
                     })()}
@@ -1464,6 +1908,10 @@ export default function FinanceiroPage() {
                         <option value="Consulting">Consulting</option>
                         <option value="Outros">Outros</option>
                       </>
+                    ) : tiposDespesaDinamicos.length > 0 ? (
+                      tiposDespesaDinamicos.map((td) => (
+                        <option key={td.id} value={td.nome}>{td.nome}</option>
+                      ))
                     ) : (
                       Object.entries(TipoDespesa).map(([key, label]) => (
                         <option key={key} value={key}>{label}</option>
@@ -1502,6 +1950,36 @@ export default function FinanceiroPage() {
                       </label>
                     )}
                   </div>
+                )}
+
+                {/* Campos extras para despesa tipo fornecedor */}
+                {modalType !== 'receita' && form.tipo === 'fornecedor' && (
+                  <>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Fornecedor</label>
+                      <select
+                        value={form.fornecedorId}
+                        onChange={(e) => setForm({ ...form, fornecedorId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+                      >
+                        <option value="">Nenhum (avulso)</option>
+                        {fornecedoresList.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.razaoSocial}{f.nomeFantasia ? ` (${f.nomeFantasia})` : ''} — {f.cnpj}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Data de Vencimento</label>
+                      <input
+                        type="date"
+                        value={form.dataVencimento}
+                        onChange={(e) => setForm({ ...form, dataVencimento: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue"
+                      />
+                    </div>
+                  </>
                 )}
 
                 <div className={modalType === 'receita' && receitaMode === 'contrato' ? '' : 'md:col-span-2'}>
@@ -1638,7 +2116,7 @@ export default function FinanceiroPage() {
                         value={form.mesesAdicionais}
                         onChange={(e) => setForm({ ...form, mesesAdicionais: e.target.value })}
                         disabled={modalType === 'despesa' && form.naturezaCusto === 'FIXO' && form.replicarAteFimContrato}
-                        className="w-32 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue disabled:bg-gray-100 disabled:text-gray-400"
+                        className="w-32 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue disabled:bg-gray-100 disabled:text-gray-500"
                       />
                       <p className="text-xs text-gray-500">
                         {modalType === 'despesa' && form.naturezaCusto === 'FIXO' && form.replicarAteFimContrato
@@ -1684,7 +2162,7 @@ export default function FinanceiroPage() {
                   setShowImportModal(false);
                   setImportResult(null);
                 }}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
+                className="text-gray-500 hover:text-gray-600 text-2xl"
               >
                 ×
               </button>

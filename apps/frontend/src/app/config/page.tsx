@@ -81,6 +81,27 @@ export default function ConfigPage() {
             color: '#8B5CF6',
             href: '/config/aliquotas',
           },
+          {
+            title: 'Unidades',
+            description: 'Gestão de unidades organizacionais: DITIC, SEEC, SEAD e demais.',
+            icon: '🏢',
+            color: '#0891B2',
+            href: '/config/unidades',
+          },
+          {
+            title: 'Tipos de Despesa',
+            description: 'Cadastre e gerencie categorias de despesa: facilities, software, fornecedor e mais.',
+            icon: '📋',
+            color: '#059669',
+            href: '/config/tipos-despesa',
+          },
+          {
+            title: 'Fornecedores',
+            description: 'Cadastro de fornecedores com CNPJ, razão social e consulta automática.',
+            icon: '🏭',
+            color: '#D97706',
+            href: '/config/fornecedores',
+          },
         ].map((item) => (
           <button
             key={item.title}
@@ -109,9 +130,9 @@ export default function ConfigPage() {
         <h2 className="font-heading font-semibold text-hw1-navy mb-1">Projetos Cadastrados</h2>
         <p className="text-sm text-gray-500 mb-4">Consulte o ID dos projetos para uso em importações e integrações.</p>
         {loadingProjects ? (
-          <p className="text-sm text-gray-400">Carregando projetos...</p>
+          <p className="text-sm text-gray-500">Carregando projetos...</p>
         ) : projects.length === 0 ? (
-          <p className="text-sm text-gray-400">Nenhum projeto cadastrado.</p>
+          <p className="text-sm text-gray-500">Nenhum projeto cadastrado.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

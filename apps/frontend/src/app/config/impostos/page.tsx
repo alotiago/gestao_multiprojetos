@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/services/api';
+import RowActionsMenu from '@/app/components/RowActionsMenu';
 
 interface Projeto {
   id: string;
@@ -189,7 +190,7 @@ export default function ImpostosConfigPage() {
 
       {/* Sem projeto */}
       {!projectId && (
-        <div className="hw1-card p-12 text-center text-gray-400">
+        <div className="hw1-card p-12 text-center text-gray-500">
           Selecione um projeto para consultar os impostos.
         </div>
       )}
@@ -205,7 +206,7 @@ export default function ImpostosConfigPage() {
             <div className="hw1-card">
               <p className="text-xs text-gray-500 uppercase tracking-wide">Registros</p>
               <p className="text-2xl font-heading font-bold text-hw1-navy mt-1">
-                {filtered.length} <span className="text-sm font-normal text-gray-400">de {impostos.length}</span>
+                {filtered.length} <span className="text-sm font-normal text-gray-500">de {impostos.length}</span>
               </p>
             </div>
             <div className="hw1-card">
@@ -248,13 +249,13 @@ export default function ImpostosConfigPage() {
       {projectId && (
         <div className="hw1-card p-0 overflow-hidden">
           {loading ? (
-            <div className="p-12 text-center text-gray-400 text-sm">Carregando...</div>
+            <div className="p-12 text-center text-gray-500 text-sm">Carregando...</div>
           ) : impostos.length === 0 ? (
-            <div className="p-12 text-center text-gray-400 text-sm">
+            <div className="p-12 text-center text-gray-500 text-sm">
               Nenhum imposto cadastrado para este projeto em {ano}.
             </div>
           ) : filtered.length === 0 ? (
-            <div className="p-12 text-center text-gray-400 text-sm">
+            <div className="p-12 text-center text-gray-500 text-sm">
               Nenhum resultado para os filtros aplicados.
             </div>
           ) : (
@@ -340,41 +341,31 @@ export default function ImpostosConfigPage() {
                         </td>
 
                         {/* Ações */}
-                        <td className="px-6 py-3">
-                          <div className="flex justify-end gap-2">
-                            {editingId === imp.id ? (
-                              <>
-                                <button
-                                  onClick={() => saveEdit(imp.id)}
-                                  disabled={saving}
-                                  className="px-3 py-1 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all disabled:opacity-50"
-                                >
-                                  {saving ? '...' : '✓ Salvar'}
-                                </button>
-                                <button
-                                  onClick={cancelEdit}
-                                  className="px-3 py-1 text-xs font-medium rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-all"
-                                >
-                                  Cancelar
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <button
-                                  onClick={() => startEdit(imp)}
-                                  className="px-3 py-1 text-xs font-medium rounded-lg border border-hw1-blue text-hw1-blue hover:bg-hw1-blue hover:text-white transition-all"
-                                >
-                                  Editar
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(imp)}
-                                  className="px-3 py-1 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-all"
-                                >
-                                  Excluir
-                                </button>
-                              </>
-                            )}
-                          </div>
+                        <td className="px-6 py-3 text-right">
+                          {editingId === imp.id ? (
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => saveEdit(imp.id)}
+                                disabled={saving}
+                                className="px-3 py-1 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all disabled:opacity-50"
+                              >
+                                {saving ? '...' : '✓ Salvar'}
+                              </button>
+                              <button
+                                onClick={cancelEdit}
+                                className="px-3 py-1 text-xs font-medium rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-all"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          ) : (
+                            <RowActionsMenu
+                              items={[
+                                { label: 'Editar', icon: '✏️', onClick: () => startEdit(imp) },
+                                { label: 'Excluir', icon: '🗑️', tone: 'danger', onClick: () => handleDelete(imp) },
+                              ]}
+                            />
+                          )}
                         </td>
                       </tr>
                     ));

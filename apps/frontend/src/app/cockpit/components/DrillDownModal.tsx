@@ -50,14 +50,14 @@ export default function DrillDownModal({ project, open, onClose }: Props) {
               <h2 className="text-lg font-heading font-semibold text-[#0C1B3A] truncate">
                 {project.nome}
               </h2>
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-gray-500">
                 Status: {STATUS_LABEL[project.status]} · Margem: {project.margem.toFixed(1)}%
               </span>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-gray-600 hover:bg-gray-100 transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -69,17 +69,17 @@ export default function DrillDownModal({ project, open, onClose }: Props) {
         <div className="px-6 py-5 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-              <p className="text-[11px] uppercase tracking-wide text-gray-400">Contrato</p>
+              <p className="text-[11px] uppercase tracking-wide text-gray-500">Contrato</p>
               <p className="mt-2 text-sm font-semibold text-[#0C1B3A]">{project.contratoNome}</p>
             </div>
             <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-              <p className="text-[11px] uppercase tracking-wide text-gray-400">FTE no mês</p>
+              <p className="text-[11px] uppercase tracking-wide text-gray-500">FTE no mês</p>
               <p className="mt-2 text-2xl font-semibold text-[#0C1B3A]">{project.fteAtual.toFixed(2)}</p>
             </div>
             <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-              <p className="text-[11px] uppercase tracking-wide text-gray-400">Saldo contratual</p>
+              <p className="text-[11px] uppercase tracking-wide text-gray-500">Saldo contratual</p>
               <p className="mt-2 text-lg font-semibold text-[#0C1B3A]">{formatBRL(project.saldoContratual)}</p>
-              <p className="mt-1 text-xs text-gray-400">Saldo por linhas: {formatBRL(project.saldoLinhas)}</p>
+              <p className="mt-1 text-xs text-gray-500">Saldo por linhas: {formatBRL(project.saldoLinhas)}</p>
             </div>
           </div>
 
@@ -90,7 +90,7 @@ export default function DrillDownModal({ project, open, onClose }: Props) {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {project.fteMensal.map((item) => (
                 <div key={item.mes} className="rounded-xl border border-gray-100 bg-white p-3">
-                  <p className="text-[11px] uppercase tracking-wide text-gray-400">{item.label}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-gray-500">{item.label}</p>
                   <p className="mt-2 text-lg font-semibold text-[#0C1B3A]">{item.fte.toFixed(2)}</p>
                 </div>
               ))}
@@ -151,11 +151,11 @@ export default function DrillDownModal({ project, open, onClose }: Props) {
                             <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                               <div>
                                 <p className="text-sm font-medium text-[#0C1B3A]">{linha.descricaoItem}</p>
-                                <p className="text-xs text-gray-400 mt-1">Unidade: {linha.unidade} · Valor anual: {formatBRL(linha.valorTotalAnual)}</p>
+                                <p className="text-xs text-gray-500 mt-1">Unidade: {linha.unidade} · Valor anual: {formatBRL(linha.valorTotalAnual)}</p>
                               </div>
                               <div className="text-right">
                                 <p className="text-sm font-semibold text-[#0C1B3A]">{formatBRL(linha.saldoValor)}</p>
-                                <p className="text-xs text-gray-400 mt-1">Saldo qtd: {linha.saldoQuantidade.toFixed(2)}</p>
+                                <p className="text-xs text-gray-500 mt-1">Saldo qtd: {linha.saldoQuantidade.toFixed(2)}</p>
                               </div>
                             </div>
                           </div>
@@ -187,7 +187,7 @@ export default function DrillDownModal({ project, open, onClose }: Props) {
                   </div>
                   {/* Content */}
                   <div className="pb-4">
-                    <p className="text-xs text-gray-400 font-medium">
+                    <p className="text-xs text-gray-500 font-medium">
                       {new Date(update.date).toLocaleDateString('pt-BR', {
                         day: '2-digit',
                         month: 'short',

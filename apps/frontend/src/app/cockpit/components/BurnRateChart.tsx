@@ -37,7 +37,7 @@ function CustomTooltip({ active, payload, label }: any) {
   return (
     <div className="bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl px-4 py-3 shadow-lg">
       <p className="text-xs font-semibold text-gray-800 mb-2">
-        {label} {isProjetado && <span className="text-gray-400 font-normal">(Projetado)</span>}
+        {label} {isProjetado && <span className="text-gray-500 font-normal">(Projetado)</span>}
       </p>
       <div className="space-y-1">
         <div className="flex items-center justify-between gap-6 text-sm">
@@ -79,7 +79,7 @@ export default function BurnRateChart({ data, loading }: Props) {
           <h2 className="text-base font-heading font-semibold text-[#0C1B3A]">
             Sustentabilidade Financeira
           </h2>
-          <p className="text-xs text-gray-400 mt-0.5">Burn Rate vs. Receita — últimos 4 meses + projeção</p>
+          <p className="text-xs text-gray-500 mt-0.5">Burn Rate vs. Receita — últimos 4 meses + projeção</p>
         </div>
         <div className="flex items-center gap-4 text-xs text-gray-500">
           <span className="flex items-center gap-1.5">
@@ -97,7 +97,7 @@ export default function BurnRateChart({ data, loading }: Props) {
       {/* Chart */}
       {loading ? (
         <div className="h-[300px] flex items-center justify-center">
-          <div className="animate-pulse text-gray-400 text-sm">Carregando gráfico...</div>
+          <div className="animate-pulse text-gray-500 text-sm">Carregando gráfico...</div>
         </div>
       ) : (
         <div className="h-[300px]">

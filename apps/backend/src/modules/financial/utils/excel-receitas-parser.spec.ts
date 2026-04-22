@@ -168,6 +168,23 @@ describe('ExcelReceitasParser', () => {
       expect(result.items[0].modo).toBe('contrato');
     });
 
+    it('deve aceitar quantidade zero no modo contrato', () => {
+      const rows = [
+        ['projectId', 'modo', 'linhaContratualId', 'quantidade', 'mes', 'ano'],
+        ['PROJ-002', 'contrato', 'linha-123', '0', '5', '2026'],
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Receitas');
+      const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      const result = ExcelReceitasParser.parseExcel(buffer, 'test.xlsx');
+
+      expect(result.errors).toHaveLength(0);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].quantidade).toBe(0);
+    });
+
     it('deve rejeitar contrato sem linhaContratualId ou quantidade', () => {
       const rows = [
         ['projectId', 'modo', 'linhaContratualId', 'quantidade', 'mes', 'ano'],

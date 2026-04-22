@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/services/api';
+import RowActionsMenu from '@/app/components/RowActionsMenu';
 
 interface Contrato {
   id: string;
@@ -516,24 +517,14 @@ export default function ContratosPage() {
                     >
                       {expandedContratoId === contrato.id ? 'Ocultar' : 'Ver Objetos'}
                     </button>
-                    <button
-                      onClick={() => openEditContrato(contrato)}
-                      className="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => openCloneContrato(contrato)}
-                      className="px-3 py-1.5 text-xs font-medium text-hw1-gold border border-hw1-gold rounded-lg hover:bg-hw1-gold hover:text-white transition-colors"
-                    >
-                      Clonar
-                    </button>
-                    <button
-                      onClick={() => handleDeleteContrato(contrato.id)}
-                      className="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
-                    >
-                      Excluir
-                    </button>
+                    <RowActionsMenu
+                      items={[
+                        { label: 'Editar', icon: '✏️', onClick: () => openEditContrato(contrato) },
+                        { label: 'Clonar', icon: '🧬', onClick: () => openCloneContrato(contrato) },
+                        { label: 'Excluir', icon: '🗑️', tone: 'danger', onClick: () => handleDeleteContrato(contrato.id) },
+                      ]}
+                      align="left"
+                    />
                   </div>
                 </div>
               </div>
@@ -580,18 +571,13 @@ export default function ContratosPage() {
                               >
                                 {expandedObjetoId === objeto.id ? 'Ocultar' : 'Ver Linhas'}
                               </button>
-                              <button
-                                onClick={() => openEditObjeto(objeto)}
-                                className="px-2.5 py-1 text-xs font-medium text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
-                              >
-                                Editar
-                              </button>
-                              <button
-                                onClick={() => handleDeleteObjeto(objeto.id)}
-                                className="px-2.5 py-1 text-xs font-medium text-red-600 border border-red-200 rounded hover:bg-red-50"
-                              >
-                                Excluir
-                              </button>
+                              <RowActionsMenu
+                                items={[
+                                  { label: 'Editar', icon: '✏️', onClick: () => openEditObjeto(objeto) },
+                                  { label: 'Excluir', icon: '🗑️', tone: 'danger', onClick: () => handleDeleteObjeto(objeto.id) },
+                                ]}
+                                align="left"
+                              />
                             </div>
                           </div>
 
@@ -634,20 +620,13 @@ export default function ContratosPage() {
                                           <td className="px-2 py-1.5 text-right font-semibold">{formatBRL(linha.valorTotalAnual)}</td>
                                           <td className="px-2 py-1.5 text-right font-semibold text-emerald-700">{formatBRL(Number(linha.saldoValor || 0))}</td>
                                           <td className="px-2 py-1.5 text-center">
-                                            <div className="flex justify-center gap-2">
-                                              <button
-                                                onClick={() => openEditLinha(linha)}
-                                                className="text-hw1-blue hover:text-hw1-blue/80 font-medium"
-                                              >
-                                                Editar
-                                              </button>
-                                              <button
-                                                onClick={() => handleDeleteLinha(linha.id)}
-                                                className="text-red-600 hover:text-red-700 font-medium"
-                                              >
-                                                Excluir
-                                              </button>
-                                            </div>
+                                            <RowActionsMenu
+                                              items={[
+                                                { label: 'Editar', icon: '✏️', onClick: () => openEditLinha(linha) },
+                                                { label: 'Excluir', icon: '🗑️', tone: 'danger', onClick: () => handleDeleteLinha(linha.id) },
+                                              ]}
+                                              align="left"
+                                            />
                                           </td>
                                         </tr>
                                       ))}

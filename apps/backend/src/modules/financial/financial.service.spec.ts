@@ -284,6 +284,74 @@ describe('FinancialService', () => {
         }),
       ).rejects.toThrow(BadRequestException);
     });
+
+    it('deve bloquear receita além da vigência contratual', async () => {
+      mockPrisma.project.findUnique.mockResolvedValue(mockProject);
+
+      await expect(
+        service.createReceita({
+          projectId: 'proj-001',
+          tipoReceita: 'Serviços',
+          descricao: 'Receita fora da vigência',
+          valorPrevisto: 1200,
+          valorRealizado: 0,
+          mes: 1,
+          ano: 2027,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('updateReceita', () => {
+    it('deve ajustar saldo da linha e contrato pelo delta da quantidade realizada', async () => {
+      mockPrisma.receitaMensal.findUnique.mockResolvedValue({
+        id: 'rec-001',
+        linhaContratualId: 'linha-001',
+        quantidadeRealizada: 2,
+        valorRealizado: 200,
+        valorPrevisto: 500,
+        justificativa: null,
+        linhaContratual: {
+          id: 'linha-001',
+          valorUnitario: 100,
+          saldoQuantidade: 10,
+          saldoValor: 1000,
+          objetoContratual: {
+            contratoId: 'ctr-001',
+          },
+        },
+      });
+
+      mockPrisma.receitaMensal.update.mockResolvedValue({
+        id: 'rec-001',
+        quantidadeRealizada: 4,
+        valorRealizado: 400,
+      });
+
+      const result = await service.updateReceita('rec-001', {
+        quantidadeRealizada: 4,
+        justificativa: 'Execução parcial da competência',
+      });
+
+      expect(result).toBeTruthy();
+      expect(mockPrisma.linhaContratual.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'linha-001' },
+          data: expect.objectContaining({
+            saldoQuantidade: expect.objectContaining({ decrement: expect.anything() }),
+            saldoValor: expect.objectContaining({ decrement: expect.anything() }),
+          }),
+        }),
+      );
+      expect(mockPrisma.contrato.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'ctr-001' },
+          data: expect.objectContaining({
+            saldoContratual: expect.objectContaining({ decrement: expect.anything() }),
+          }),
+        }),
+      );
+    });
   });
 
   describe('updateDespesa', () => {

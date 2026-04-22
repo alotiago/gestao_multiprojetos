@@ -1,7 +1,7 @@
 # Runbook de Deploy - Homologacao VM 10.10.11.93
 
 ## Escopo
-Este runbook cobre a criacao do ambiente de **homologacao** do Gestor Multiprojetos na VM `10.10.11.93`, com dominio `gestaodeprojetoshml.oais.cloud`.
+Este runbook cobre a criacao do ambiente de **homologacao** do Gestor Multiprojetos na VM `10.10.11.93`, com dominio `gestaodeprojetoshml.oais.cloud`, usando **HTTP**.
 
 ## Arquitetura
 - `gestaodeprojetoshml.oais.cloud` -> host nginx -> `127.0.0.1:8081` (container nginx do GMP)
@@ -39,10 +39,10 @@ sudo bash deploy/oci/full_deploy_vm.sh \
   --domain gestaodeprojetoshml.oais.cloud
 ```
 
-## 4. Configurar gateway nginx do host + SSL
+## 4. Configurar gateway nginx do host (HTTP)
 ```bash
 cd /opt/gestor_multiprojetos
-sudo bash deploy/oci/setup_host_nginx_hml.sh --domain gestaodeprojetoshml.oais.cloud --email seu-email@dominio.com
+sudo bash deploy/oci/setup_host_nginx_hml_http.sh --domain gestaodeprojetoshml.oais.cloud
 ```
 
 ## 5. Validacao
@@ -54,12 +54,33 @@ curl -s http://127.0.0.1/health -H 'Host: gestaodeprojetoshml.oais.cloud'
 
 ### Validacao externa
 ```bash
-curl -sk https://gestaodeprojetoshml.oais.cloud/health
+curl -s http://gestaodeprojetoshml.oais.cloud/health
 ```
 
 ### Validacao funcional basica (API)
 ```bash
-curl -sk https://gestaodeprojetoshml.oais.cloud/api/health
+curl -s http://gestaodeprojetoshml.oais.cloud/api/health
+```
+
+## 5.1 Deploy a partir do Windows (sem digitar senha interativamente)
+```powershell
+$env:GMP_HML_VM_PASSWORD = 'SUA_SENHA_AQUI'
+powershell -ExecutionPolicy Bypass -File c:\des\gestor_multiprojetos\deploy\oci\deploy_homolog_vm.ps1 -Execute
+```
+
+Ou passando por parametro:
+```powershell
+powershell -ExecutionPolicy Bypass -File c:\des\gestor_multiprojetos\deploy\oci\deploy_homolog_vm.ps1 -Execute -PlainTextPassword 'SUA_SENHA_AQUI'
+```
+
+Launcher local reutilizavel (ignorado no git):
+```powershell
+# modo seguro
+powershell -ExecutionPolicy Bypass -File c:\des\gestor_multiprojetos\deploy\oci\deploy_homolog_vm.local.ps1
+
+# execucao real
+$env:GMP_HML_VM_PASSWORD = 'SUA_SENHA_AQUI'
+powershell -ExecutionPolicy Bypass -File c:\des\gestor_multiprojetos\deploy\oci\deploy_homolog_vm.local.ps1 -Execute
 ```
 
 ## 6. Atualizacao de versao em HML

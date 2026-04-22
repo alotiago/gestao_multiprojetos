@@ -65,18 +65,16 @@ sudo docker exec gmp-backend sh -c 'cd /app/apps/backend && node seed-users.js'
 Credenciais iniciais:
 - `admin@sistema.com / Admin123!`
 
-## Gateway host nginx (multi-app)
-Executar uma vez (ou quando precisar reconstruir gateway):
+## Gateway host nginx do GMP
+Executar uma vez (ou quando precisar reconstruir o gateway do GMP):
 ```bash
-sudo bash /opt/gestor_multiprojetos/deploy/oci/setup_host_nginx.sh --email seu-email@dominio.com
+sudo bash /opt/gestor_multiprojetos/deploy/oci/setup_host_nginx_gmp.sh --email seu-email@dominio.com
 ```
 
 ### Pontos importantes do script
 - Instala `certbot` e `python3-certbot-nginx`.
-- Migra GAA para `127.0.0.1:8080:80`.
-- Recria container nginx do GAA com:
-  - `docker compose up -d --no-deps --force-recreate nginx`
-- Configura host nginx para os dois dominios.
+- Não altera a infraestrutura do GAA.
+- Configura host nginx apenas para o domínio do GMP.
 - Emite certificados sem redirect forcado HTTP->HTTPS (`--no-redirect`).
 
 ## Validacao recomendada

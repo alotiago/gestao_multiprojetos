@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/services/api';
+import RowActionsMenu from '@/app/components/RowActionsMenu';
 
 interface Project {
   id: string;
@@ -278,9 +279,9 @@ export default function ProjetosPage() {
       {/* Table */}
       <div className="hw1-card p-0 overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-gray-400 text-sm">Carregando...</div>
+          <div className="p-12 text-center text-gray-500 text-sm">Carregando...</div>
         ) : filtered.length === 0 ? (
-          <div className="p-12 text-center text-gray-400 text-sm">
+          <div className="p-12 text-center text-gray-500 text-sm">
             {search ? 'Nenhum projeto encontrado para a busca.' : 'Nenhum projeto cadastrado.'}
           </div>
         ) : (
@@ -316,7 +317,7 @@ export default function ProjetosPage() {
                     {p.contrato ? (
                       <span className="font-mono text-hw1-blue">{p.contrato.numeroContrato}</span>
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-gray-500">—</span>
                     )}
                   </td>
                   <td className="px-6 py-4 text-gray-500 text-xs">
@@ -331,21 +332,13 @@ export default function ProjetosPage() {
                       {statusLabels[p.status] ?? p.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => openEditModal(p)}
-                        className="px-3 py-1 text-xs font-medium rounded-lg border border-hw1-blue text-hw1-blue hover:bg-hw1-blue hover:text-white transition-all"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleDeleteProject(p)}
-                        className="px-3 py-1 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-all"
-                      >
-                        Excluir
-                      </button>
-                    </div>
+                  <td className="px-6 py-4 text-right">
+                    <RowActionsMenu
+                      items={[
+                        { label: 'Editar', icon: '✏️', onClick: () => openEditModal(p) },
+                        { label: 'Excluir', icon: '🗑️', tone: 'danger', onClick: () => handleDeleteProject(p) },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}
@@ -395,7 +388,7 @@ export default function ProjetosPage() {
               <h2 className="text-lg font-heading font-semibold text-hw1-navy">Novo Projeto</h2>
               <button
                 onClick={closeModal}
-                className="text-gray-400 hover:text-gray-700 text-xl leading-none"
+                className="text-gray-500 hover:text-gray-700 text-xl leading-none"
                 aria-label="Fechar"
               >
                 ×

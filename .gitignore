@@ -51,6 +51,10 @@ yarn-error.log*
 # Docker
 docker-compose.override.yml
 
+# Deploy local helpers (podem conter parametros/segredos locais)
+deploy/oci/*.local.ps1
+deploy/oci/*.local.cmd
+
 # Database
 postgres_data/
 redis_data/

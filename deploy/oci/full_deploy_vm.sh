@@ -163,6 +163,6 @@ log "Proximo passo - ativar HTTPS e gateway:"
 if [[ "${DOMAIN}" == *"hml"* ]]; then
   log "  sudo bash ${APP_DIR}/deploy/oci/setup_host_nginx_hml.sh [--email EMAIL] [--domain ${DOMAIN}]"
 else
-  log "  sudo bash ${APP_DIR}/deploy/oci/setup_host_nginx.sh [--email EMAIL] [--domain ${DOMAIN}]"
+  log "  sudo bash ${APP_DIR}/deploy/oci/setup_host_nginx_gmp.sh [--email EMAIL] [--domain ${DOMAIN}]"
 fi
 log "=========================================="

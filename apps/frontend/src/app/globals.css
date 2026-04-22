@@ -93,18 +93,21 @@ h1, h2, h3, h4, h5, h6 {
 
   .hw1-btn-primary {
     @apply bg-hw1-blue hover:bg-hw1-purple text-white font-semibold
-           px-6 py-2.5 rounded-xl transition-all duration-200
-           shadow-hw1 hover:shadow-hw1-lg;
+           px-6 py-2.5 rounded-xl transition-colors duration-200
+           shadow-hw1 hover:shadow-hw1-lg
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hw1-blue focus-visible:ring-offset-2;
   }
 
   .hw1-btn-secondary {
     @apply bg-hw1-teal hover:bg-hw1-teal-green text-white font-semibold
-           px-6 py-2.5 rounded-xl transition-all duration-200;
+           px-6 py-2.5 rounded-xl transition-colors duration-200
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hw1-teal focus-visible:ring-offset-2;
   }
 
   .hw1-btn-accent {
     @apply bg-hw1-pink hover:bg-hw1-hot-pink text-white font-semibold
-           px-6 py-2.5 rounded-xl transition-all duration-200;
+           px-6 py-2.5 rounded-xl transition-colors duration-200
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hw1-pink focus-visible:ring-offset-2;
   }
 
   .hw1-badge-green {
@@ -122,5 +125,141 @@ h1, h2, h3, h4, h5, h6 {
   .hw1-badge-blue {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
            bg-blue-100 text-blue-700;
+  }
+}
+
+/* =============================================
+   Reduced motion — respeita sensibilidade
+   ============================================= */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =============================================
+   Print — layout otimizado para PDF/impressão
+   ============================================= */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 16mm 12mm 20mm 12mm;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-size: 11px !important;
+  }
+
+  /* Esconder sidebar, topbar e controles interativos */
+  aside,
+  nav,
+  [role="navigation"],
+  .no-print,
+  button:not(.print-keep),
+  select,
+  input {
+    display: none !important;
+  }
+
+  /* Área principal ocupa 100% */
+  main,
+  [class*="ml-"] {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Margem interna fixa para o conteúdo do dashboard no PDF */
+  .print-content {
+    padding: 8mm !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Modo agressivo: reforça espaçamento no cabeçalho e no rodapé do PDF */
+  .print-content.print-aggressive {
+    padding-top: 14mm !important;
+    padding-right: 10mm !important;
+    padding-bottom: 16mm !important;
+    padding-left: 10mm !important;
+    min-height: calc(100vh - 1px) !important;
+  }
+
+  .print-content.print-aggressive::before,
+  .print-content.print-aggressive::after {
+    content: '';
+    display: block;
+    width: 100%;
+  }
+
+  .print-content.print-aggressive::before {
+    height: 6mm;
+  }
+
+  .print-content.print-aggressive::after {
+    height: 8mm;
+  }
+
+  /* Evita corte lateral em tabelas/conteúdos com scroll horizontal */
+  .print-content .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  .print-content table {
+    table-layout: fixed !important;
+    word-break: break-word !important;
+  }
+
+  /* Cards sem sombra, borda suave */
+  .hw1-card {
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Tabelas legíveis */
+  table {
+    font-size: 10px !important;
+    width: 100% !important;
+  }
+
+  th, td {
+    padding: 4px 6px !important;
+  }
+
+  /* Charts: forçar dimensões fixas para renderizar no PDF */
+  .recharts-responsive-container {
+    width: 100% !important;
+    height: 220px !important;
+  }
+
+  /* Evitar quebras no meio de seções */
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+
+  /* Garantir cores de fundo em badges e headers */
+  [class*="bg-emerald"],
+  [class*="bg-red"],
+  [class*="bg-yellow"],
+  [class*="bg-blue"],
+  [class*="bg-amber"],
+  thead {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }

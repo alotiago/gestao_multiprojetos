@@ -644,6 +644,8 @@ export class ContractsService {
         quantidadeAnualEstimada: true,
         valorUnitario: true,
         valorTotalAnual: true,
+        saldoQuantidade: true,
+        saldoValor: true,
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -835,6 +837,22 @@ export class ContractsService {
       'UNIDADES DE ARQUIVAMENTO (UA)', 'USUÁRIO POR MÊS', 'OUTRO',
     ];
 
+    const normalizarUnidade = (value: string): string => {
+      let unidade = value.trim().toUpperCase();
+
+      // Colapsa espaços e padroniza espaço antes de "(SIGLA)".
+      unidade = unidade.replace(/\s+/g, ' ');
+      unidade = unidade.replace(/\s*\(/g, ' (').replace(/\s*\)/g, ')').trim();
+
+      const aliases: Record<string, string> = {
+        MES: 'MÊS',
+        'UNIDADE DOCUMENTAL(UP)': 'UNIDADE DOCUMENTAL (UP)',
+        'UNIDADES DE ARQUIVAMENTO(UA)': 'UNIDADES DE ARQUIVAMENTO (UA)',
+      };
+
+      return aliases[unidade] ?? unidade;
+    };
+
     let imported = 0;
     let skipped = 0;
     let totalObjetos = 0;
@@ -977,7 +995,7 @@ export class ContractsService {
             for (let k = 0; k < linhasDoObjeto.length; k++) {
               const linRow = linhasDoObjeto[k];
               const descItem = String(linRow['descricaoitem'] || '').trim();
-              const unidadeRaw = String(linRow['unidade'] || '').trim().toUpperCase();
+              const unidadeRaw = String(linRow['unidade'] || '').trim();
               const qtdRaw = Number(linRow['quantidadeanualestimada']);
               const valUnitRaw = Number(linRow['valorunitario']);
 
@@ -988,7 +1006,7 @@ export class ContractsService {
               }
 
               // RN-EP1-044.9: Validar unidade
-              const unidade = unidadeRaw === 'MES' ? 'MÊS' : unidadeRaw;
+              const unidade = normalizarUnidade(unidadeRaw);
               if (!UNIDADES_VALIDAS.includes(unidade)) {
                 throw new BadRequestException(
                   `Linha '${descItem}': unidade inválida '${unidadeRaw}'. Valores: ${UNIDADES_VALIDAS.join(', ')}`,

@@ -5,7 +5,7 @@ services:
     container_name: gestor_postgres
     environment:
       POSTGRES_DB: ${DATABASE_NAME:-gestor_multiprojetos}
-      POSTGRES_USER: ${DATABASE_USER:-admin}
+      POSTGRES_USER: ${DATABASE_USER:-gestor}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-ChangeMe123!}
     ports:
       - '5433:5432'
@@ -14,7 +14,7 @@ services:
     networks:
       - gestor_network
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${DATABASE_USER:-admin} -d ${DATABASE_NAME:-gestor_multiprojetos}']
+      test: ['CMD-SHELL', 'pg_isready -U ${DATABASE_USER:-gestor} -d ${DATABASE_NAME:-gestor_multiprojetos}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -47,9 +47,9 @@ services:
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
       DATABASE_NAME: ${DATABASE_NAME:-gestor_multiprojetos}
-      DATABASE_USER: ${DATABASE_USER:-admin}
+      DATABASE_USER: ${DATABASE_USER:-gestor}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:-ChangeMe123!}
-      DATABASE_URL: postgresql://${DATABASE_USER:-admin}:${DATABASE_PASSWORD:-ChangeMe123!}@postgres:5432/${DATABASE_NAME:-gestor_multiprojetos}?schema=public
+      DATABASE_URL: postgresql://${DATABASE_USER:-gestor}:${DATABASE_PASSWORD:-ChangeMe123!}@postgres:5432/${DATABASE_NAME:-gestor_multiprojetos}?schema=public
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-ChangeMe123!}

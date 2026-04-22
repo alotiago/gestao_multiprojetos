@@ -1,9 +1,10 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import api from '@/services/api';
+import RowActionsMenu from '@/app/components/RowActionsMenu';
 
-/* â”€â”€ tipos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── tipos ─────────────────────────────────────────────────── */
 interface Sindicato {
   id: string;
   nome: string;
@@ -37,7 +38,7 @@ const formatBRL = (v: number) =>
 
 const formatPct = (v: number | string) => `${Number(v || 0).toFixed(2)}%`;
 
-/* â”€â”€ componente â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── componente ────────────────────────────────────────────── */
 export default function SindicatosPage() {
   const [sindicatos, setSindicatos] = useState<Sindicato[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +56,7 @@ export default function SindicatosPage() {
     regimeTributario: 'LUCRO_PRESUMIDO',
   });
 
-  /* dissÃ­dio */
+  /* dissídio */
   const [showDissidio, setShowDissidio] = useState(false);
   const [dissidioForm, setDissidioForm] = useState({
     sindicatoId: '',
@@ -63,7 +64,7 @@ export default function SindicatosPage() {
     dataBase: '',
   });
 
-  /* simulaÃ§Ã£o */
+  /* simulação */
   const [showSimulacao, setShowSimulacao] = useState(false);
   const [simForm, setSimForm] = useState({
     salarioBase: '5000',
@@ -73,7 +74,7 @@ export default function SindicatosPage() {
   const [simResult, setSimResult] = useState<SimulacaoResult | null>(null);
   const [simLoading, setSimLoading] = useState(false);
 
-  /* relatÃ³rio por regiÃ£o */
+  /* relatório por região */
   const [regioes, setRegioes] = useState<RegiaoRelatorio[]>([]);
   const [showRegioes, setShowRegioes] = useState(false);
 
@@ -90,7 +91,7 @@ export default function SindicatosPage() {
         }));
         setSindicatos(normalized);
       })
-      .catch(() => setError('NÃ£o foi possÃ­vel carregar os sindicatos.'))
+      .catch(() => setError('Não foi possível carregar os sindicatos.'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -147,14 +148,14 @@ export default function SindicatosPage() {
     if (!confirm('Deseja excluir este sindicato?')) return;
     try {
       await api.delete(`/sindicatos/${id}`);
-      setSuccessMsg('Sindicato excluÃ­do.');
+      setSuccessMsg('Sindicato excluído.');
       loadSindicatos();
     } catch {
       setError('Erro ao excluir. Pode haver colaboradores vinculados.');
     }
   };
 
-  /* DissÃ­dio */
+  /* Dissídio */
   const handleDissidio = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -163,16 +164,16 @@ export default function SindicatosPage() {
         percentualReajuste: parseFloat(dissidioForm.percentualReajuste),
         dataBase: dissidioForm.dataBase || undefined,
       });
-      setSuccessMsg('DissÃ­dio aplicado com sucesso! Taxas dos colaboradores atualizadas.');
+      setSuccessMsg('Dissídio aplicado com sucesso! Taxas dos colaboradores atualizadas.');
       setShowDissidio(false);
       setDissidioForm({ sindicatoId: '', percentualReajuste: '', dataBase: '' });
       loadSindicatos();
     } catch {
-      setError('Erro ao aplicar dissÃ­dio.');
+      setError('Erro ao aplicar dissídio.');
     }
   };
 
-  /* SimulaÃ§Ã£o */
+  /* Simulação */
   const handleSimulacao = async (e: React.FormEvent) => {
     e.preventDefault();
     setSimLoading(true);
@@ -186,13 +187,13 @@ export default function SindicatosPage() {
       const sim = res.data?.simulacao ?? res.data;
       setSimResult(sim);
     } catch {
-      setError('Erro ao executar simulaÃ§Ã£o.');
+      setError('Erro ao executar simulação.');
     } finally {
       setSimLoading(false);
     }
   };
 
-  /* RelatÃ³rio por regiÃ£o */
+  /* Relatório por região */
   const handleLoadRegioes = async () => {
     try {
       const res = await api.get('/sindicatos/relatorio/regioes');
@@ -206,7 +207,7 @@ export default function SindicatosPage() {
       setRegioes(entries);
       setShowRegioes(true);
     } catch {
-      setError('Erro ao carregar relatÃ³rio por regiÃµes.');
+      setError('Erro ao carregar relatório por regiões.');
     }
   };
 
@@ -222,13 +223,13 @@ export default function SindicatosPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-heading font-semibold text-hw1-navy">Sindicatos</h1>
-          <p className="text-sm text-gray-500 mt-0.5">GestÃ£o sindical, dissÃ­dio e simulaÃ§Ãµes trabalhistas</p>
+          <p className="text-sm text-gray-500 mt-0.5">Gestão sindical, dissídio e simulações trabalhistas</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={handleLoadRegioes} className="hw1-btn-secondary text-sm">RelatÃ³rio RegiÃµes</button>
-          <button onClick={() => setShowDissidio(!showDissidio)} className="hw1-btn-accent text-sm">Aplicar DissÃ­dio</button>
+          <button onClick={handleLoadRegioes} className="hw1-btn-secondary text-sm">Relatório Regiões</button>
+          <button onClick={() => setShowDissidio(!showDissidio)} className="hw1-btn-accent text-sm">Aplicar Dissídio</button>
           <button onClick={() => setShowSimulacao(!showSimulacao)} className="px-4 py-2 text-sm font-semibold rounded-xl border border-hw1-blue text-hw1-blue hover:bg-hw1-blue hover:text-white transition-all">
-            SimulaÃ§Ã£o
+            Simulação
           </button>
           <button onClick={() => { setShowForm(!showForm); setEditingId(null); setForm({ nome: '', regiao: '', percentualDissidio: '', regimeTributario: 'LUCRO_PRESUMIDO' }); }} className="hw1-btn-primary text-sm">
             + Novo Sindicato
@@ -250,17 +251,17 @@ export default function SindicatosPage() {
                 className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue" required />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">RegiÃ£o</label>
+              <label className="block text-xs text-gray-500 mb-1">Região</label>
               <input type="text" value={form.regiao} onChange={(e) => setForm({ ...form, regiao: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue" placeholder="Sudeste" required />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Percentual DissÃ­dio (%)</label>
+              <label className="block text-xs text-gray-500 mb-1">Percentual Dissídio (%)</label>
               <input type="number" step="0.01" value={form.percentualDissidio} onChange={(e) => setForm({ ...form, percentualDissidio: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Regime TributÃ¡rio</label>
+              <label className="block text-xs text-gray-500 mb-1">Regime Tributário</label>
               <select value={form.regimeTributario} onChange={(e) => setForm({ ...form, regimeTributario: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue">
                 <option value="LUCRO_PRESUMIDO">Lucro Presumido</option>
@@ -271,17 +272,17 @@ export default function SindicatosPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button type="submit" className="hw1-btn-primary text-sm">{editingId ? 'Salvar AlteraÃ§Ãµes' : 'Criar Sindicato'}</button>
+            <button type="submit" className="hw1-btn-primary text-sm">{editingId ? 'Salvar Alterações' : 'Criar Sindicato'}</button>
             <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }}
               className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 rounded-xl border border-gray-200">Cancelar</button>
           </div>
         </form>
       )}
 
-      {/* DissÃ­dio */}
+      {/* Dissídio */}
       {showDissidio && (
         <form onSubmit={handleDissidio} className="hw1-card space-y-4 border-l-4 border-hw1-pink">
-          <h3 className="font-heading font-semibold text-hw1-navy">Aplicar DissÃ­dio</h3>
+          <h3 className="font-heading font-semibold text-hw1-navy">Aplicar Dissídio</h3>
           <p className="text-sm text-gray-500">Aplica reajuste percentual na taxa/hora de todos os colaboradores vinculados ao sindicato.</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -306,25 +307,25 @@ export default function SindicatosPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button type="submit" className="hw1-btn-accent text-sm">Aplicar DissÃ­dio</button>
+            <button type="submit" className="hw1-btn-accent text-sm">Aplicar Dissídio</button>
             <button type="button" onClick={() => setShowDissidio(false)} className="px-4 py-2 text-sm text-gray-500 rounded-xl border border-gray-200">Cancelar</button>
           </div>
         </form>
       )}
 
-      {/* SimulaÃ§Ã£o */}
+      {/* Simulação */}
       {showSimulacao && (
         <div className="hw1-card space-y-4 border-l-4 border-hw1-blue">
-          <h3 className="font-heading font-semibold text-hw1-navy">SimulaÃ§Ã£o de Impacto Financeiro</h3>
+          <h3 className="font-heading font-semibold text-hw1-navy">Simulação de Impacto Financeiro</h3>
           <form onSubmit={handleSimulacao} className="flex flex-wrap gap-3 items-end">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">SalÃ¡rio Base (R$)</label>
+              <label className="block text-xs text-gray-500 mb-1">Salário Base (R$)</label>
               <input type="number" step="0.01" value={simForm.salarioBase}
                 onChange={(e) => setSimForm({ ...simForm, salarioBase: e.target.value })}
                 className="w-40 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue" required />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Carga HorÃ¡ria</label>
+              <label className="block text-xs text-gray-500 mb-1">Carga Horária</label>
               <input type="number" value={simForm.cargaHoraria}
                 onChange={(e) => setSimForm({ ...simForm, cargaHoraria: e.target.value })}
                 className="w-28 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue" required />
@@ -346,7 +347,7 @@ export default function SindicatosPage() {
             <div className="mt-4 space-y-3">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="bg-gray-50 rounded-xl p-3 text-center">
-                  <p className="text-xs text-gray-500 mb-1">SalÃ¡rio Base</p>
+                  <p className="text-xs text-gray-500 mb-1">Salário Base</p>
                   <p className="text-lg font-heading font-semibold text-hw1-navy">{formatBRL(simResult.salarioBase)}</p>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-3 text-center">
@@ -369,7 +370,7 @@ export default function SindicatosPage() {
                     {simResult.encargos.map((encargo) => (
                       <div key={encargo.tipo} className="flex justify-between px-2">
                         <span className="text-gray-600">{encargo.tipo}</span>
-                        <span className="font-medium text-hw1-navy">{formatBRL(Number(encargo.valor || 0))} <span className="text-xs text-gray-400">({formatPct(encargo.percentual)})</span></span>
+                        <span className="font-medium text-hw1-navy">{formatBRL(Number(encargo.valor || 0))} <span className="text-xs text-gray-500">({formatPct(encargo.percentual)})</span></span>
                       </div>
                     ))}
                   </div>
@@ -388,19 +389,19 @@ export default function SindicatosPage() {
         </div>
       )}
 
-      {/* RelatÃ³rio por RegiÃµes */}
+      {/* Relatório por Regiões */}
       {showRegioes && regioes.length > 0 && (
         <div className="hw1-card">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-heading font-semibold text-hw1-navy">RelatÃ³rio por RegiÃ£o</h3>
-            <button onClick={() => setShowRegioes(false)} className="text-xs text-gray-400 hover:text-gray-600">Fechar</button>
+            <h3 className="font-heading font-semibold text-hw1-navy">Relatório por Região</h3>
+            <button onClick={() => setShowRegioes(false)} className="text-xs text-gray-500 hover:text-gray-600">Fechar</button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {regioes.map((r) => (
               <div key={r.regiao} className="bg-gray-50 rounded-xl p-4">
                 <h4 className="font-heading font-semibold text-hw1-navy mb-1">{r.regiao}</h4>
                 <p className="text-xs text-gray-500">{r.totalSindicatos} sindicato{r.totalSindicatos !== 1 ? 's' : ''}</p>
-                <p className="text-sm mt-2">MÃ©dia dissÃ­dio: <strong className="text-hw1-blue">{formatPct(r.mediaPercentualDissidio)}</strong></p>
+                <p className="text-sm mt-2">Média dissídio: <strong className="text-hw1-blue">{formatPct(r.mediaPercentualDissidio)}</strong></p>
               </div>
             ))}
           </div>
@@ -410,29 +411,31 @@ export default function SindicatosPage() {
       {/* Search */}
       <input
         type="text"
-        placeholder="Buscar sindicatoâ€¦"
+        placeholder="Buscar sindicato…"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue w-64"
+        aria-label="Buscar sindicato por nome ou regi�o"
+        className="px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-hw1-blue focus-visible:ring-2 focus-visible:ring-hw1-blue focus-visible:ring-offset-2 w-64"
       />
 
       {/* Tabela */}
       <div className="hw1-card p-0 overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-gray-400 text-sm">Carregando...</div>
+          <div className="p-12 text-center text-gray-500 text-sm">Carregando...</div>
         ) : filtered.length === 0 ? (
-          <div className="p-12 text-center text-gray-400 text-sm">Nenhum sindicato encontrado.</div>
+          <div className="p-12 text-center text-gray-500 text-sm">Nenhum sindicato encontrado.</div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full text-sm table-fixed">
+            <caption className="sr-only">Lista de sindicatos cadastrados</caption>
             <thead>
               <tr className="text-left text-xs font-semibold uppercase tracking-wide text-white"
                 style={{ background: 'linear-gradient(90deg, #050439, #1E16A0)' }}>
                 <th className="px-6 py-4">Nome</th>
-                <th className="px-6 py-4">RegiÃ£o</th>
-                <th className="px-6 py-4">DissÃ­dio</th>
+                <th className="px-6 py-4">Região</th>
+                <th className="px-6 py-4">Dissídio</th>
                 <th className="px-6 py-4">Regime</th>
                 <th className="px-6 py-4">Colaboradores</th>
-                <th className="px-6 py-4 text-center">AÃ§Ãµes</th>
+                <th className="px-6 py-4 text-center">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -444,12 +447,15 @@ export default function SindicatosPage() {
                     <span className="hw1-badge-blue">{formatPct(s.percentualDissidio)}</span>
                   </td>
                   <td className="px-6 py-4 text-gray-500 text-xs">{String(s.regimeTributario || '').replace(/_/g, ' ')}</td>
-                  <td className="px-6 py-4 text-gray-600">{s._count?.colaboradores ?? 'â€”'}</td>
+                  <td className="px-6 py-4 text-gray-600">{s._count?.colaboradores ?? '—'}</td>
                   <td className="px-6 py-4 text-center">
-                    <div className="flex justify-center gap-3">
-                      <button onClick={() => handleEdit(s)} className="text-hw1-blue hover:text-hw1-purple text-xs transition-colors">Editar</button>
-                      <button onClick={() => handleDelete(s.id)} className="text-red-400 hover:text-red-600 text-xs transition-colors">Excluir</button>
-                    </div>
+                    <RowActionsMenu
+                      items={[
+                        { label: 'Editar', icon: '??', onClick: () => handleEdit(s) },
+                        { label: 'Excluir', icon: '???', tone: 'danger', onClick: () => handleDelete(s.id) },
+                      ]}
+                      align="left"
+                    />
                   </td>
                 </tr>
               ))}
@@ -458,7 +464,7 @@ export default function SindicatosPage() {
         )}
       </div>
 
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-500">
         {filtered.length} sindicato{filtered.length !== 1 ? 's' : ''} cadastrado{filtered.length !== 1 ? 's' : ''}
       </p>
     </div>

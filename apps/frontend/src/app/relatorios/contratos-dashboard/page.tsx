@@ -275,7 +275,7 @@ export default function ContratosDashboard() {
           <div className="mt-4 grid grid-cols-1 xl:grid-cols-3 gap-4 text-sm text-gray-600">
             <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
               <p className="font-semibold text-gray-900">Custo Fixo</p>
-              <p className="mt-2">Soma despesas de facilities, aluguel, amortização e rateio com o custo fixo de pessoal registrado em custo mensal.</p>
+              <p className="mt-2">Soma de todas as despesas com <strong>Natureza = Fixo</strong> (independente do tipo) com o custo fixo de pessoal registrado em custo mensal.</p>
             </div>
             <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
               <p className="font-semibold text-gray-900">Custo Variável</p>

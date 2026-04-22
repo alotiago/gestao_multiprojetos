@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import api from '@/services/api';
+import RowActionsMenu from '@/app/components/RowActionsMenu';
 
 /* ── tipos ─────────────────────────────────────────────────── */
 interface Feriado {
@@ -343,9 +344,9 @@ export default function CalendariosPage() {
       {/* Tabela */}
       <div className="hw1-card p-0 overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-gray-400 text-sm">Carregando...</div>
+          <div className="p-12 text-center text-gray-500 text-sm">Carregando...</div>
         ) : filtered.length === 0 ? (
-          <div className="p-12 text-center text-gray-400 text-sm">
+          <div className="p-12 text-center text-gray-500 text-sm">
             {search ? 'Nenhum feriado encontrado.' : `Nenhum feriado cadastrado para ${ano}. Use "Seed ${ano}" para importar os feriados nacionais.`}
           </div>
         ) : (
@@ -391,12 +392,12 @@ export default function CalendariosPage() {
                     {f.nacional ? 'Brasil' : `${f.cidade ? f.cidade + '/' : ''}${f.estado ?? ''}`}
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <button
-                      onClick={() => handleDelete(f.id)}
-                      className="text-red-400 hover:text-red-600 text-xs transition-colors"
-                    >
-                      Excluir
-                    </button>
+                    <RowActionsMenu
+                      items={[
+                        { label: 'Excluir', icon: '🗑️', tone: 'danger', onClick: () => handleDelete(f.id) },
+                      ]}
+                      align="left"
+                    />
                   </td>
                 </tr>
               ))}
@@ -405,7 +406,7 @@ export default function CalendariosPage() {
         )}
       </div>
 
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-500">
         {filtered.length} feriado{filtered.length !== 1 ? 's' : ''} para {ano}
       </p>
     </div>

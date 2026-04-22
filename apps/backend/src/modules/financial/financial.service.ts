@@ -37,6 +37,8 @@ import {
 import { ExcelParser } from './utils/excel-parser';
 import { ExcelReceitasParser } from './utils/excel-receitas-parser';
 import { CreateAliquotaRegimeDto, UpdateAliquotaRegimeDto } from './dto/aliquota-regime.dto';
+import { CreateTipoDespesaDto, UpdateTipoDespesaDto } from './dto/tipo-despesa.dto';
+import { CreateFornecedorDto, UpdateFornecedorDto } from './dto/fornecedor.dto';
 
 // Alíquotas FALLBACK (usadas apenas se não houver registros no BD)
 const ALIQUOTAS_FALLBACK: Record<string, Record<string, number>> = {
@@ -102,6 +104,15 @@ export class FinancialService implements OnModuleInit {
       totalCriados: items.length,
       competenciaInicial: this.formatCompetencia(primeira),
       competenciaFinal: this.formatCompetencia(ultima),
+    };
+  }
+
+  private appendSaldoWarnings(response: any, warnings: string[]) {
+    if (!warnings.length) return response;
+    return {
+      ...response,
+      saldoInsuficiente: true,
+      alertasSaldo: warnings,
     };
   }
 
@@ -235,6 +246,7 @@ export class FinancialService implements OnModuleInit {
         take: limit,
         include: {
           project: { select: { id: true, codigo: true, nome: true } },
+          fornecedor: { select: { id: true, razaoSocial: true, cnpj: true } },
         },
       }),
       this.prisma.despesa.count({ where }),
@@ -284,6 +296,9 @@ export class FinancialService implements OnModuleInit {
         valor: new Decimal(dto.valor),
         mes: dto.mes,
         ano: dto.ano,
+        fornecedorId: dto.fornecedorId || undefined,
+        dataVencimento: dto.dataVencimento ? new Date(dto.dataVencimento) : undefined,
+        anexoUrl: dto.anexoUrl || undefined,
       };
 
       const despesa = await this.prisma.despesa.create({
@@ -304,6 +319,9 @@ export class FinancialService implements OnModuleInit {
             valor: new Decimal(dto.valor),
             mes: competencia.mes,
             ano: competencia.ano,
+            fornecedorId: dto.fornecedorId || undefined,
+            dataVencimento: dto.dataVencimento ? new Date(dto.dataVencimento) : undefined,
+            anexoUrl: dto.anexoUrl || undefined,
           } satisfies Prisma.DespesaUncheckedCreateInput,
         }),
       ),
@@ -325,6 +343,9 @@ export class FinancialService implements OnModuleInit {
     if (dto.mes !== undefined) updateData.mes = dto.mes;
     if (dto.ano !== undefined) updateData.ano = dto.ano;
     if (dto.naturezaCusto !== undefined) updateData.naturezaCusto = dto.naturezaCusto;
+    if (dto.fornecedorId !== undefined) updateData.fornecedorId = dto.fornecedorId || null;
+    if (dto.dataVencimento !== undefined) updateData.dataVencimento = dto.dataVencimento ? new Date(dto.dataVencimento) : null;
+    if (dto.anexoUrl !== undefined) updateData.anexoUrl = dto.anexoUrl || null;
 
     const mesFinal = dto.mes ?? despesaAtual.mes;
     const anoFinal = dto.ano ?? despesaAtual.ano;
@@ -1331,6 +1352,8 @@ export class FinancialService implements OnModuleInit {
         valorUnitario: true,
         quantidadeAnualEstimada: true,
         valorTotalAnual: true,
+        saldoQuantidade: true,
+        saldoValor: true,
       },
     },
   };
@@ -1406,9 +1429,10 @@ export class FinancialService implements OnModuleInit {
    * - Vincula ao projeto, objeto e linha (US3)
    */
   async createReceita(data: any) {
-    await this.validateProject(data.projectId);
+    const project = await this.validateProject(data.projectId);
 
     const competencias = this.buildCompetencias(data.mes, data.ano, data.mesesAdicionais);
+    this.assertCompetenciasDentroDaVigencia(project, competencias, 'Receita');
 
     // ═══════════ MODO CONTRATO ═══════════
     if (data.linhaContratualId) {
@@ -1423,10 +1447,16 @@ export class FinancialService implements OnModuleInit {
       if (!linha) throw new NotFoundException('Linha contratual não encontrada');
       if (!linha.ativo) throw new NotFoundException('Linha contratual está inativa');
 
-      const quantidade = data.quantidade ? Number(data.quantidade) : 0;
+      const hasQuantidade =
+        data.quantidade !== undefined && data.quantidade !== null && data.quantidade !== '';
+      const quantidade = hasQuantidade ? Number(data.quantidade) : 0;
       const valorUnitario = Number(linha.valorUnitario);
       const valorTotal = Math.round(quantidade * valorUnitario * 100) / 100;
-      const quantidadeRealizada = data.quantidadeRealizada ? Number(data.quantidadeRealizada) : 0;
+      const hasQuantidadeRealizada =
+        data.quantidadeRealizada !== undefined &&
+        data.quantidadeRealizada !== null &&
+        data.quantidadeRealizada !== '';
+      const quantidadeRealizada = hasQuantidadeRealizada ? Number(data.quantidadeRealizada) : 0;
       const valorRealizadoUnitario = Math.round(quantidadeRealizada * valorUnitario * 100) / 100;
       const valorRealizadoInformado = Math.round(Number(data.valorRealizado || 0) * 100) / 100;
       const valorRealizadoCompetencia =
@@ -1437,20 +1467,22 @@ export class FinancialService implements OnModuleInit {
 
       this.validateJustificativaReceita(valorTotal, valorRealizadoCompetencia, justificativa);
 
-      // RN-003: Validar se quantidade realizada não excede o saldo disponível
+      const alertasSaldo: string[] = [];
+
+      // RN-003: Permite exceder saldo, porém alerta o usuário.
       if (quantidadeRealizada > 0) {
         const saldoQtd = Number(linha.saldoQuantidade);
-        
+
         if (quantidadeRealizadaTotal > saldoQtd) {
-          throw new ConflictException(
-            `Quantidade realizada total (${quantidadeRealizadaTotal}) excede o saldo disponível (${saldoQtd}) da linha contratual`
+          alertasSaldo.push(
+            `Quantidade realizada total (${quantidadeRealizadaTotal}) excede o saldo disponível (${saldoQtd}) da linha contratual. A receita foi lançada mesmo assim.`
           );
         }
         const saldoVl = Number(linha.saldoValor);
-        
+
         if (valorRealizadoTotal > saldoVl) {
-          throw new ConflictException(
-            `Valor realizado total (${valorRealizadoTotal}) excede o saldo disponível (${saldoVl}) da linha contratual`
+          alertasSaldo.push(
+            `Valor realizado total (${valorRealizadoTotal}) excede o saldo disponível (${saldoVl}) da linha contratual. A receita foi lançada mesmo assim.`
           );
         }
       }
@@ -1546,9 +1578,11 @@ export class FinancialService implements OnModuleInit {
         return resultados;
       });
 
-      return receitas.length === 1
+      const response = receitas.length === 1
         ? receitas[0]
         : this.formatReplicacaoResponse(receitas, competencias);
+
+      return this.appendSaldoWarnings(response, alertasSaldo);
     }
 
     // ═══════════ MODO MANUAL ═══════════
@@ -1632,7 +1666,15 @@ export class FinancialService implements OnModuleInit {
   async updateReceita(id: string, data: any) {
     const receita = await this.prisma.receitaMensal.findUnique({
       where: { id },
-      include: { linhaContratual: true },
+      include: {
+        linhaContratual: {
+          include: {
+            objetoContratual: {
+              select: { contratoId: true },
+            },
+          },
+        },
+      },
     });
     if (!receita) throw new NotFoundException(`Receita ${id} não encontrada`);
 
@@ -1670,7 +1712,9 @@ export class FinancialService implements OnModuleInit {
           include: { objetoContratual: true },
         });
         if (linha) {
-          const qtd = data.quantidade ? Number(data.quantidade) : 0;
+          const hasQuantidade =
+            data.quantidade !== undefined && data.quantidade !== null && data.quantidade !== '';
+          const qtd = hasQuantidade ? Number(data.quantidade) : 0;
           const vUnit = Number(linha.valorUnitario);
           updateData.linhaContratualId = data.linhaContratualId;
           updateData.objetoContratualId = data.objetoContratualId || linha.objetoContratualId;
@@ -1696,6 +1740,77 @@ export class FinancialService implements OnModuleInit {
 
     this.validateJustificativaReceita(valorPrevistoFinal, valorRealizadoFinal, justificativaFinal);
 
+    // Ajuste incremental de saldo: aplica apenas a diferença entre o valor/qtd realizado anterior e o novo.
+    if (receita.linhaContratualId && receita.linhaContratual) {
+      const linhaId = receita.linhaContratualId;
+      const linhaContratual = receita.linhaContratual;
+      const qtdRealAnterior = Number(receita.quantidadeRealizada || 0);
+      const qtdRealNova = Number(updateData.quantidadeRealizada ?? receita.quantidadeRealizada ?? 0);
+      const valorRealAnterior = Number(receita.valorRealizado || 0);
+      const valorRealNovo = Number(updateData.valorRealizado ?? receita.valorRealizado ?? 0);
+
+      const deltaQtd = Math.round((qtdRealNova - qtdRealAnterior) * 100) / 100;
+      const deltaValor = Math.round((valorRealNovo - valorRealAnterior) * 100) / 100;
+
+      const alertasSaldo: string[] = [];
+
+      if (deltaQtd > 0) {
+        const saldoQtdAtual = Number(receita.linhaContratual.saldoQuantidade || 0);
+        if (deltaQtd > saldoQtdAtual) {
+          alertasSaldo.push(
+            `Quantidade realizada adicional (${deltaQtd}) excede o saldo disponível (${saldoQtdAtual}) da linha contratual. A receita foi atualizada mesmo assim.`,
+          );
+        }
+      }
+
+      if (deltaValor > 0) {
+        const saldoValorAtual = Number(receita.linhaContratual.saldoValor || 0);
+        if (deltaValor > saldoValorAtual) {
+          alertasSaldo.push(
+            `Valor realizado adicional (${deltaValor}) excede o saldo disponível (${saldoValorAtual}) da linha contratual. A receita foi atualizada mesmo assim.`,
+          );
+        }
+      }
+
+      const receitaAtualizada = await this.prisma.$transaction(async (tx) => {
+        const receitaAtualizada = await tx.receitaMensal.update({
+          where: { id },
+          data: updateData,
+          include: this.receitaInclude,
+        });
+
+        if (deltaQtd !== 0 || deltaValor !== 0) {
+          const linhaData: any = {};
+          if (deltaQtd > 0) linhaData.saldoQuantidade = { decrement: new Decimal(deltaQtd) };
+          if (deltaQtd < 0) linhaData.saldoQuantidade = { increment: new Decimal(Math.abs(deltaQtd)) };
+          if (deltaValor > 0) linhaData.saldoValor = { decrement: new Decimal(deltaValor) };
+          if (deltaValor < 0) linhaData.saldoValor = { increment: new Decimal(Math.abs(deltaValor)) };
+
+          await tx.linhaContratual.update({
+            where: { id: linhaId },
+            data: linhaData,
+          });
+
+          const contratoId = linhaContratual.objetoContratual?.contratoId;
+          if (contratoId && deltaValor !== 0) {
+            await tx.contrato.update({
+              where: { id: contratoId },
+              data: {
+                saldoContratual:
+                  deltaValor > 0
+                    ? { decrement: new Decimal(deltaValor) }
+                    : { increment: new Decimal(Math.abs(deltaValor)) },
+              },
+            });
+          }
+        }
+
+        return receitaAtualizada;
+      });
+
+      return this.appendSaldoWarnings(receitaAtualizada, alertasSaldo);
+    }
+
     return this.prisma.receitaMensal.update({
       where: { id },
       data: updateData,
@@ -1704,11 +1819,58 @@ export class FinancialService implements OnModuleInit {
   }
 
   async deleteReceita(id: string) {
-    const receita = await this.prisma.receitaMensal.findUnique({ where: { id } });
-    if (!receita) throw new NotFoundException(`Receita ${id} não encontrada`);
-    return this.prisma.receitaMensal.update({
+    const receita = await this.prisma.receitaMensal.findUnique({
       where: { id },
-      data: { ativo: false },
+      include: {
+        linhaContratual: {
+          include: {
+            objetoContratual: {
+              select: { contratoId: true },
+            },
+          },
+        },
+      },
+    });
+    if (!receita) throw new NotFoundException(`Receita ${id} não encontrada`);
+
+    if (!receita.ativo) {
+      return receita;
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const receitaInativada = await tx.receitaMensal.update({
+        where: { id },
+        data: { ativo: false },
+      });
+
+      if (receita.linhaContratualId && receita.linhaContratual) {
+        const linhaId = receita.linhaContratualId;
+        const linhaContratual = receita.linhaContratual;
+        const qtdRealizada = Number(receita.quantidadeRealizada || 0);
+        const valorRealizado = Number(receita.valorRealizado || 0);
+
+        if (qtdRealizada > 0 || valorRealizado > 0) {
+          await tx.linhaContratual.update({
+            where: { id: linhaId },
+            data: {
+              ...(qtdRealizada > 0 ? { saldoQuantidade: { increment: new Decimal(qtdRealizada) } } : {}),
+              ...(valorRealizado > 0 ? { saldoValor: { increment: new Decimal(valorRealizado) } } : {}),
+            },
+          });
+
+          const contratoId = linhaContratual.objetoContratual?.contratoId;
+          if (contratoId && valorRealizado > 0) {
+            await tx.contrato.update({
+              where: { id: contratoId },
+              data: {
+                saldoContratual: { increment: new Decimal(valorRealizado) },
+              },
+            });
+          }
+        }
+      }
+
+      return receitaInativada;
     });
   }
 
@@ -2024,6 +2186,73 @@ export class FinancialService implements OnModuleInit {
         taxaErro: `${(taxaErro * 100).toFixed(1)}%`,
       },
     };
+  }
+
+  // ===================== TIPO DE DESPESA =====================
+
+  async findTiposDespesa(apenasAtivos?: boolean) {
+    const where = apenasAtivos ? { ativo: true } : {};
+    return this.prisma.tipoDespesa.findMany({ where, orderBy: { nome: 'asc' } });
+  }
+
+  async createTipoDespesa(dto: CreateTipoDespesaDto) {
+    const exists = await this.prisma.tipoDespesa.findUnique({ where: { nome: dto.nome } });
+    if (exists) throw new ConflictException(`Tipo de despesa "${dto.nome}" já existe.`);
+    return this.prisma.tipoDespesa.create({ data: dto });
+  }
+
+  async updateTipoDespesa(id: string, dto: UpdateTipoDespesaDto) {
+    const tipo = await this.prisma.tipoDespesa.findUnique({ where: { id } });
+    if (!tipo) throw new NotFoundException('Tipo de despesa não encontrado.');
+    if (dto.nome && dto.nome !== tipo.nome) {
+      const dup = await this.prisma.tipoDespesa.findUnique({ where: { nome: dto.nome } });
+      if (dup) throw new ConflictException(`Tipo de despesa "${dto.nome}" já existe.`);
+    }
+    return this.prisma.tipoDespesa.update({ where: { id }, data: dto });
+  }
+
+  async deleteTipoDespesa(id: string) {
+    const tipo = await this.prisma.tipoDespesa.findUnique({ where: { id } });
+    if (!tipo) throw new NotFoundException('Tipo de despesa não encontrado.');
+    return this.prisma.tipoDespesa.delete({ where: { id } });
+  }
+
+  // ===================== FORNECEDOR =====================
+
+  async findFornecedores(search?: string) {
+    const where: Prisma.FornecedorWhereInput = {};
+    if (search) {
+      where.OR = [
+        { cnpj: { contains: search } },
+        { razaoSocial: { contains: search, mode: 'insensitive' } },
+        { nomeFantasia: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    return this.prisma.fornecedor.findMany({ where, orderBy: { razaoSocial: 'asc' } });
+  }
+
+  async findFornecedorById(id: string) {
+    const fornecedor = await this.prisma.fornecedor.findUnique({ where: { id } });
+    if (!fornecedor) throw new NotFoundException('Fornecedor não encontrado.');
+    return fornecedor;
+  }
+
+  async createFornecedor(dto: CreateFornecedorDto) {
+    const exists = await this.prisma.fornecedor.findUnique({ where: { cnpj: dto.cnpj } });
+    if (exists) throw new ConflictException(`CNPJ ${dto.cnpj} já cadastrado.`);
+    return this.prisma.fornecedor.create({ data: dto });
+  }
+
+  async updateFornecedor(id: string, dto: UpdateFornecedorDto) {
+    const fornecedor = await this.prisma.fornecedor.findUnique({ where: { id } });
+    if (!fornecedor) throw new NotFoundException('Fornecedor não encontrado.');
+    return this.prisma.fornecedor.update({ where: { id }, data: dto });
+  }
+
+  async deleteFornecedor(id: string) {
+    const fornecedor = await this.prisma.fornecedor.findUnique({ where: { id } });
+    if (!fornecedor) throw new NotFoundException('Fornecedor não encontrado.');
+    return this.prisma.fornecedor.delete({ where: { id } });
   }
 }
 

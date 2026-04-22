@@ -965,4 +965,252 @@ export class DashboardService {
   async deleteGoLive(id: string) {
     return this.prisma.projectGoLive.delete({ where: { id } });
   }
+
+  // =============================================================
+  // B: EVOLUÇÃO DE SALDO CONTRATUAL (mensal, calculado on-the-fly)
+  // =============================================================
+
+  async getEvolucaoSaldo(ano: number) {
+    // Busca todos os contratos ativos com suas linhas
+    const contratos = await this.prisma.contrato.findMany({
+      where: { ativo: true },
+      select: {
+        id: true,
+        nomeContrato: true,
+        cliente: true,
+        saldoContratual: true,
+        objetos: {
+          where: { ativo: true },
+          select: {
+            linhasContratuais: {
+              where: { ativo: true },
+              select: { id: true, valorTotalAnual: true },
+            },
+          },
+        },
+      },
+    });
+
+    // Valor total por contrato (soma das linhas)
+    const valorTotalPorContrato: Record<string, number> = {};
+    const linhaIdsPorContrato: Record<string, string[]> = {};
+    for (const c of contratos) {
+      let total = 0;
+      const linhaIds: string[] = [];
+      for (const obj of c.objetos) {
+        for (const linha of obj.linhasContratuais) {
+          total += Number(linha.valorTotalAnual || 0);
+          linhaIds.push(linha.id);
+        }
+      }
+      valorTotalPorContrato[c.id] = total;
+      linhaIdsPorContrato[c.id] = linhaIds;
+    }
+
+    // Busca todas as receitas realizadas do ano para esses contratos
+    const allLinhaIds = Object.values(linhaIdsPorContrato).flat();
+    const receitas = allLinhaIds.length > 0
+      ? await this.prisma.receitaMensal.findMany({
+          where: {
+            ano,
+            ativo: true,
+            linhaContratualId: { in: allLinhaIds },
+          },
+          select: {
+            mes: true,
+            linhaContratualId: true,
+            valorRealizado: true,
+          },
+        })
+      : [];
+
+    // Mapa linhaId → contratoId
+    const linhaToContrato: Record<string, string> = {};
+    for (const [contratoId, ids] of Object.entries(linhaIdsPorContrato)) {
+      for (const lid of ids) linhaToContrato[lid] = contratoId;
+    }
+
+    // Consumo mensal acumulado por contrato
+    const result = contratos.map((c) => {
+      const valorTotal = valorTotalPorContrato[c.id];
+      // Consumo por mês
+      const consumoPorMes = Array.from({ length: 12 }, () => 0);
+      for (const r of receitas) {
+        if (r.linhaContratualId && linhaToContrato[r.linhaContratualId] === c.id) {
+          consumoPorMes[r.mes - 1] += Number(r.valorRealizado || 0);
+        }
+      }
+
+      // Acumula para gerar saldo restante mês a mês
+      let acumulado = 0;
+      const meses = consumoPorMes.map((consumo, i) => {
+        acumulado += consumo;
+        return {
+          mes: i + 1,
+          label: this.nomesMeses[i],
+          consumoMes: Number(consumo.toFixed(2)),
+          consumoAcumulado: Number(acumulado.toFixed(2)),
+          saldoRestante: Number((valorTotal - acumulado).toFixed(2)),
+        };
+      });
+
+      return {
+        contratoId: c.id,
+        nomeContrato: c.nomeContrato,
+        cliente: c.cliente,
+        valorTotal: Number(valorTotal.toFixed(2)),
+        saldoAtual: Number(c.saldoContratual),
+        meses,
+      };
+    });
+
+    return { ano, contratos: result };
+  }
+
+  // =============================================================
+  // D: RELATÓRIO DE CONSUMO CONTRATUAL
+  // =============================================================
+
+  async getRelatorioConsumo(ano: number) {
+    const contratos = await this.prisma.contrato.findMany({
+      where: { ativo: true },
+      select: {
+        id: true,
+        nomeContrato: true,
+        cliente: true,
+        saldoContratual: true,
+        objetos: {
+          where: { ativo: true },
+          select: {
+            id: true,
+            nome: true,
+            linhasContratuais: {
+              where: { ativo: true },
+              select: {
+                id: true,
+                descricaoItem: true,
+                unidade: true,
+                quantidadeAnualEstimada: true,
+                valorUnitario: true,
+                valorTotalAnual: true,
+                saldoQuantidade: true,
+                saldoValor: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Receitas realizadas agrupadas por linhaContratualId
+    const allLinhaIds = contratos.flatMap((c) =>
+      c.objetos.flatMap((o) => o.linhasContratuais.map((l) => l.id)),
+    );
+    const receitas = allLinhaIds.length > 0
+      ? await this.prisma.receitaMensal.findMany({
+          where: {
+            ano,
+            ativo: true,
+            linhaContratualId: { in: allLinhaIds },
+          },
+          select: {
+            linhaContratualId: true,
+            quantidadeRealizada: true,
+            valorRealizado: true,
+            mes: true,
+          },
+        })
+      : [];
+
+    // Agrupa realizado por linha
+    const realizadoPorLinha: Record<string, { qtd: number; valor: number; mesesAtivos: number; ultimoMes: number }> = {};
+    for (const r of receitas) {
+      if (!r.linhaContratualId) continue;
+      if (!realizadoPorLinha[r.linhaContratualId]) {
+        realizadoPorLinha[r.linhaContratualId] = { qtd: 0, valor: 0, mesesAtivos: 0, ultimoMes: 0 };
+      }
+      const agg = realizadoPorLinha[r.linhaContratualId];
+      agg.qtd += Number(r.quantidadeRealizada || 0);
+      agg.valor += Number(r.valorRealizado || 0);
+      if (Number(r.valorRealizado || 0) > 0) agg.mesesAtivos++;
+      if (r.mes > agg.ultimoMes) agg.ultimoMes = r.mes;
+    }
+
+    const mesAtual = new Date().getMonth() + 1;
+
+    const linhas = contratos.flatMap((c) =>
+      c.objetos.flatMap((o) =>
+        o.linhasContratuais.map((l) => {
+          const valorTotal = Number(l.valorTotalAnual || 0);
+          const saldoValor = Number(l.saldoValor || 0);
+          const realizado = realizadoPorLinha[l.id] || { qtd: 0, valor: 0, mesesAtivos: 0, ultimoMes: 0 };
+          const consumido = valorTotal - saldoValor;
+          const pctConsumido = valorTotal > 0 ? (consumido / valorTotal) * 100 : 0;
+          // Velocidade média mensal de consumo
+          const velocidadeMediaMensal = realizado.mesesAtivos > 0
+            ? realizado.valor / realizado.mesesAtivos
+            : 0;
+          // Projeção de esgotamento (meses restantes a partir do mês atual)
+          const mesesRestantes = velocidadeMediaMensal > 0
+            ? saldoValor / velocidadeMediaMensal
+            : saldoValor > 0 ? 999 : 0;
+
+          return {
+            contrato: c.nomeContrato,
+            cliente: c.cliente,
+            objeto: o.nome,
+            descricaoItem: l.descricaoItem,
+            unidade: l.unidade,
+            qtdEstimada: Number(l.quantidadeAnualEstimada),
+            valorUnitario: Number(l.valorUnitario),
+            valorTotal: Number(valorTotal.toFixed(2)),
+            qtdRealizada: Number(realizado.qtd.toFixed(2)),
+            valorRealizado: Number(realizado.valor.toFixed(2)),
+            saldoQtd: Number(l.saldoQuantidade),
+            saldoValor: Number(saldoValor.toFixed(2)),
+            pctConsumido: Number(pctConsumido.toFixed(1)),
+            velocidadeMediaMensal: Number(velocidadeMediaMensal.toFixed(2)),
+            mesesParaEsgotar: mesesRestantes >= 999 ? null : Number(mesesRestantes.toFixed(1)),
+          };
+        }),
+      ),
+    );
+
+    return { ano, linhas };
+  }
+
+  async exportRelatorioConsumoCsv(ano: number) {
+    const data = await this.getRelatorioConsumo(ano);
+
+    const header = [
+      'Contrato', 'Cliente', 'Objeto', 'Item', 'Unidade',
+      'Qtd Estimada', 'Vlr Unitário', 'Vlr Total',
+      'Qtd Realizada', 'Vlr Realizado',
+      'Saldo Qtd', 'Saldo Valor',
+      '% Consumido', 'Velocidade Média/Mês', 'Meses p/ Esgotar',
+    ];
+
+    const escapeCsv = (value: unknown) => {
+      const normalized = String(value ?? '').replace(/"/g, '""');
+      return `"${normalized}"`;
+    };
+
+    const lines = [header.join(';')];
+    for (const l of data.linhas) {
+      lines.push(
+        [
+          l.contrato, l.cliente, l.objeto, l.descricaoItem, l.unidade,
+          l.qtdEstimada, l.valorUnitario, l.valorTotal,
+          l.qtdRealizada, l.valorRealizado,
+          l.saldoQtd, l.saldoValor,
+          l.pctConsumido, l.velocidadeMediaMensal,
+          l.mesesParaEsgotar ?? 'N/A',
+        ]
+          .map(escapeCsv)
+          .join(';'),
+      );
+    }
+
+    return lines.join('\n');
+  }
 }

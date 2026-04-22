@@ -443,12 +443,12 @@ export class ExcelReceitasParser {
           });
         }
 
-        if (Number.isNaN(quantidade) || quantidade <= 0) {
+        if (Number.isNaN(quantidade) || quantidade < 0) {
           rowErrors.push({
             linha: linhaNumero,
             coluna: 'quantidade',
             valor: quantidadeRaw,
-            motivo: 'quantidade deve ser maior que zero no modo contrato',
+            motivo: 'quantidade deve ser um número maior ou igual a zero no modo contrato',
             codigo: 'E014',
           });
         }

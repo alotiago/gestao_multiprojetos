@@ -83,6 +83,32 @@ export class DashboardController {
     return this.dashboardService.getCockpitData(anoNum);
   }
 
+  // ── Evolução de Saldo Contratual ──
+
+  @Get('evolucao-saldo')
+  @RequirePermissions(Permission.DASHBOARD_EXECUTIVE)
+  getEvolucaoSaldo(@Query('ano') ano?: string) {
+    const anoNum = ano ? parseInt(ano, 10) : new Date().getFullYear();
+    return this.dashboardService.getEvolucaoSaldo(anoNum);
+  }
+
+  // ── Relatório de Consumo Contratual ──
+
+  @Get('relatorio-consumo')
+  @RequirePermissions(Permission.DASHBOARD_FINANCIAL)
+  getRelatorioConsumo(@Query('ano') ano?: string) {
+    const anoNum = ano ? parseInt(ano, 10) : new Date().getFullYear();
+    return this.dashboardService.getRelatorioConsumo(anoNum);
+  }
+
+  @Get('relatorio-consumo/export/csv')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @RequirePermissions(Permission.DASHBOARD_FINANCIAL)
+  exportRelatorioConsumoCsv(@Query('ano') ano?: string) {
+    const anoNum = ano ? parseInt(ano, 10) : new Date().getFullYear();
+    return this.dashboardService.exportRelatorioConsumoCsv(anoNum);
+  }
+
   // ── Status Reports CRUD ──
 
   @Get('status-reports')

@@ -1,22 +1,62 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
+import {
+  clearLocalAutoLoginSuppression,
+  isLocalhost,
+  shouldSkipLocalAutoLogin,
+} from '@/services/localDev';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [autoLoginSuppressed, setAutoLoginSuppressed] = useState(false);
   const login = useAuthStore((state) => state.login);
+  const loginLocalDev = useAuthStore((state) => state.loginLocalDev);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const router = useRouter();
+
+  // Auto-login em ambiente local (localhost)
+  useEffect(() => {
+    const autoLoginLocal = async () => {
+      if (typeof window !== 'undefined' && isAuthenticated) {
+        router.push('/dashboard');
+        return;
+      }
+
+      if (isLocalhost() && shouldSkipLocalAutoLogin()) {
+        setAutoLoginSuppressed(true);
+        setLoading(false);
+        return;
+      }
+
+      if (isLocalhost() && !isAuthenticated) {
+        setLoading(true);
+        try {
+          clearLocalAutoLoginSuppression();
+          await login('admin@sistema.com', 'Admin123!');
+          router.push('/dashboard');
+        } catch {
+          clearLocalAutoLoginSuppression();
+          loginLocalDev();
+          router.push('/dashboard');
+        }
+      }
+    };
+
+    autoLoginLocal();
+  }, [isAuthenticated, login, loginLocalDev, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
+      clearLocalAutoLoginSuppression();
       await login(email, password);
       router.push('/dashboard');
     } catch {
@@ -24,6 +64,15 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLocalReentry = () => {
+    clearLocalAutoLoginSuppression();
+    setAutoLoginSuppressed(false);
+    setError('');
+    setLoading(true);
+    loginLocalDev();
+    router.push('/dashboard');
   };
 
   return (
@@ -88,6 +137,23 @@ export default function LoginPage() {
               Acesse com suas credenciais do sistema
             </p>
 
+            {isLocalhost() && autoLoginSuppressed && (
+              <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+                Sessão local encerrada. Se quiser voltar sem digitar credenciais, use a entrada local abaixo.
+              </div>
+            )}
+
+            {isLocalhost() && autoLoginSuppressed && (
+              <button
+                type="button"
+                onClick={handleLocalReentry}
+                disabled={loading}
+                className="mb-5 w-full rounded-xl border border-hw1-blue/20 bg-hw1-blue/5 py-3 text-sm font-semibold text-hw1-blue transition-all duration-200 disabled:opacity-60"
+              >
+                {loading ? 'Entrando...' : 'Entrar novamente em modo local'}
+              </button>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -144,7 +210,7 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <p className="mt-5 text-center text-xs text-gray-400">
+            <p className="mt-5 text-center text-xs text-gray-500">
               admin@sistema.com · Admin123!
             </p>
           </div>

@@ -7,8 +7,10 @@ APP_DIR="${APP_DIR:-/opt/gestor_multiprojetos}"
 DOMAIN="${DOMAIN:-gestaodeprojetos.oais.cloud}"
 if [[ "${DOMAIN}" == *"hml"* ]]; then
 	ENV_LABEL="homologacao"
+	PUBLIC_PROTOCOL="http"
 else
 	ENV_LABEL="producao"
+	PUBLIC_PROTOCOL="https"
 fi
 
 gen() { openssl rand -base64 48 | tr -d '\n/+=' | head -c 64; }
@@ -36,10 +38,10 @@ JWT_EXPIRATION=1h
 
 # URLs publicas (dominio do ambiente: ${ENV_LABEL})
 DOMAIN=${DOMAIN}
-FRONTEND_URL=https://${DOMAIN}
-BACKEND_URL=https://${DOMAIN}/api
-CORS_ORIGINS=https://${DOMAIN}
-NEXT_PUBLIC_API_URL=https://${DOMAIN}/api
+FRONTEND_URL=${PUBLIC_PROTOCOL}://${DOMAIN}
+BACKEND_URL=${PUBLIC_PROTOCOL}://${DOMAIN}/api
+CORS_ORIGINS=${PUBLIC_PROTOCOL}://${DOMAIN}
+NEXT_PUBLIC_API_URL=${PUBLIC_PROTOCOL}://${DOMAIN}/api
 
 # Configurações de Upload
 MAX_FILE_SIZE=52428800
